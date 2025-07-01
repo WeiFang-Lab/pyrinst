@@ -2,6 +2,37 @@
 
 
 
+## Prerequisites
+```
+python>=3.13
+numpy>=2.3.1
+scipy>=1.16.0
+matplotlib>=3.10.3
+```
+---
+
+# For developers
+
+
+
+## Architecture
+
+```
+project_name/
+│
+├── src/
+│   ├── core/               # path-integral, opt, (PES?)
+│   ├── utils/              # other functions
+│   ├── io/
+│   └── visualization/      # optional
+│
+├── tests/
+├── docs/
+├── data/                   # optional
+├── scripts/                # utils/ in Open Instanton
+├── requirements.txt
+```
+
 ## Getting started
 
 To make it easy for you to get started with GitLab, here's a list of recommended next steps.
