@@ -5,9 +5,9 @@
 ## Prerequisites
 ```
 python>=3.13
-numpy>=2.3.1
-scipy>=1.16.0
-matplotlib>=3.10.3
+numpy>=2.3
+scipy>=1.16
+matplotlib>=3.10
 ```
 ---
 
