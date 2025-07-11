@@ -20,6 +20,9 @@ matplotlib>=3.10
 ```
 project_name/
 │
+├── bin/
+│   ├── main.py
+│
 ├── src/
 │   ├── core/               # path-integral, opt, (PES?)
 │   ├── utils/              # other functions
