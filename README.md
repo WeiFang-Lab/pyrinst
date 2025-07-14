@@ -36,6 +36,45 @@ project_name/
 ├── requirements.txt
 ```
 
+## Numpy docstring style
+```
+def my_function(param1, param2):
+    """I am brief introduction texts. 
+
+    This are detailed explanations. 
+
+    Parameters
+    ----------
+    param1 : int
+        Descriptions for the first parameter. 
+    param2 : str
+        Descriptions for the second parameter.
+
+    Returns
+    -------
+    bool
+        Descriptions for the returns. 
+
+    Raises
+    ------
+    ValueError
+        Describes the circumstances under which this exception is thrown. 
+
+    See Also
+    --------
+    another_function : Another function related. 
+
+    Examples
+    --------
+    >>> my_function(1, "hello")
+    True
+    """
+
+    if not isinstance(param1, int) or not isinstance(param2, str):
+        raise ValueError("Wrong parameter type")
+    return True
+```
+
 ## Getting started
 
 To make it easy for you to get started with GitLab, here's a list of recommended next steps.
