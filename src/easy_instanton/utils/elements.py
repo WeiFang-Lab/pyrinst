@@ -23,13 +23,14 @@ class ElementData:
         self._aliases: Dict[str, Any] = {}
         try:
             self._load_data(data_path)
-        except (FileNotFoundError, ModuleNotFoundError):
+            print(self._elements)
+        except (FileNotFoundError, ModuleNotFoundError) as e:
             # This allows the instance to be created even if the package is not
             # installed, for cases where data is mocked later (like in our main block).
-            logger.warning(
-                "Could not load data file. The instance is created but will be"
-                " empty until data is loaded or mocked."
+            logger.error(
+                f"Could not load file {data_path}. The Element instance will not be created. "
             )
+            raise e
 
     def _load_data(self, data_path: str) -> None:
         """Loads and parses the atomic data from the specified JSON file."""
