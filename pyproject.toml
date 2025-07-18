@@ -1,0 +1,89 @@
+# ==============================================================================
+# Build system configuration
+# ==============================================================================
+# This section is standard and tells pip what tools are needed to build your project.
+[build-system]
+requires = [
+    "setuptools>=61.0",
+    "numpy>=2.0"  # NumPy (f2py) is needed. 
+]
+build-backend = "setuptools.build_meta"
+
+
+# ==============================================================================
+# Project metadata and configuration
+# ==============================================================================
+[project]
+# The name of your project on PyPI. Users will run `pip install $name`.
+name = "easy-instanton"
+
+# The SINGLE source of truth for this program's version.
+version = "0.1.0"
+
+# Your name and email.
+authors = [
+  { name="Wei Fang", email="wei_fang@fudan.edu.com" },
+]
+
+# A short, one-sentence description of your project.
+description = "A modern Python toolkit for instanton rate calculations. "
+
+# A longer description, read from your README.md file.
+readme = "README.md"
+
+# The Python versions your project supports.
+requires-python = ">=3.13"
+
+# The license for your project.
+license = { file="LICENSE" }
+
+# Keywords to help others find your project on PyPI.
+keywords = ["quantum chemistry", "instanton", "reaction rate", "scientific computing"]
+
+# Trove classifiers to categorize your project on PyPI.
+# Full list: https://pypi.org/classifiers/
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License", # Or another license like "Apache Software License"
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+# ==============================================================================
+# Project dependencies
+# ==============================================================================
+# These are the packages your project needs to run.
+dependencies = [
+    "numpy>=2.3",
+    "scipy>=1.16",
+    "matplotlib>=3.10",
+    "pyyaml>=6.0",  # For reading configuration files, e.g., input.yaml
+]
+
+# ==============================================================================
+# Project URLs
+# ==============================================================================
+# Links to your project's homepage, repository, etc.
+[project.urls]
+# "Homepage" = "https://github.com/your-username/easy-instanton"
+# "Bug Tracker" = "https://github.com/your-username/easy-instanton/issues"
+
+# ==============================================================================
+# Entry points (command-line scripts)
+# ==============================================================================
+# This section creates the command-line tools for your users.
+[project.scripts]
+# easy-instanton = "easy_instanton.cli:main"
+# easy-instanton-plot = "easy_instanton.tools.plot:main"
+# easy-instanton-convert = "easy_instanton.tools.convert:main"
+
+# ==============================================================================
+# Tool-specific configurations
+# ==============================================================================
+[tool.setuptools.packages.find]
+# Automatically find all packages in the 'src' directory.
+where = ["src"]
