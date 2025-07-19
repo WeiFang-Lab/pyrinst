@@ -10,12 +10,21 @@ from src.easy_instanton.core.pes.abc import PES
 
 class CustomPes(PES):
     def __init__(self):
-        self.A = np.array([-200, -100, -170, 15])
-        self.a = np.array([-1, -1, -6.5, 0.7])
-        self.b = np.array([0, 0, 11, 0.6])
-        self.c = np.array([-10, -10, -6.5, 0.7])
-        self.x0 = np.array([1, 0, -0.5, -1])
-        self.y0 = np.array([0, 0.5, 1.5, 1])
+        """
+        Müller-Brown potential.
+        Parameters are renamed as follows:
+            height: A
+            coeff_mat: [[a,   b/2],
+                        [b/2, c]]
+            x0: (x0, y0)
+        """
+        self.height = np.array([-200, -100, -170, 15])
+        self.coeff_mat = np.zeros((4, 2, 2))
+        self.coeff_mat[:, 0, 0] = np.array((-1, -1, -6.5, 0.7))
+        self.coeff_mat[:, 0, 1] = np.array((0, 0, 11, 0.6))
+        self.coeff_mat[:, 1, 1] = np.array((-10, -10, -6.5, 0.7))
+        self.coeff_mat = 0.5 * (self.coeff_mat + self.coeff_mat.transpose(0, 2, 1))
+        self.x0 = np.array(((1, 0), (0, 0.5), (-0.5, 1.5), (-1, 1)))
 
         self.min1 = [-0.55822363, 1.44172584]
         self.min2 = [-0.05001082, 0.4666941]
@@ -23,41 +32,28 @@ class CustomPes(PES):
         self.TS1 = [-0.82200249, 0.62431232]
         self.TS2 = [0.21248636, 0.29298824]
 
-        self.patches = []
-
         self.au2kcal = 627.509474063056
         # self.UNITS = units.hartAng()  todo
         # self.mass = np.array([1.00748, 1.00748]) / units.Mass(units.hartAng.mass).get('amu')
         self.atomlist = ['H', 'H']
 
     def potential(self, x: Sequence):
-        x, y = x
-        res = sum(self.A * np.exp(
-            self.a * (x - self.x0) ** 2 + self.b * (x - self.x0) * (y - self.y0) + self.c * (y - self.y0) ** 2))
-        return res / self.au2kcal
+        dx = x - self.x0
+        return np.sum(self.height * np.exp(np.einsum('ij,ijk,ik->i', dx, self.coeff_mat, dx))) / self.au2kcal
 
     def force(self, x):
-        x, y = x
-        force = np.zeros(2)
-        tmp = self.A * np.exp(
-            self.a * (x - self.x0) ** 2 + self.b * (x - self.x0) * (y - self.y0) + self.c * (y - self.y0) ** 2)
-        force[0] = - sum(tmp * (self.a * 2 * (x - self.x0) + self.b * (y - self.y0)))
-        force[1] = - sum(tmp * (self.c * 2 * (y - self.y0) + self.b * (x - self.x0)))
-        return force / self.au2kcal
+        return -self.gradient(x)
 
     def gradient(self, x):
-        return -self.force(x)
+        dx = x - self.x0
+        tmp = self.height * np.exp(np.einsum('ij,ijk,ik->i', dx, self.coeff_mat, dx))
+        return np.sum(tmp[:, None] * 2 * np.einsum('ijk,ik->ij', self.coeff_mat, dx), axis=0) / self.au2kcal
 
     def hessian(self, x):
-        x, y = x
-        res = np.zeros((2, 2))
-        tmp = self.A * np.exp(
-            self.a * (x - self.x0) ** 2 + self.b * (x - self.x0) * (y - self.y0) + self.c * (y - self.y0) ** 2)
-        res[0, 0] = sum(tmp * ((self.a * 2 * (x - self.x0) + self.b * (y - self.y0)) ** 2 + self.a * 2))
-        res[0, 1] = res[1, 0] = sum(tmp * (
-            (self.a * 2 * (x - self.x0) + self.b * (y - self.y0)) * (self.c * 2 * (y - self.y0) + self.b * (x - self.x0))
-            + self.b) * 2)
-        res[1, 1] = sum(tmp * ((self.c * 2 * (y - self.y0) + self.b * (x - self.x0)) ** 2 + self.c * 2))
+        dx = x - self.x0
+        tmp = self.height * np.exp(np.einsum('ij,ijk,ik->i', dx, self.coeff_mat, dx))
+        tmp_vec = 2 * np.einsum('ijk,ik->ij', self.coeff_mat, dx)
+        res = np.sum(tmp[:, None, None] * (np.einsum('ij,ik->ijk', tmp_vec, tmp_vec) + 2 * self.coeff_mat), axis=0)
         return res / self.au2kcal
 
     def plot(self, show_points=True):
