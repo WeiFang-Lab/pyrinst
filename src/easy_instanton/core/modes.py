@@ -1,4 +1,7 @@
+import pickle
 from abc import ABC
+
+import numpy as np
 from numpy.linalg import norm
 from numpy.typing import NDArray
 from src.easy_instanton.core.opt.hessian import bofill
@@ -30,6 +33,18 @@ class Data(ABC):
     def __str__(self):
         """used for optimization only"""
         return f'V = {self.pot:.5f}, |G| = {norm(self.grad):.5e}'
+
+    def output(self, prefix: str) -> None:
+        # todo: save traj, xyz
+        comment = f'V = {self.pot:.18f}' if self.pot is not None else ''
+        np.savetxt(prefix+'.txt', self.x, fmt='%15.8f', header=comment)
+
+    def final_output(self, prefix: str) -> None:
+        self.hess = self.pes.hessian(self.x)
+        self.output(prefix)
+        # todo: print freq
+        with open(prefix+'.pkl', 'wb') as f:
+            pickle.dump(self, f)
 
 
 class Minimum(Data):

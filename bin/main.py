@@ -3,6 +3,7 @@
 import argparse
 import os
 import pickle
+from functools import partial
 
 import numpy as np
 
@@ -47,4 +48,6 @@ if ext in {'.xyz', '.txt', '.pkl'}:
     args.output = prefix
 
 opt = optimizers.ModeFollowing(data.order, maxstep=args.maxstep, verbosity=args.verbosity)
-opt.search(data, gtol=args.gtol, maxiter=args.maxiter)  # todo: callback
+opt.search(data, gtol=args.gtol, maxiter=args.maxiter, callback=partial(type(data).output, prefix=args.output))
+
+data.final_output(args.output)
