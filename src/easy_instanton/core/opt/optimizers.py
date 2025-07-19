@@ -1,19 +1,20 @@
-from warnings import warn
+import logging
 import numpy as np
 from numpy.linalg import norm
 from scipy import linalg
+
+log = logging.getLogger(__name__)
 
 
 class NewtonRaphson:
     """Base class of all mode-following optimizers.
     The standard Newton-Raphson ignores argument order and just optimizes to any nearby stationary point.
     """
-    def __init__(self, maxstep=None, verbosity=0, project=None):
+    def __init__(self, maxstep=None, project=None):
         """
         verbosity -- controls messages
         """
         self.maxstep = maxstep
-        self.verbosity = verbosity
         self.project = project
 
     def scale(self, h):
@@ -32,8 +33,7 @@ class NewtonRaphson:
         h = self.scale(h)
         # take step
         data.move(h)
-        if self.verbosity > 0:
-            print(f'step ={norm(h):.5e}')
+        log.info(f'step ={norm(h):.5e}')
 
     def search(self, data, gtol=1e-5, maxiter=100, callback=None):
         """
@@ -48,8 +48,7 @@ class NewtonRaphson:
         n_digit = int(np.log10(maxiter)) + 1
 
         for i in range(maxiter):
-            if self.verbosity > 0:
-                print(f'iter {i:{n_digit}}: {data}', end=' ')
+            log.info(f'iter {i:{n_digit}}: {data}')
 
             # check for convergence
             if norm(data.grad) < gtol:
@@ -62,18 +61,15 @@ class NewtonRaphson:
             if callback:
                 callback(data)
 
-            if self.verbosity > 2:
-                print(f'new x = {data.x}')
-                print('new G', data.grad)
-            if self.verbosity > 3:
-                print('new H', data.hess)
+            log.debug(f'new x = {data.x}')
+            log.debug(f'new G = {data.grad}')
+            log.debug(f'new H = {data.hess}')
 
-        if not converged:
+        if converged:
+            log.info(message)
+        else:
             message = "WARNING: did not converge"
-            warn(message, RuntimeWarning)
-
-        if self.verbosity > 0:
-            print(message)
+            log.warning(message)
 
         data.xt = np.array(xt)
         data.converged = converged
@@ -81,8 +77,8 @@ class NewtonRaphson:
 
 class ModeFollowing(NewtonRaphson):
     """Following Wales, The Journal of Chemical Physics 101, 3750 (1994)"""
-    def __init__(self, order=1, maxstep=None, verbosity=0, project=None):
-        super().__init__(maxstep, verbosity, project)
+    def __init__(self, order=1, maxstep=None, project=None):
+        super().__init__(maxstep, project)
         self.order = order
 
     def step(self, f, b):
@@ -101,11 +97,10 @@ class ModeFollowing(NewtonRaphson):
         b, eig_vecs = linalg.eigh(hess)  # todo: banded
         n = sum(b[np.argpartition(abs(b), n_zero)[n_zero:]] < 0)  # number of negative eigenvalues
 
-        if self.verbosity > 0:
-            message = f'{n} -ve eigvals'
-            if self.project:
-                message += f' ({n_zero} zeros projected out)'
-            print(message)
+        message = f'{n} -ve eigvals'
+        if self.project:
+            message += f' ({n_zero} zeros projected out)'
+        log.info(message)
 
         f = np.dot(data.grad.ravel(), eig_vecs)  # f[i] is component of gradient along eigenvector[:,i]
         h = self.step(f, b)
@@ -114,8 +109,6 @@ class ModeFollowing(NewtonRaphson):
         h = np.dot(eig_vecs, h).reshape(data.x.shape)
         # take step
         data.move(h)
-        if self.verbosity > 0:
-            print(f'step = {norm(h):.5e}', end=' ')
-        if self.verbosity > 2:
-            print('\neigvals:', b)
+        log.info(f'step ={norm(h):.5e}')
+        log.debug(f'eigvals: {b}')
         return data

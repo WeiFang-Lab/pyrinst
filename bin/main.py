@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
 import os
 import pickle
 from functools import partial
 
 import numpy as np
 
-from src.easy_instanton.core.modes import Minimum
-from src.easy_instanton.core.opt import optimizers
+from easy_instanton.core.modes import Minimum
+from easy_instanton.core.opt import optimizers
+from easy_instanton.utils.logging_config import setup_logging
 
 parser = argparse.ArgumentParser()
 parser.add_argument('input', help='Initial guess for the optimization in xyz, txt, or pkl format.')
 parser.add_argument('-o', '--output', default='opt_geom', help='Final optimized geometry.')
-parser.add_argument('-v', '--verbosity', default=2, type=int, help='Verbosity level.')
+parser.add_argument('-v', '--verbose', type=bool, help='Verbosity level.')
 # todo: case-insensitive
 parser.add_argument('--phase', choices=('gas', 'liquid', 'solid'), default='gas', help='Phase of the system')
 parser.add_argument('-P', '--PES', choices=('custom',), help='Potential energy surface')
@@ -30,8 +32,11 @@ args = parser.parse_args()
 from custom_pes import CustomPes
 pes = CustomPes()
 
-# read input file
 prefix, ext = os.path.splitext(args.input)
+setup_logging(verbose=args.verbose, log_file=f'{prefix}.log', result_file=f'{prefix}.out')
+log = logging.getLogger()
+
+# read input file
 if ext == '.xyz':
     raise NotImplementedError  # todo: xyz module
 elif ext == '.txt':
@@ -41,7 +46,9 @@ elif ext == '.pkl':
     with open(args.input, 'rb') as f:
         data = pickle.load(f)
 else:
-    raise ValueError(f'Unknown file format: {args.input}')
+    msg = f'Unknown file format: {args.input}'
+    log.error(msg)
+    raise ValueError(msg)
 
 prefix, ext = os.path.splitext(args.output)
 if ext in {'.xyz', '.txt', '.pkl'}:
