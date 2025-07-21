@@ -2,31 +2,33 @@ import json
 import logging
 import re
 from importlib import resources
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union, Iterable
+
+import numpy as np
 
 # Get a module-level logger with the correct package name.
 logger = logging.getLogger(__name__)
 
 
 class ElementData:
-    """Handles loading and querying of atomic data for AIMD simulations.
+    """Handles loading and querying of atomic data for PyRInst.
 
     This class provides a simple interface to get atomic mass and atomic number
-    based on an element or isotope symbol (e.g., 'C', 'C13', 'D'). It is
-    designed to be instantiated once at the module level to create a shared,
-    efficient data provider.
+    based on an element or isotope symbol. When a generic element symbol is
+    given (e.g., 'C'), it automatically uses the mass of the most abundant
+    stable isotope.
     """
 
     def __init__(self, data_path: str = 'atomic_data.json') -> None:
         """Initializes the ElementData object by loading data from a JSON file."""
         self._elements: Dict[str, Any] = {}
         self._aliases: Dict[str, Any] = {}
+        # This new dictionary will store the most abundant isotope for each element.
+        self._default_isotopes: Dict[str, str] = {}
         try:
             self._load_data(data_path)
-            print(self._elements)
+            self._preprocess_data()  # Pre-calculate defaults after loading
         except (FileNotFoundError, ModuleNotFoundError) as e:
-            # This allows the instance to be created even if the package is not
-            # installed, for cases where data is mocked later (like in our main block).
             logger.error(
                 f"Could not load file {data_path}. The Element instance will not be created. "
             )
@@ -49,7 +51,7 @@ class ElementData:
                 "Could not find package 'easy_instanton.config'. "
                 "Is the package installed correctly?",
             )
-            raise e  # Re-raise the exception
+            raise e
 
         self._elements = data.get('elements', {})
         self._aliases = data.get('isotope_aliases', {})
@@ -58,6 +60,40 @@ class ElementData:
             len(self._elements),
             len(self._aliases),
         )
+    
+    def _preprocess_data(self) -> None:
+        """
+        Pre-processes the loaded data to find the most abundant isotope
+        for each element, which will be used as the default.
+        """
+        logger.info("Preprocessing data to determine default isotopes.")
+        
+        self._default_isotopes = {}
+
+        for symbol, data in self._elements.items():
+            isotopes = data.get('isotopes', {})
+            if not isotopes:
+                logger.warning("Element '%s' has no isotope data.", symbol)
+                continue
+
+            most_abundant_isotope = None
+            max_composition = -1.0
+
+            for mass_number, isotope_info in isotopes.items():
+                composition = isotope_info.get('composition', -1.0)
+                # We only consider isotopes with a valid, non-negative composition.
+                if composition > max_composition:
+                    max_composition = composition
+                    most_abundant_isotope = mass_number
+
+            if most_abundant_isotope:
+                self._default_isotopes[symbol] = most_abundant_isotope
+                logger.debug(
+                    "Default isotope for '%s' set to mass number '%s' "
+                    "(composition: %f).",
+                    symbol, most_abundant_isotope, max_composition
+                )
+        logger.debug("Atomic data preprocessing complete.")
     
     def _parse_symbol(self, symbol: str) -> Tuple[str, Optional[str]]:
         """Parses a symbol to determine the base element and mass number.
@@ -151,25 +187,27 @@ class ElementData:
         """
         element, mass_number = self._parse_symbol(symbol)
 
-        if mass_number:
-            # It's an isotope, get the isotope mass
-            try:
-                mass = self._elements[element]['isotopes'][mass_number]['mass']
-                logger.debug("Found isotope mass for '%s': %f", symbol, mass)
-                return mass
-            except KeyError:
-                logger.error(
-                    "Isotope for symbol '%s' (Element: %s, Mass Number: %s) not in database.",
-                    symbol,
-                    element,
-                    mass_number,
+        if mass_number is None:
+            if element not in self._default_isotopes:
+                raise KeyError(
+                    f"No default isotope could be determined for element '{element}'."
                 )
-                raise KeyError(f"Isotope '{symbol}' not found in the database.")
-        else:
-            # It's a generic element, get the conventional mass
-            mass = self._elements[element]['mass']
-            logger.debug("Found conventional mass for '%s': %f", symbol, mass)
+            mass_number = self._default_isotopes[element]
+            logger.debug(
+                "No isotope specified for '%s'; using most abundant: '%s'.",
+                element, mass_number
+            )
+
+        try:
+            mass = self._elements[element]['isotopes'][mass_number]['mass']
+            logger.debug("Found isotope mass for '%s-%s': %f", element, mass_number, mass)
             return mass
+        except KeyError:
+            logger.error(
+                "Isotope '%s-%s' for symbol '%s' not in database.",
+                element, mass_number, symbol
+            )
+            raise KeyError(f"Isotope '{symbol}' not found in the database.")
 
     def get_atomic_number(self, symbol: str) -> int:
         """Gets the atomic number for any valid symbol.
@@ -209,82 +247,112 @@ class ElementData:
         )
         return atomic_num
 
+    def get_base_symbol(self, symbol: str) -> str:
+        """Returns the base element symbol for any given isotope symbol.
+
+        This method normalizes an isotope-specific symbol (like 'D' or 'C13')
+        to its fundamental element symbol (like 'H' or 'C'). This is useful
+        for electronic structure calculations where only the element's identity
+        is needed, not its mass.
+
+        Parameters
+        ----------
+        symbol : str
+            The atomic or isotope symbol to look up (e.g., 'H', 'D', 'C13').
+
+        Returns
+        -------
+        str
+            The corresponding base element symbol (e.g., 'H', 'C').
+
+        Raises
+        ------
+        KeyError
+            If the symbol cannot be resolved to a known element.
+
+        Examples
+        --------
+        >>> from easy_instanton.utils.elements import element_data
+        >>> element_data.get_base_symbol('D')
+        'H'
+        >>> element_data.get_base_symbol('C13')
+        'C'
+        >>> element_data.get_base_symbol('H')
+        'H'
+        """
+        element, _ = self._parse_symbol(symbol)
+        logger.debug(
+            "Resolved symbol '%s' to base element '%s'", symbol, element
+        )
+        return element
+
+    def get_masses(self, symbols: Iterable[str]) -> np.ndarray:
+        """Gets atomic masses for a list or array of symbols.
+
+        This is a vectorized version of `get_mass` for efficient batch
+        processing.
+
+        Parameters
+        ----------
+        symbols : Iterable[str]
+            An iterable (e.g., list, tuple, or np.ndarray) of atomic symbols.
+
+        Returns
+        -------
+        np.ndarray
+            A NumPy array of atomic masses, with the same length as the input.
+
+        Examples
+        --------
+        >>> from easy_instanton.utils.elements import element_data
+        >>> symbols = ['C', 'D', 'C13']
+        >>> element_data.get_masses(symbols)
+        array([12.0, 2.014102, 13.003355])
+        """
+        # The `otypes` argument helps NumPy pre-allocate an array of the correct type.
+        vectorized_func = np.vectorize(self.get_mass, otypes=[float])
+        return vectorized_func(symbols)
+
+    def get_atomic_numbers(self, symbols: Iterable[str]) -> np.ndarray:
+        """Gets atomic numbers for a list or array of symbols.
+
+        This is a vectorized version of `get_atomic_number`.
+
+        Parameters
+        ----------
+        symbols : Iterable[str]
+            An iterable of atomic symbols.
+
+        Returns
+        -------
+        np.ndarray
+            A NumPy array of atomic numbers.
+        """
+        vectorized_func = np.vectorize(self.get_atomic_number, otypes=[int])
+        return vectorized_func(symbols)
+
+    def get_base_symbols(self, symbols: Iterable[str]) -> np.ndarray:
+        """Gets base element symbols for a list or array of symbols.
+
+        This is a vectorized version of `get_base_symbol`.
+
+        Parameters
+        ----------
+        symbols : Iterable[str]
+            An iterable of atomic or isotope symbols.
+
+        Returns
+        -------
+        np.ndarray
+            A NumPy array of base element symbols.
+        """
+        # For strings, it's common to specify the output type as object and
+        # then let NumPy infer the final string type, or use a specific
+        # string dtype like '<U2' (a 2-character unicode string).
+        vectorized_func = np.vectorize(self.get_base_symbol, otypes=[object])
+        return vectorized_func(symbols)
 
 # Create a single, shared instance of the class at the module level.
 # This will be executed only once when the module is first imported,
 # making it highly efficient.
 element_data = ElementData()
-
-if __name__ == '__main__':
-    # This block only runs when you execute `python elements.py` directly.
-
-    def setup_for_demonstration():
-        """
-        A helper to load mock data into the element_data instance.
-        This makes our script self-contained and runnable without a real JSON file.
-        """
-        print("--- Setting up mock data for demonstration ---")
-        mock_data = {
-            "elements": {
-                "H": {"atomicNumber": 1, "mass": 1.008, "isotopes": {
-                    "1": {"mass": 1.007825}, "2": {"mass": 2.014102}
-                }},
-                "C": {"atomicNumber": 6, "mass": 12.011, "isotopes": {
-                    "12": {"mass": 12.0}, "13": {"mass": 13.003355}
-                }}
-            },
-            "isotope_aliases": {"D": {"element": "H", "massNumber": 2}}
-        }
-        element_data._elements = mock_data['elements']
-        element_data._aliases = mock_data['isotope_aliases']
-
-    def demonstrate_mass_queries():
-        """Shows how to get different types of masses."""
-        print("\n--- Demonstrating Mass Queries ---")
-
-        symbol = 'C'
-        mass = element_data.get_mass(symbol)
-        print(f"Input: '{symbol}' -> Conventional Mass: {mass}")
-
-        symbol = 'D'
-        mass = element_data.get_mass(symbol)
-        print(f"Input: '{symbol}' -> Isotope Mass (from alias): {mass}")
-
-        symbol = 'C13'
-        mass = element_data.get_mass(symbol)
-        print(f"Input: '{symbol}' -> Isotope Mass (from pattern): {mass}")
-
-    def demonstrate_atomic_number_queries():
-        """Shows how to get atomic numbers."""
-        print("\n--- Demonstrating Atomic Number Queries ---")
-
-        symbol = 'C'
-        z = element_data.get_atomic_number(symbol)
-        print(f"Input: '{symbol}' -> Atomic Number: {z}")
-
-        symbol = 'D'
-        z = element_data.get_atomic_number(symbol)
-        print(f"Input: '{symbol}' -> Atomic Number: {z}")
-
-    def demonstrate_error_handling():
-        """Shows how the class handles invalid input."""
-        print("\n--- Demonstrating Error Handling ---")
-        invalid_symbol = 'Xyz'
-        print(f"Testing invalid symbol: '{invalid_symbol}'")
-        try:
-            element_data.get_mass(invalid_symbol)
-        except KeyError as e:
-            # The 'SUCCESS' here means we successfully caught the error we expected.
-            print(f"SUCCESS: Correctly caught expected error -> {e}")
-
-    def main():
-        """The main entry point for the demonstration."""
-        setup_for_demonstration()
-        print("\n>>> Starting simple demonstrations for ElementData <<<")
-        demonstrate_mass_queries()
-        demonstrate_atomic_number_queries()
-        demonstrate_error_handling()
-        print("\n>>> Demonstration Finished <<<")
-
-    # Run the main demonstration function
-    main()

@@ -1,802 +1,1191 @@
-{"elements": 
+{
+    "references":
+    {
+        "conventional_mass": "https://pubchem.ncbi.nlm.nih.gov/ptable/atomic-mass/",
+        "isotopic composition and mass": "https://www.nist.gov/pml/atomic-weights-and-isotopic-compositions-relative-atomic-masses"
+    },
+    "elements": 
     {
     "H": {
-    "atomicNumber": 1,
-    "mass": 1.008,
-    "isotopes": {
-        "mu": {"mass": 0.113977478 },
-        "1": { "mass": 1.00782503223 },
-        "2": { "mass": 2.01410177812 },
-        "3": { "mass": 3.0160492779 }
-    }
+      "name": "Hydrogen",
+      "atomicNumber": 1,
+      "mass": 1.008,
+      "isotopes": {
+        "mu": {"mass": 0.113977478, "composition": -1.0},
+        "1": {"mass": 1.00782503223, "composition": 0.999885},
+        "2": {"mass": 2.01410177812, "composition": 0.000115},
+        "3": {"mass": 3.0160492779, "composition": -1.0}
+      }
     },
     "He": {
-    "atomicNumber": 2,
-    "mass": 4.002602,
-    "isotopes": {
-        "3": { "mass": 3.0160293201 },
-        "4": { "mass": 4.00260325413 }
-    }
+      "name": "Helium",
+      "atomicNumber": 2,
+      "mass": 4.0026,
+      "isotopes": {
+        "3": {"mass": 3.0160293201, "composition": 1.34e-06},
+        "4": {"mass": 4.00260325413, "composition": 0.99999866}
+      }
     },
     "Li": {
-    "atomicNumber": 3,
-    "mass": 6.94,
-    "isotopes": {
-        "6": { "mass": 6.0151228874 },
-        "7": { "mass": 7.0160034366 }
-    }
+      "name": "Lithium",
+      "atomicNumber": 3,
+      "mass": 7.0,
+      "isotopes": {
+        "6": {"mass": 6.0151228874, "composition": 0.0759},
+        "7": {"mass": 7.0160034366, "composition": 0.9241}
+      }
     },
     "Be": {
-    "atomicNumber": 4,
-    "mass": 9.0121831,
-    "isotopes": {
-        "9": { "mass": 9.012183065 }
-    }
+      "name": "Beryllium",
+      "atomicNumber": 4,
+      "mass": 9.012183,
+      "isotopes": {
+        "9": {"mass": 9.012183065, "composition": 1.0}
+      }
     },
     "B": {
-    "atomicNumber": 5,
-    "mass": 10.81,
-    "isotopes": {
-        "10": { "mass": 10.01293695 },
-        "11": { "mass": 11.00930536 }
-    }
+      "name": "Boron",
+      "atomicNumber": 5,
+      "mass": 10.81,
+      "isotopes": {
+        "10": {"mass": 10.01293695, "composition": 0.199},
+        "11": {"mass": 11.00930536, "composition": 0.801}
+      }
     },
     "C": {
-    "atomicNumber": 6,
-    "mass": 12.011,
-    "isotopes": {
-        "12": { "mass": 12.0 },
-        "13": { "mass": 13.00335483507 },
-        "14": { "mass": 14.0032419884 }
-    }
+      "name": "Carbon",
+      "atomicNumber": 6,
+      "mass": 12.011,
+      "isotopes": {
+        "12": {"mass": 12.0, "composition": 0.9893},
+        "13": {"mass": 13.00335483507, "composition": 0.0107},
+        "14": {"mass": 14.0032419884, "composition": -1.0}
+      }
     },
     "N": {
-    "atomicNumber": 7,
-    "mass": 14.007,
-    "isotopes": {
-        "14": { "mass": 14.00307400443 },
-        "15": { "mass": 15.00010889888 }
-    }
+      "name": "Nitrogen",
+      "atomicNumber": 7,
+      "mass": 14.007,
+      "isotopes": {
+        "14": {"mass": 14.00307400443, "composition": 0.99636},
+        "15": {"mass": 15.00010889888, "composition": 0.00364}
+      }
     },
     "O": {
-    "atomicNumber": 8,
-    "mass": 15.999,
-    "isotopes": {
-        "16": { "mass": 15.99491461957 },
-        "17": { "mass": 16.9991317565 },
-        "18": { "mass": 17.99915961286 }
-    }
+      "name": "Oxygen",
+      "atomicNumber": 8,
+      "mass": 15.999,
+      "isotopes": {
+        "16": {"mass": 15.99491461957, "composition": 0.99757},
+        "17": {"mass": 16.9991317565, "composition": 0.00038},
+        "18": {"mass": 17.99915961286, "composition": 0.00205}
+      }
     },
     "F": {
-    "atomicNumber": 9,
-    "mass": 18.998403162,
-    "isotopes": {
-        "19": { "mass": 18.99840316273 }
-    }
+      "name": "Fluorine",
+      "atomicNumber": 9,
+      "mass": 18.99840316,
+      "isotopes": {
+        "19": {"mass": 18.99840316273, "composition": 1.0}
+      }
     },
     "Ne": {
-    "atomicNumber": 10,
-    "mass": 20.1797,
-    "isotopes": {
-        "20": { "mass": 19.9924401762 },
-        "21": { "mass": 20.993846685 },
-        "22": { "mass": 21.991385114 }
-    }
+      "name": "Neon",
+      "atomicNumber": 10,
+      "mass": 20.18,
+      "isotopes": {
+        "20": {"mass": 19.9924401762, "composition": 0.9048},
+        "21": {"mass": 20.993846685, "composition": 0.0027},
+        "22": {"mass": 21.991385114, "composition": 0.0925}
+      }
     },
     "Na": {
-    "atomicNumber": 11,
-    "mass": 22.98976928,
-    "isotopes": {
-        "23": { "mass": 22.989769282 }
-    }
+      "name": "Sodium",
+      "atomicNumber": 11,
+      "mass": 22.9897693,
+      "isotopes": {
+        "23": {"mass": 22.989769282, "composition": 1.0}
+      }
     },
     "Mg": {
-    "atomicNumber": 12,
-    "mass": 24.305,
-    "isotopes": {
-        "24": { "mass": 23.985041697 },
-        "25": { "mass": 24.985836976 },
-        "26": { "mass": 25.982592968 }
-    }
+      "name": "Magnesium",
+      "atomicNumber": 12,
+      "mass": 24.305,
+      "isotopes": {
+        "24": {"mass": 23.985041697, "composition": 0.7899},
+        "25": {"mass": 24.985836976, "composition": 0.1},
+        "26": {"mass": 25.982592968, "composition": 0.1101}
+      }
     },
     "Al": {
-    "atomicNumber": 13,
-    "mass": 26.9815384,
-    "isotopes": {
-        "27": { "mass": 26.98153853 }
-    }
+      "name": "Aluminum",
+      "atomicNumber": 13,
+      "mass": 26.981538,
+      "isotopes": {
+        "27": {"mass": 26.98153853, "composition": 1.0}
+      }
     },
     "Si": {
-    "atomicNumber": 14,
-    "mass": 28.085,
-    "isotopes": {
-        "28": { "mass": 27.97692653465 },
-        "29": { "mass": 28.9764946649 },
-        "30": { "mass": 29.973770136 }
-    }
+      "name": "Silicon",
+      "atomicNumber": 14,
+      "mass": 28.085,
+      "isotopes": {
+        "28": {"mass": 27.97692653465, "composition": 0.92223},
+        "29": {"mass": 28.9764946649, "composition": 0.04685},
+        "30": {"mass": 29.973770136, "composition": 0.03092}
+      }
     },
     "P": {
-    "atomicNumber": 15,
-    "mass": 30.973761998,
-    "isotopes": {
-        "31": { "mass": 30.97376199842 }
-    }
+      "name": "Phosphorus",
+      "atomicNumber": 15,
+      "mass": 30.973762,
+      "isotopes": {
+        "31": {"mass": 30.97376199842, "composition": 1.0}
+      }
     },
     "S": {
-    "atomicNumber": 16,
-    "mass": 32.06,
-    "isotopes": {
-        "32": { "mass": 31.9720711744 },
-        "33": { "mass": 32.9714589098 },
-        "34": { "mass": 33.967867004 },
-        "36": { "mass": 35.96708071 }
-    }
+      "name": "Sulfur",
+      "atomicNumber": 16,
+      "mass": 32.07,
+      "isotopes": {
+        "32": {"mass": 31.9720711744, "composition": 0.9499},
+        "33": {"mass": 32.9714589098, "composition": 0.0075},
+        "34": {"mass": 33.967867004, "composition": 0.0425},
+        "36": {"mass": 35.96708071, "composition": 0.0001}
+      }
     },
     "Cl": {
-    "atomicNumber": 17,
-    "mass": 35.45,
-    "isotopes": {
-        "35": { "mass": 34.968852682 },
-        "37": { "mass": 36.965902602 }
-    }
+      "name": "Chlorine",
+      "atomicNumber": 17,
+      "mass": 35.45,
+      "isotopes": {
+        "35": {"mass": 34.968852682, "composition": 0.7576},
+        "37": {"mass": 36.965902602, "composition": 0.2424}
+      }
     },
     "Ar": {
-    "atomicNumber": 18,
-    "mass": 39.95,
-    "isotopes": {
-        "36": { "mass": 35.967545105 },
-        "38": { "mass": 37.96273211 },
-        "40": { "mass": 39.9623831237 }
-    }
+      "name": "Argon",
+      "atomicNumber": 18,
+      "mass": 39.9,
+      "isotopes": {
+        "36": {"mass": 35.967545105, "composition": 0.003336},
+        "38": {"mass": 37.96273211, "composition": 0.000629},
+        "40": {"mass": 39.9623831237, "composition": 0.996035}
+      }
     },
     "K": {
-    "atomicNumber": 19,
-    "mass": 39.0983,
-    "isotopes": {
-        "39": { "mass": 38.9637064864 },
-        "40": { "mass": 39.963998166 },
-        "41": { "mass": 40.9618252579 }
-    }
+      "name": "Potassium",
+      "atomicNumber": 19,
+      "mass": 39.0983,
+      "isotopes": {
+        "39": {"mass": 38.9637064864, "composition": 0.932581},
+        "40": {"mass": 39.963998166, "composition": 0.000117},
+        "41": {"mass": 40.9618252579, "composition": 0.067302}
+      }
     },
     "Ca": {
-    "atomicNumber": 20,
-    "mass": 40.078,
-    "isotopes": {
-        "40": { "mass": 39.962590863 },
-        "42": { "mass": 41.95861783 },
-        "43": { "mass": 42.95876644 },
-        "44": { "mass": 43.95548156 },
-        "46": { "mass": 45.953689 },
-        "48": { "mass": 47.95252276 }
-    }
+      "name": "Calcium",
+      "atomicNumber": 20,
+      "mass": 40.08,
+      "isotopes": {
+        "40": {"mass": 39.962590863, "composition": 0.96941},
+        "42": {"mass": 41.95861783, "composition": 0.00647},
+        "43": {"mass": 42.95876644, "composition": 0.00135},
+        "44": {"mass": 43.95548156, "composition": 0.02086},
+        "46": {"mass": 45.953689, "composition": 4e-05},
+        "48": {"mass": 47.95252276, "composition": 0.00187}
+      }
     },
     "Sc": {
-    "atomicNumber": 21,
-    "mass": 44.955907,
-    "isotopes": {
-        "45": { "mass": 44.95590828 }
-    }
+      "name": "Scandium",
+      "atomicNumber": 21,
+      "mass": 44.95591,
+      "isotopes": {
+        "45": {"mass": 44.95590828, "composition": 1.0}
+      }
     },
     "Ti": {
-    "atomicNumber": 22,
-    "mass": 47.867,
-    "isotopes": {
-        "46": { "mass": 45.95262772 },
-        "47": { "mass": 46.95175879 },
-        "48": { "mass": 47.94794198 },
-        "49": { "mass": 48.94786568 },
-        "50": { "mass": 49.94478689 }
-    }
+      "name": "Titanium",
+      "atomicNumber": 22,
+      "mass": 47.867,
+      "isotopes": {
+        "46": {"mass": 45.95262772, "composition": 0.0825},
+        "47": {"mass": 46.95175879, "composition": 0.0744},
+        "48": {"mass": 47.94794198, "composition": 0.7372},
+        "49": {"mass": 48.94786568, "composition": 0.0541},
+        "50": {"mass": 49.94478689, "composition": 0.0518}
+      }
     },
     "V": {
-    "atomicNumber": 23,
-    "mass": 50.9415,
-    "isotopes": {
-        "50": { "mass": 49.94715601 },
-        "51": { "mass": 50.94395704 }
-    }
+      "name": "Vanadium",
+      "atomicNumber": 23,
+      "mass": 50.9415,
+      "isotopes": {
+        "50": {"mass": 49.94715601, "composition": 0.0025},
+        "51": {"mass": 50.94395704, "composition": 0.9975}
+      }
     },
     "Cr": {
-    "atomicNumber": 24,
-    "mass": 51.9961,
-    "isotopes": {
-        "50": { "mass": 49.94604183 },
-        "52": { "mass": 51.94050623 },
-        "53": { "mass": 52.94064815 },
-        "54": { "mass": 53.93887916 }
-    }
+      "name": "Chromium",
+      "atomicNumber": 24,
+      "mass": 51.996,
+      "isotopes": {
+        "50": {"mass": 49.94604183, "composition": 0.04345},
+        "52": {"mass": 51.94050623, "composition": 0.83789},
+        "53": {"mass": 52.94064815, "composition": 0.09501},
+        "54": {"mass": 53.93887916, "composition": 0.02365}
+      }
     },
     "Mn": {
-    "atomicNumber": 25,
-    "mass": 54.938043,
-    "isotopes": {
-        "55": { "mass": 54.93804391 }
-    }
+      "name": "Manganese",
+      "atomicNumber": 25,
+      "mass": 54.93804,
+      "isotopes": {
+        "55": {"mass": 54.93804391, "composition": 1.0}
+      }
     },
     "Fe": {
-    "atomicNumber": 26,
-    "mass": 55.845,
-    "isotopes": {
-        "54": { "mass": 53.93960899 },
-        "56": { "mass": 55.93493633 },
-        "57": { "mass": 56.93539284 },
-        "58": { "mass": 57.93327443 }
-    }
+      "name": "Iron",
+      "atomicNumber": 26,
+      "mass": 55.84,
+      "isotopes": {
+        "54": {"mass": 53.93960899, "composition": 0.05845},
+        "56": {"mass": 55.93493633, "composition": 0.91754},
+        "57": {"mass": 56.93539284, "composition": 0.02119},
+        "58": {"mass": 57.93327443, "composition": 0.00282}
+      }
     },
     "Co": {
-    "atomicNumber": 27,
-    "mass": 58.933194,
-    "isotopes": {
-        "59": { "mass": 58.93319429 }
-    }
+      "name": "Cobalt",
+      "atomicNumber": 27,
+      "mass": 58.93319,
+      "isotopes": {
+        "59": {"mass": 58.93319429, "composition": 1.0}
+      }
     },
     "Ni": {
-    "atomicNumber": 28,
-    "mass": 58.6934,
-    "isotopes": {
-        "58": { "mass": 57.93534241 },
-        "60": { "mass": 59.93078588 },
-        "61": { "mass": 60.93105557 },
-        "62": { "mass": 61.92834537 },
-        "64": { "mass": 63.92796682 }
-    }
+      "name": "Nickel",
+      "atomicNumber": 28,
+      "mass": 58.693,
+      "isotopes": {
+        "58": {"mass": 57.93534241, "composition": 0.68077},
+        "60": {"mass": 59.93078588, "composition": 0.26223},
+        "61": {"mass": 60.93105557, "composition": 0.011399},
+        "62": {"mass": 61.92834537, "composition": 0.036346},
+        "64": {"mass": 63.92796682, "composition": 0.009255}
+      }
     },
     "Cu": {
-    "atomicNumber": 29,
-    "mass": 63.546,
-    "isotopes": {
-        "63": { "mass": 62.92959772 },
-        "65": { "mass": 64.9277897 }
-    }
+      "name": "Copper",
+      "atomicNumber": 29,
+      "mass": 63.55,
+      "isotopes": {
+        "63": {"mass": 62.92959772, "composition": 0.6915},
+        "65": {"mass": 64.9277897, "composition": 0.3085}
+      }
     },
     "Zn": {
-    "atomicNumber": 30,
-    "mass": 65.38,
-    "isotopes": {
-        "64": { "mass": 63.92914201 },
-        "66": { "mass": 65.92603381 },
-        "67": { "mass": 66.92712775 },
-        "68": { "mass": 67.92484455 },
-        "70": { "mass": 69.9253192 }
-    }
+      "name": "Zinc",
+      "atomicNumber": 30,
+      "mass": 65.4,
+      "isotopes": {
+        "64": {"mass": 63.92914201, "composition": 0.4917},
+        "66": {"mass": 65.92603381, "composition": 0.2773},
+        "67": {"mass": 66.92712775, "composition": 0.0404},
+        "68": {"mass": 67.92484455, "composition": 0.1845},
+        "70": {"mass": 69.9253192, "composition": 0.0061}
+      }
     },
     "Ga": {
-    "atomicNumber": 31,
-    "mass": 69.723,
-    "isotopes": {
-        "69": { "mass": 68.9255735 },
-        "71": { "mass": 70.92470258 }
-    }
+      "name": "Gallium",
+      "atomicNumber": 31,
+      "mass": 69.723,
+      "isotopes": {
+        "69": {"mass": 68.9255735, "composition": 0.60108},
+        "71": {"mass": 70.92470258, "composition": 0.39892}
+      }
     },
     "Ge": {
-    "atomicNumber": 32,
-    "mass": 72.63,
-    "isotopes": {
-        "70": { "mass": 69.92424875 },
-        "72": { "mass": 71.922075826 },
-        "73": { "mass": 72.923458956 },
-        "74": { "mass": 73.921177761 },
-        "76": { "mass": 75.921402726 }
-    }
+      "name": "Germanium",
+      "atomicNumber": 32,
+      "mass": 72.63,
+      "isotopes": {
+        "70": {"mass": 69.92424875, "composition": 0.2057},
+        "72": {"mass": 71.922075826, "composition": 0.2745},
+        "73": {"mass": 72.923458956, "composition": 0.0775},
+        "74": {"mass": 73.921177761, "composition": 0.365},
+        "76": {"mass": 75.921402726, "composition": 0.0773}
+      }
     },
     "As": {
-    "atomicNumber": 33,
-    "mass": 74.921595,
-    "isotopes": {
-        "75": { "mass": 74.92159457 }
-    }
+      "name": "Arsenic",
+      "atomicNumber": 33,
+      "mass": 74.92159,
+      "isotopes": {
+        "75": {"mass": 74.92159457, "composition": 1.0}
+      }
     },
     "Se": {
-    "atomicNumber": 34,
-    "mass": 78.971,
-    "isotopes": {
-        "74": { "mass": 73.922475934 },
-        "76": { "mass": 75.919213704 },
-        "77": { "mass": 76.919914154 },
-        "78": { "mass": 77.91730928 },
-        "80": { "mass": 79.9165218 },
-        "82": { "mass": 81.9166995 }
-    }
+      "name": "Selenium",
+      "atomicNumber": 34,
+      "mass": 78.97,
+      "isotopes": {
+        "74": {"mass": 73.922475934, "composition": 0.0089},
+        "76": {"mass": 75.919213704, "composition": 0.0937},
+        "77": {"mass": 76.919914154, "composition": 0.0763},
+        "78": {"mass": 77.91730928, "composition": 0.2377},
+        "80": {"mass": 79.9165218, "composition": 0.4961},
+        "82": {"mass": 81.9166995, "composition": 0.0873}
+      }
     },
     "Br": {
-    "atomicNumber": 35,
-    "mass": 79.904,
-    "isotopes": {
-        "79": { "mass": 78.9183376 },
-        "81": { "mass": 80.9162897 }
-    }
+      "name": "Bromine",
+      "atomicNumber": 35,
+      "mass": 79.9,
+      "isotopes": {
+        "79": {"mass": 78.9183376, "composition": 0.5069},
+        "81": {"mass": 80.9162897, "composition": 0.4931}
+      }
     },
     "Kr": {
-    "atomicNumber": 36,
-    "mass": 83.798,
-    "isotopes": {
-        "78": { "mass": 77.92036494 },
-        "80": { "mass": 79.91637808 },
-        "82": { "mass": 81.91348273 },
-        "83": { "mass": 82.91412716 },
-        "84": { "mass": 83.9114977282 },
-        "86": { "mass": 85.9106106269 }
-    }
+      "name": "Krypton",
+      "atomicNumber": 36,
+      "mass": 83.8,
+      "isotopes": {
+        "78": {"mass": 77.92036494, "composition": 0.00355},
+        "80": {"mass": 79.91637808, "composition": 0.02286},
+        "82": {"mass": 81.91348273, "composition": 0.11593},
+        "83": {"mass": 82.91412716, "composition": 0.115},
+        "84": {"mass": 83.9114977282, "composition": 0.56987},
+        "86": {"mass": 85.9106106269, "composition": 0.17279}
+      }
     },
     "Rb": {
-    "atomicNumber": 37,
-    "mass": 85.4678,
-    "isotopes": {
-        "85": { "mass": 84.9117897379 },
-        "87": { "mass": 86.909180531 }
-    }
+      "name": "Rubidium",
+      "atomicNumber": 37,
+      "mass": 85.468,
+      "isotopes": {
+        "85": {"mass": 84.9117897379, "composition": 0.7217},
+        "87": {"mass": 86.909180531, "composition": 0.2783}
+      }
     },
     "Sr": {
-    "atomicNumber": 38,
-    "mass": 87.62,
-    "isotopes": {
-        "84": { "mass": 83.9134191 },
-        "86": { "mass": 85.9092606 },
-        "87": { "mass": 86.9088775 },
-        "88": { "mass": 87.9056125 }
-    }
+      "name": "Strontium",
+      "atomicNumber": 38,
+      "mass": 87.62,
+      "isotopes": {
+        "84": {"mass": 83.9134191, "composition": 0.0056},
+        "86": {"mass": 85.9092606, "composition": 0.0986},
+        "87": {"mass": 86.9088775, "composition": 0.07},
+        "88": {"mass": 87.9056125, "composition": 0.8258}
+      }
     },
     "Y": {
-    "atomicNumber": 39,
-    "mass": 88.905838,
-    "isotopes": {
-        "89": { "mass": 88.9058403 }
-    }
+      "name": "Yttrium",
+      "atomicNumber": 39,
+      "mass": 88.90584,
+      "isotopes": {
+        "89": {"mass": 88.9058403, "composition": 1.0}
+      }
     },
     "Zr": {
-    "atomicNumber": 40,
-    "mass": 91.222,
-    "isotopes": {
-        "90": { "mass": 89.9046977 },
-        "91": { "mass": 90.9056396 },
-        "92": { "mass": 91.9050347 },
-        "94": { "mass": 93.9063108 },
-        "96": { "mass": 95.9082714 }
-    }
+      "name": "Zirconium",
+      "atomicNumber": 40,
+      "mass": 91.22,
+      "isotopes": {
+        "90": {"mass": 89.9046977, "composition": 0.5145},
+        "91": {"mass": 90.9056396, "composition": 0.1122},
+        "92": {"mass": 91.9050347, "composition": 0.1715},
+        "94": {"mass": 93.9063108, "composition": 0.1738},
+        "96": {"mass": 95.9082714, "composition": 0.028}
+      }
     },
     "Nb": {
-    "atomicNumber": 41,
-    "mass": 92.90637,
-    "isotopes": {
-        "93": { "mass": 92.906373 }
-    }
+      "name": "Niobium",
+      "atomicNumber": 41,
+      "mass": 92.90637,
+      "isotopes": {
+        "93": {"mass": 92.906373, "composition": 1.0}
+      }
     },
     "Mo": {
-    "atomicNumber": 42,
-    "mass": 95.95,
-    "isotopes": {
-        "92": { "mass": 91.90680796 },
-        "94": { "mass": 93.9050849 },
-        "95": { "mass": 94.90583877 },
-        "96": { "mass": 95.90467612 },
-        "97": { "mass": 96.90601812 },
-        "98": { "mass": 97.90540482 },
-        "100": { "mass": 99.9074718 }
-    }
+      "name": "Molybdenum",
+      "atomicNumber": 42,
+      "mass": 95.95,
+      "isotopes": {
+        "92": {"mass": 91.90680796, "composition": 0.1453},
+        "94": {"mass": 93.9050849, "composition": 0.0915},
+        "95": {"mass": 94.90583877, "composition": 0.1584},
+        "96": {"mass": 95.90467612, "composition": 0.1667},
+        "97": {"mass": 96.90601812, "composition": 0.096},
+        "98": {"mass": 97.90540482, "composition": 0.2439},
+        "100": {"mass": 99.9074718, "composition": 0.0982}
+      }
+    },
+    "Tc": {
+      "name": "Technetium",
+      "atomicNumber": 43,
+      "mass": 96.90636,
+      "isotopes": {
+        "97": {"mass": 96.9063667, "composition": -1.0},
+        "98": {"mass": 97.9072124, "composition": -1.0},
+        "99": {"mass": 98.9062508, "composition": -1.0}
+      }
     },
     "Ru": {
-    "atomicNumber": 44,
-    "mass": 101.07,
-    "isotopes": {
-        "96": { "mass": 95.90759025 },
-        "98": { "mass": 97.9052868 },
-        "99": { "mass": 98.9059341 },
-        "100": { "mass": 99.9042143 },
-        "101": { "mass": 100.9055769 },
-        "102": { "mass": 101.9043441 },
-        "104": { "mass": 103.9054275 }
-    }
+      "name": "Ruthenium",
+      "atomicNumber": 44,
+      "mass": 101.1,
+      "isotopes": {
+        "96": {"mass": 95.90759025, "composition": 0.0554},
+        "98": {"mass": 97.9052868, "composition": 0.0187},
+        "99": {"mass": 98.9059341, "composition": 0.1276},
+        "100": {"mass": 99.9042143, "composition": 0.126},
+        "101": {"mass": 100.9055769, "composition": 0.1706},
+        "102": {"mass": 101.9043441, "composition": 0.3155},
+        "104": {"mass": 103.9054275, "composition": 0.1862}
+      }
     },
     "Rh": {
-    "atomicNumber": 45,
-    "mass": 102.90549,
-    "isotopes": {
-        "103": { "mass": 102.905498 }
-    }
+      "name": "Rhodium",
+      "atomicNumber": 45,
+      "mass": 102.9055,
+      "isotopes": {
+        "103": {"mass": 102.905498, "composition": 1.0}
+      }
     },
     "Pd": {
-    "atomicNumber": 46,
-    "mass": 106.42,
-    "isotopes": {
-        "102": { "mass": 101.9056022 },
-        "104": { "mass": 103.9040305 },
-        "105": { "mass": 104.9050796 },
-        "106": { "mass": 105.9034804 },
-        "108": { "mass": 107.9038916 },
-        "110": { "mass": 109.9051722 }
-    }
+      "name": "Palladium",
+      "atomicNumber": 46,
+      "mass": 106.42,
+      "isotopes": {
+        "102": {"mass": 101.9056022, "composition": 0.0102},
+        "104": {"mass": 103.9040305, "composition": 0.1114},
+        "105": {"mass": 104.9050796, "composition": 0.2233},
+        "106": {"mass": 105.9034804, "composition": 0.2733},
+        "108": {"mass": 107.9038916, "composition": 0.2646},
+        "110": {"mass": 109.9051722, "composition": 0.1172}
+      }
     },
     "Ag": {
-    "atomicNumber": 47,
-    "mass": 107.8682,
-    "isotopes": {
-        "107": { "mass": 106.9050916 },
-        "109": { "mass": 108.9047553 }
-    }
+      "name": "Silver",
+      "atomicNumber": 47,
+      "mass": 107.868,
+      "isotopes": {
+        "107": {"mass": 106.9050916, "composition": 0.51839},
+        "109": {"mass": 108.9047553, "composition": 0.48161}
+      }
     },
     "Cd": {
-    "atomicNumber": 48,
-    "mass": 112.414,
-    "isotopes": {
-        "106": { "mass": 105.9064599 },
-        "108": { "mass": 107.9041834 },
-        "110": { "mass": 109.90300661 },
-        "111": { "mass": 110.90418287 },
-        "112": { "mass": 111.90276287 },
-        "113": { "mass": 112.90440813 },
-        "114": { "mass": 113.90336509 },
-        "116": { "mass": 115.90476315 }
-    }
+      "name": "Cadmium",
+      "atomicNumber": 48,
+      "mass": 112.41,
+      "isotopes": {
+        "106": {"mass": 105.9064599, "composition": 0.0125},
+        "108": {"mass": 107.9041834, "composition": 0.0089},
+        "110": {"mass": 109.90300661, "composition": 0.1249},
+        "111": {"mass": 110.90418287, "composition": 0.128},
+        "112": {"mass": 111.90276287, "composition": 0.2413},
+        "113": {"mass": 112.90440813, "composition": 0.1222},
+        "114": {"mass": 113.90336509, "composition": 0.2873},
+        "116": {"mass": 115.90476315, "composition": 0.0749}
+      }
     },
     "In": {
-    "atomicNumber": 49,
-    "mass": 114.818,
-    "isotopes": {
-        "113": { "mass": 112.90406184 },
-        "115": { "mass": 114.903878776 }
-    }
+      "name": "Indium",
+      "atomicNumber": 49,
+      "mass": 114.818,
+      "isotopes": {
+        "113": {"mass": 112.90406184, "composition": 0.0429},
+        "115": {"mass": 114.903878776, "composition": 0.9571}
+      }
     },
     "Sn": {
-    "atomicNumber": 50,
-    "mass": 118.71,
-    "isotopes": {
-        "112": { "mass": 111.90482387 },
-        "114": { "mass": 113.9027827 },
-        "115": { "mass": 114.903344699 },
-        "116": { "mass": 115.9017428 },
-        "117": { "mass": 116.90295398 },
-        "118": { "mass": 117.90160657 },
-        "119": { "mass": 118.90331117 },
-        "120": { "mass": 119.90220163 },
-        "122": { "mass": 121.9034438 },
-        "124": { "mass": 123.9052766 }
-    }
+      "name": "Tin",
+      "atomicNumber": 50,
+      "mass": 118.71,
+      "isotopes": {
+        "112": {"mass": 111.90482387, "composition": 0.0097},
+        "114": {"mass": 113.9027827, "composition": 0.0066},
+        "115": {"mass": 114.903344699, "composition": 0.0034},
+        "116": {"mass": 115.9017428, "composition": 0.1454},
+        "117": {"mass": 116.90295398, "composition": 0.0768},
+        "118": {"mass": 117.90160657, "composition": 0.2422},
+        "119": {"mass": 118.90331117, "composition": 0.0859},
+        "120": {"mass": 119.90220163, "composition": 0.3258},
+        "122": {"mass": 121.9034438, "composition": 0.0463},
+        "124": {"mass": 123.9052766, "composition": 0.0579}
+      }
     },
     "Sb": {
-    "atomicNumber": 51,
-    "mass": 121.76,
-    "isotopes": {
-        "121": { "mass": 120.903812 },
-        "123": { "mass": 122.9042132 }
-    }
+      "name": "Antimony",
+      "atomicNumber": 51,
+      "mass": 121.76,
+      "isotopes": {
+        "121": {"mass": 120.903812, "composition": 0.5721},
+        "123": {"mass": 122.9042132, "composition": 0.4279}
+      }
     },
     "Te": {
-    "atomicNumber": 52,
-    "mass": 127.6,
-    "isotopes": {
-        "120": { "mass": 119.9040593 },
-        "122": { "mass": 121.9030435 },
-        "123": { "mass": 122.9042698 },
-        "124": { "mass": 123.9028171 },
-        "125": { "mass": 124.9044299 },
-        "126": { "mass": 125.9033109 },
-        "128": { "mass": 127.90446128 },
-        "130": { "mass": 129.906222748 }
-    }
+      "name": "Tellurium",
+      "atomicNumber": 52,
+      "mass": 127.6,
+      "isotopes": {
+        "120": {"mass": 119.9040593, "composition": 0.0009},
+        "122": {"mass": 121.9030435, "composition": 0.0255},
+        "123": {"mass": 122.9042698, "composition": 0.0089},
+        "124": {"mass": 123.9028171, "composition": 0.0474},
+        "125": {"mass": 124.9044299, "composition": 0.0707},
+        "126": {"mass": 125.9033109, "composition": 0.1884},
+        "128": {"mass": 127.90446128, "composition": 0.3174},
+        "130": {"mass": 129.906222748, "composition": 0.3408}
+      }
     },
     "I": {
-    "atomicNumber": 53,
-    "mass": 126.90447,
-    "isotopes": {
-        "127": { "mass": 126.9044719 }
-    }
+      "name": "Iodine",
+      "atomicNumber": 53,
+      "mass": 126.9045,
+      "isotopes": {
+        "127": {"mass": 126.9044719, "composition": 1.0}
+      }
     },
     "Xe": {
-    "atomicNumber": 54,
-    "mass": 131.293,
-    "isotopes": {
-        "124": { "mass": 123.905892 },
-        "126": { "mass": 125.9042983 },
-        "128": { "mass": 127.903531 },
-        "129": { "mass": 128.9047808611 },
-        "130": { "mass": 129.903509349 },
-        "131": { "mass": 130.90508406 },
-        "132": { "mass": 131.9041550856 },
-        "134": { "mass": 133.90539466 },
-        "136": { "mass": 135.907214484 }
-    }
+      "name": "Xenon",
+      "atomicNumber": 54,
+      "mass": 131.29,
+      "isotopes": {
+        "124": {"mass": 123.905892, "composition": 0.000952},
+        "126": {"mass": 125.9042983, "composition": 0.00089},
+        "128": {"mass": 127.903531, "composition": 0.019102},
+        "129": {"mass": 128.9047808611, "composition": 0.264006},
+        "130": {"mass": 129.903509349, "composition": 0.04071},
+        "131": {"mass": 130.90508406, "composition": 0.212324},
+        "132": {"mass": 131.9041550856, "composition": 0.269086},
+        "134": {"mass": 133.90539466, "composition": 0.104357},
+        "136": {"mass": 135.907214484, "composition": 0.088573}
+      }
     },
     "Cs": {
-    "atomicNumber": 55,
-    "mass": 132.90545196,
-    "isotopes": {
-        "133": { "mass": 132.905451961 }
-    }
+      "name": "Cesium",
+      "atomicNumber": 55,
+      "mass": 132.905452,
+      "isotopes": {
+        "133": {"mass": 132.905451961, "composition": 1.0}
+      }
     },
     "Ba": {
-    "atomicNumber": 56,
-    "mass": 137.327,
-    "isotopes": {
-        "130": { "mass": 129.9063207 },
-        "132": { "mass": 131.9050611 },
-        "134": { "mass": 133.90450818 },
-        "135": { "mass": 134.90568838 },
-        "136": { "mass": 135.90457573 },
-        "137": { "mass": 136.90582714 },
-        "138": { "mass": 137.905247 }
-    }
+      "name": "Barium",
+      "atomicNumber": 56,
+      "mass": 137.33,
+      "isotopes": {
+        "130": {"mass": 129.9063207, "composition": 0.00106},
+        "132": {"mass": 131.9050611, "composition": 0.00101},
+        "134": {"mass": 133.90450818, "composition": 0.02417},
+        "135": {"mass": 134.90568838, "composition": 0.06592},
+        "136": {"mass": 135.90457573, "composition": 0.07854},
+        "137": {"mass": 136.90582714, "composition": 0.11232},
+        "138": {"mass": 137.905247, "composition": 0.71698}
+      }
     },
     "La": {
-    "atomicNumber": 57,
-    "mass": 138.90547,
-    "isotopes": {
-        "138": { "mass": 137.9071149 },
-        "139": { "mass": 138.9063563 }
-    }
+      "name": "Lanthanum",
+      "atomicNumber": 57,
+      "mass": 138.9055,
+      "isotopes": {
+        "138": {"mass": 137.9071149, "composition": 0.0008881},
+        "139": {"mass": 138.9063563, "composition": 0.9991119}
+      }
     },
     "Ce": {
-    "atomicNumber": 58,
-    "mass": 140.116,
-    "isotopes": {
-        "136": { "mass": 135.90712921 },
-        "138": { "mass": 137.905991 },
-        "140": { "mass": 139.9054431 },
-        "142": { "mass": 141.9092504 }
-    }
+      "name": "Cerium",
+      "atomicNumber": 58,
+      "mass": 140.116,
+      "isotopes": {
+        "136": {"mass": 135.90712921, "composition": 0.00185},
+        "138": {"mass": 137.905991, "composition": 0.00251},
+        "140": {"mass": 139.9054431, "composition": 0.8845},
+        "142": {"mass": 141.9092504, "composition": 0.11114}
+      }
     },
     "Pr": {
-    "atomicNumber": 59,
-    "mass": 140.90766,
-    "isotopes": {
-        "141": { "mass": 140.9076576 }
-    }
+      "name": "Praseodymium",
+      "atomicNumber": 59,
+      "mass": 140.90766,
+      "isotopes": {
+        "141": {"mass": 140.9076576, "composition": 1.0}
+      }
     },
     "Nd": {
-    "atomicNumber": 60,
-    "mass": 144.242,
-    "isotopes": {
-        "142": { "mass": 141.907729 },
-        "143": { "mass": 142.90982 },
-        "144": { "mass": 143.910093 },
-        "145": { "mass": 144.9125793 },
-        "146": { "mass": 145.9131226 },
-        "148": { "mass": 147.9168993 },
-        "150": { "mass": 149.9209022 }
-    }
+      "name": "Neodymium",
+      "atomicNumber": 60,
+      "mass": 144.24,
+      "isotopes": {
+        "142": {"mass": 141.907729, "composition": 0.27152},
+        "143": {"mass": 142.90982, "composition": 0.12174},
+        "144": {"mass": 143.910093, "composition": 0.23798},
+        "145": {"mass": 144.9125793, "composition": 0.08293},
+        "146": {"mass": 145.9131226, "composition": 0.17189},
+        "148": {"mass": 147.9168993, "composition": 0.05756},
+        "150": {"mass": 149.9209022, "composition": 0.05638}
+      }
+    },
+    "Pm": {
+      "name": "Promethium",
+      "atomicNumber": 61,
+      "mass": 144.91276,
+      "isotopes": {
+        "145": {"mass": 144.9127559, "composition": -1.0},
+        "147": {"mass": 146.915145, "composition": -1.0}
+      }
     },
     "Sm": {
-    "atomicNumber": 62,
-    "mass": 150.36,
-    "isotopes": {
-        "144": { "mass": 143.9120065 },
-        "147": { "mass": 146.9149044 },
-        "148": { "mass": 147.9148292 },
-        "149": { "mass": 148.9171921 },
-        "150": { "mass": 149.9172829 },
-        "152": { "mass": 151.9197397 },
-        "154": { "mass": 153.9222169 }
-    }
+      "name": "Samarium",
+      "atomicNumber": 62,
+      "mass": 150.4,
+      "isotopes": {
+        "144": {"mass": 143.9120065, "composition": 0.0307},
+        "147": {"mass": 146.9149044, "composition": 0.1499},
+        "148": {"mass": 147.9148292, "composition": 0.1124},
+        "149": {"mass": 148.9171921, "composition": 0.1382},
+        "150": {"mass": 149.9172829, "composition": 0.0738},
+        "152": {"mass": 151.9197397, "composition": 0.2675},
+        "154": {"mass": 153.9222169, "composition": 0.2275}
+      }
     },
     "Eu": {
-    "atomicNumber": 63,
-    "mass": 151.964,
-    "isotopes": {
-        "151": { "mass": 150.9198578 },
-        "153": { "mass": 152.921238 }
-    }
+      "name": "Europium",
+      "atomicNumber": 63,
+      "mass": 151.964,
+      "isotopes": {
+        "151": {"mass": 150.9198578, "composition": 0.4781},
+        "153": {"mass": 152.921238, "composition": 0.5219}
+      }
     },
     "Gd": {
-    "atomicNumber": 64,
-    "mass": 157.249,
-    "isotopes": {
-        "152": { "mass": 151.9197995 },
-        "154": { "mass": 153.9208741 },
-        "155": { "mass": 154.9226305 },
-        "156": { "mass": 155.9221312 },
-        "157": { "mass": 156.9239686 },
-        "158": { "mass": 157.9241123 },
-        "160": { "mass": 159.9270624 }
-    }
+      "name": "Gadolinium",
+      "atomicNumber": 64,
+      "mass": 157.25,
+      "isotopes": {
+        "152": {"mass": 151.9197995, "composition": 0.002},
+        "154": {"mass": 153.9208741, "composition": 0.0218},
+        "155": {"mass": 154.9226305, "composition": 0.148},
+        "156": {"mass": 155.9221312, "composition": 0.2047},
+        "157": {"mass": 156.9239686, "composition": 0.1565},
+        "158": {"mass": 157.9241123, "composition": 0.2484},
+        "160": {"mass": 159.9270624, "composition": 0.2186}
+      }
     },
     "Tb": {
-    "atomicNumber": 65,
-    "mass": 158.925354,
-    "isotopes": {
-        "159": { "mass": 158.9253547 }
-    }
+      "name": "Terbium",
+      "atomicNumber": 65,
+      "mass": 158.92535,
+      "isotopes": {
+        "159": {"mass": 158.9253547, "composition": 1.0}
+      }
     },
     "Dy": {
-    "atomicNumber": 66,
-    "mass": 162.5,
-    "isotopes": {
-        "156": { "mass": 155.9242847 },
-        "158": { "mass": 157.9244159 },
-        "160": { "mass": 159.9252046 },
-        "161": { "mass": 160.9269405 },
-        "162": { "mass": 161.9268056 },
-        "163": { "mass": 162.9287383 },
-        "164": { "mass": 163.9291819 }
-    }
+      "name": "Dysprosium",
+      "atomicNumber": 66,
+      "mass": 162.5,
+      "isotopes": {
+        "156": {"mass": 155.9242847, "composition": 0.00056},
+        "158": {"mass": 157.9244159, "composition": 0.00095},
+        "160": {"mass": 159.9252046, "composition": 0.02329},
+        "161": {"mass": 160.9269405, "composition": 0.18889},
+        "162": {"mass": 161.9268056, "composition": 0.25475},
+        "163": {"mass": 162.9287383, "composition": 0.24896},
+        "164": {"mass": 163.9291819, "composition": 0.2826}
+      }
     },
     "Ho": {
-    "atomicNumber": 67,
-    "mass": 164.930329,
-    "isotopes": {
-        "165": { "mass": 164.9303288 }
-    }
+      "name": "Holmium",
+      "atomicNumber": 67,
+      "mass": 164.93033,
+      "isotopes": {
+        "165": {"mass": 164.9303288, "composition": 1.0}
+      }
     },
     "Er": {
-    "atomicNumber": 68,
-    "mass": 167.259,
-    "isotopes": {
-        "162": { "mass": 161.9287884 },
-        "164": { "mass": 163.9292088 },
-        "166": { "mass": 165.9302995 },
-        "167": { "mass": 166.9320546 },
-        "168": { "mass": 167.9323767 },
-        "170": { "mass": 169.9354702 }
-    }
+      "name": "Erbium",
+      "atomicNumber": 68,
+      "mass": 167.26,
+      "isotopes": {
+        "162": {"mass": 161.9287884, "composition": 0.00139},
+        "164": {"mass": 163.9292088, "composition": 0.01601},
+        "166": {"mass": 165.9302995, "composition": 0.33503},
+        "167": {"mass": 166.9320546, "composition": 0.22869},
+        "168": {"mass": 167.9323767, "composition": 0.26978},
+        "170": {"mass": 169.9354702, "composition": 0.1491}
+      }
     },
     "Tm": {
-    "atomicNumber": 69,
-    "mass": 168.934219,
-    "isotopes": {
-        "169": { "mass": 168.9342179 }
-    }
+      "name": "Thulium",
+      "atomicNumber": 69,
+      "mass": 168.93422,
+      "isotopes": {
+        "169": {"mass": 168.9342179, "composition": 1.0}
+      }
     },
     "Yb": {
-    "atomicNumber": 70,
-    "mass": 173.045,
-    "isotopes": {
-        "168": { "mass": 167.9338896 },
-        "170": { "mass": 169.9347664 },
-        "171": { "mass": 170.9363302 },
-        "172": { "mass": 171.9363859 },
-        "173": { "mass": 172.9382151 },
-        "174": { "mass": 173.9388664 },
-        "176": { "mass": 175.9425764 }
-    }
+      "name": "Ytterbium",
+      "atomicNumber": 70,
+      "mass": 173.05,
+      "isotopes": {
+        "168": {"mass": 167.9338896, "composition": 0.00123},
+        "170": {"mass": 169.9347664, "composition": 0.02982},
+        "171": {"mass": 170.9363302, "composition": 0.1409},
+        "172": {"mass": 171.9363859, "composition": 0.2168},
+        "173": {"mass": 172.9382151, "composition": 0.16103},
+        "174": {"mass": 173.9388664, "composition": 0.32026},
+        "176": {"mass": 175.9425764, "composition": 0.12996}
+      }
     },
     "Lu": {
-    "atomicNumber": 71,
-    "mass": 174.96669,
-    "isotopes": {
-        "175": { "mass": 174.9407752 },
-        "176": { "mass": 175.9426897 }
-    }
+      "name": "Lutetium",
+      "atomicNumber": 71,
+      "mass": 174.9667,
+      "isotopes": {
+        "175": {"mass": 174.9407752, "composition": 0.97401},
+        "176": {"mass": 175.9426897, "composition": 0.02599}
+      }
     },
     "Hf": {
-    "atomicNumber": 72,
-    "mass": 178.486,
-    "isotopes": {
-        "174": { "mass": 173.9400461 },
-        "176": { "mass": 175.9414076 },
-        "177": { "mass": 176.9432277 },
-        "178": { "mass": 177.9437058 },
-        "179": { "mass": 178.9458232 },
-        "180": { "mass": 179.946557 }
-    }
+      "name": "Hafnium",
+      "atomicNumber": 72,
+      "mass": 178.49,
+      "isotopes": {
+        "174": {"mass": 173.9400461, "composition": 0.0016},
+        "176": {"mass": 175.9414076, "composition": 0.0526},
+        "177": {"mass": 176.9432277, "composition": 0.186},
+        "178": {"mass": 177.9437058, "composition": 0.2728},
+        "179": {"mass": 178.9458232, "composition": 0.1362},
+        "180": {"mass": 179.946557, "composition": 0.3508}
+      }
     },
     "Ta": {
-    "atomicNumber": 73,
-    "mass": 180.94788,
-    "isotopes": {
-        "180": { "mass": 179.9474648 },
-        "181": { "mass": 180.9479958 }
-    }
+      "name": "Tantalum",
+      "atomicNumber": 73,
+      "mass": 180.9479,
+      "isotopes": {
+        "180": {"mass": 179.9474648, "composition": 0.0001201},
+        "181": {"mass": 180.9479958, "composition": 0.9998799}
+      }
     },
     "W": {
-    "atomicNumber": 74,
-    "mass": 183.84,
-    "isotopes": {
-        "180": { "mass": 179.9467108 },
-        "182": { "mass": 181.94820394 },
-        "183": { "mass": 182.95022275 },
-        "184": { "mass": 183.95093092 },
-        "186": { "mass": 185.9543628 }
-    }
+      "name": "Tungsten",
+      "atomicNumber": 74,
+      "mass": 183.84,
+      "isotopes": {
+        "180": {"mass": 179.9467108, "composition": 0.0012},
+        "182": {"mass": 181.94820394, "composition": 0.265},
+        "183": {"mass": 182.95022275, "composition": 0.1431},
+        "184": {"mass": 183.95093092, "composition": 0.3064},
+        "186": {"mass": 185.9543628, "composition": 0.2843}
+      }
     },
     "Re": {
-    "atomicNumber": 75,
-    "mass": 186.207,
-    "isotopes": {
-        "185": { "mass": 184.9529545 },
-        "187": { "mass": 186.9557501 }
-    }
+      "name": "Rhenium",
+      "atomicNumber": 75,
+      "mass": 186.207,
+      "isotopes": {
+        "185": {"mass": 184.9529545, "composition": 0.374},
+        "187": {"mass": 186.9557501, "composition": 0.626}
+      }
     },
     "Os": {
-    "atomicNumber": 76,
-    "mass": 190.23,
-    "isotopes": {
-        "184": { "mass": 183.9524885 },
-        "186": { "mass": 185.953835 },
-        "187": { "mass": 186.9557474 },
-        "188": { "mass": 187.9558352 },
-        "189": { "mass": 188.9581442 },
-        "190": { "mass": 189.9584437 },
-        "192": { "mass": 191.961477 }
-    }
+      "name": "Osmium",
+      "atomicNumber": 76,
+      "mass": 190.2,
+      "isotopes": {
+        "184": {"mass": 183.9524885, "composition": 0.0002},
+        "186": {"mass": 185.953835, "composition": 0.0159},
+        "187": {"mass": 186.9557474, "composition": 0.0196},
+        "188": {"mass": 187.9558352, "composition": 0.1324},
+        "189": {"mass": 188.9581442, "composition": 0.1615},
+        "190": {"mass": 189.9584437, "composition": 0.2626},
+        "192": {"mass": 191.961477, "composition": 0.4078}
+      }
     },
     "Ir": {
-    "atomicNumber": 77,
-    "mass": 192.217,
-    "isotopes": {
-        "191": { "mass": 190.9605893 },
-        "193": { "mass": 192.9629216 }
-    }
+      "name": "Iridium",
+      "atomicNumber": 77,
+      "mass": 192.22,
+      "isotopes": {
+        "191": {"mass": 190.9605893, "composition": 0.373},
+        "193": {"mass": 192.9629216, "composition": 0.627}
+      }
     },
     "Pt": {
-    "atomicNumber": 78,
-    "mass": 195.084,
-    "isotopes": {
-        "190": { "mass": 189.9599297 },
-        "192": { "mass": 191.9610387 },
-        "194": { "mass": 193.9626809 },
-        "195": { "mass": 194.9647917 },
-        "196": { "mass": 195.96495209 },
-        "198": { "mass": 197.9678949 }
-    }
+      "name": "Platinum",
+      "atomicNumber": 78,
+      "mass": 195.08,
+      "isotopes": {
+        "190": {"mass": 189.9599297, "composition": 0.00012},
+        "192": {"mass": 191.9610387, "composition": 0.00782},
+        "194": {"mass": 193.9626809, "composition": 0.3286},
+        "195": {"mass": 194.9647917, "composition": 0.3378},
+        "196": {"mass": 195.96495209, "composition": 0.2521},
+        "198": {"mass": 197.9678949, "composition": 0.07356}
+      }
     },
     "Au": {
-    "atomicNumber": 79,
-    "mass": 196.96657,
-    "isotopes": {
-        "197": { "mass": 196.96656879 }
-    }
+      "name": "Gold",
+      "atomicNumber": 79,
+      "mass": 196.96657,
+      "isotopes": {
+        "197": {"mass": 196.96656879, "composition": 1.0}
+      }
     },
     "Hg": {
-    "atomicNumber": 80,
-    "mass": 200.592,
-    "isotopes": {
-        "196": { "mass": 195.9658326 },
-        "198": { "mass": 197.9667686 },
-        "199": { "mass": 198.96828064 },
-        "200": { "mass": 199.96832659 },
-        "201": { "mass": 200.97030284 },
-        "202": { "mass": 201.9706434 },
-        "204": { "mass": 203.97349398 }
-    }
+      "name": "Mercury",
+      "atomicNumber": 80,
+      "mass": 200.59,
+      "isotopes": {
+        "196": {"mass": 195.9658326, "composition": 0.0015},
+        "198": {"mass": 197.9667686, "composition": 0.0997},
+        "199": {"mass": 198.96828064, "composition": 0.1687},
+        "200": {"mass": 199.96832659, "composition": 0.231},
+        "201": {"mass": 200.97030284, "composition": 0.1318},
+        "202": {"mass": 201.9706434, "composition": 0.2986},
+        "204": {"mass": 203.97349398, "composition": 0.0687}
+      }
     },
     "Tl": {
-    "atomicNumber": 81,
-    "mass": 204.38,
-    "isotopes": {
-        "203": { "mass": 202.9723446 },
-        "205": { "mass": 204.9744278 }
-    }
+      "name": "Thallium",
+      "atomicNumber": 81,
+      "mass": 204.383,
+      "isotopes": {
+        "203": {"mass": 202.9723446, "composition": 0.2952},
+        "205": {"mass": 204.9744278, "composition": 0.7048}
+      }
     },
     "Pb": {
-    "atomicNumber": 82,
-    "mass": 207.2,
-    "isotopes": {
-        "204": { "mass": 203.973044 },
-        "206": { "mass": 205.9744657 },
-        "207": { "mass": 206.9758973 },
-        "208": { "mass": 207.9766525 }
-    }
+      "name": "Lead",
+      "atomicNumber": 82,
+      "mass": 207.0,
+      "isotopes": {
+        "204": {"mass": 203.973044, "composition": 0.014},
+        "206": {"mass": 205.9744657, "composition": 0.241},
+        "207": {"mass": 206.9758973, "composition": 0.221},
+        "208": {"mass": 207.9766525, "composition": 0.524}
+      }
     },
     "Bi": {
-    "atomicNumber": 83,
-    "mass": 208.9804,
-    "isotopes": {
-        "209": { "mass": 208.9803991 }
-    }
+      "name": "Bismuth",
+      "atomicNumber": 83,
+      "mass": 208.9804,
+      "isotopes": {
+        "209": {"mass": 208.9803991, "composition": 1.0}
+      }
+    },
+    "Po": {
+      "name": "Polonium",
+      "atomicNumber": 84,
+      "mass": 208.98243,
+      "isotopes": {
+        "209": {"mass": 208.9824308, "composition": -1.0},
+        "210": {"mass": 209.9828741, "composition": -1.0}
+      }
+    },
+    "At": {
+      "name": "Astatine",
+      "atomicNumber": 85,
+      "mass": 209.98715,
+      "isotopes": {
+        "210": {"mass": 209.9871479, "composition": -1.0},
+        "211": {"mass": 210.9874966, "composition": -1.0}
+      }
+    },
+    "Rn": {
+      "name": "Radon",
+      "atomicNumber": 86,
+      "mass": 222.01758,
+      "isotopes": {
+        "211": {"mass": 210.9906011, "composition": -1.0},
+        "220": {"mass": 220.0113941, "composition": -1.0},
+        "222": {"mass": 222.0175782, "composition": -1.0}
+      }
+    },
+    "Fr": {
+      "name": "Francium",
+      "atomicNumber": 87,
+      "mass": 223.01973,
+      "isotopes": {
+        "223": {"mass": 223.019736, "composition": -1.0}
+      }
+    },
+    "Ra": {
+      "name": "Radium",
+      "atomicNumber": 88,
+      "mass": 226.02541,
+      "isotopes": {
+        "223": {"mass": 223.0185023, "composition": -1.0},
+        "224": {"mass": 224.020212, "composition": -1.0},
+        "226": {"mass": 226.0254103, "composition": -1.0},
+        "228": {"mass": 228.0310707, "composition": -1.0}
+      }
+    },
+    "Ac": {
+      "name": "Actinium",
+      "atomicNumber": 89,
+      "mass": 227.02775,
+      "isotopes": {
+        "227": {"mass": 227.0277523, "composition": -1.0}
+      }
     },
     "Th": {
-    "atomicNumber": 90,
-    "mass": 232.0377,
-    "isotopes": {
-        "230": { "mass": 230.0331341 },
-        "232": { "mass": 232.0380558 }
-    }
+      "name": "Thorium",
+      "atomicNumber": 90,
+      "mass": 232.038,
+      "isotopes": {
+        "230": {"mass": 230.0331341, "composition": -1.0},
+        "232": {"mass": 232.0380558, "composition": 1.0}
+      }
     },
     "Pa": {
-    "atomicNumber": 91,
-    "mass": 231.03588,
-    "isotopes": {
-        "231": { "mass": 231.0358842 }
-    }
+      "name": "Protactinium",
+      "atomicNumber": 91,
+      "mass": 231.03588,
+      "isotopes": {
+        "231": {"mass": 231.0358842, "composition": 1.0}
+      }
     },
     "U": {
-    "atomicNumber": 92,
-    "mass": 238.02891,
-    "isotopes": {
-        "233": { "mass": 233.0396355 },
-        "234": { "mass": 234.0409523 },
-        "235": { "mass": 235.0439301 },
-        "236": { "mass": 236.0455682 },
-        "238": { "mass": 238.0507884 }
-    }
+      "name": "Uranium",
+      "atomicNumber": 92,
+      "mass": 238.0289,
+      "isotopes": {
+        "233": {"mass": 233.0396355, "composition": -1.0},
+        "234": {"mass": 234.0409523, "composition": 5.4e-05},
+        "235": {"mass": 235.0439301, "composition": 0.007204},
+        "236": {"mass": 236.0455682, "composition": -1.0},
+        "238": {"mass": 238.0507884, "composition": 0.992742}
+      }
+    },
+    "Np": {
+      "name": "Neptunium",
+      "atomicNumber": 93,
+      "mass": 237.048172,
+      "isotopes": {
+        "236": {"mass": 236.04657, "composition": -1.0},
+        "237": {"mass": 237.0481736, "composition": -1.0}
+      }
+    },
+    "Pu": {
+      "name": "Plutonium",
+      "atomicNumber": 94,
+      "mass": 244.0642,
+      "isotopes": {
+        "238": {"mass": 238.0495601, "composition": -1.0},
+        "239": {"mass": 239.0521636, "composition": -1.0},
+        "240": {"mass": 240.0538138, "composition": -1.0},
+        "241": {"mass": 241.0568517, "composition": -1.0},
+        "242": {"mass": 242.0587428, "composition": -1.0},
+        "244": {"mass": 244.0642053, "composition": -1.0}
+      }
+    },
+    "Am": {
+      "name": "Americium",
+      "atomicNumber": 95,
+      "mass": 243.06138,
+      "isotopes": {
+        "241": {"mass": 241.0568293, "composition": -1.0},
+        "243": {"mass": 243.0613813, "composition": -1.0}
+      }
+    },
+    "Cm": {
+      "name": "Curium",
+      "atomicNumber": 96,
+      "mass": 247.07035,
+      "isotopes": {
+        "243": {"mass": 243.0613893, "composition": -1.0},
+        "244": {"mass": 244.0627528, "composition": -1.0},
+        "245": {"mass": 245.0654915, "composition": -1.0},
+        "246": {"mass": 246.0672238, "composition": -1.0},
+        "247": {"mass": 247.0703541, "composition": -1.0},
+        "248": {"mass": 248.0723499, "composition": -1.0}
+      }
+    },
+    "Bk": {
+      "name": "Berkelium",
+      "atomicNumber": 97,
+      "mass": 247.07031,
+      "isotopes": {
+        "247": {"mass": 247.0703073, "composition": -1.0},
+        "249": {"mass": 249.0749877, "composition": -1.0}
+      }
+    },
+    "Cf": {
+      "name": "Californium",
+      "atomicNumber": 98,
+      "mass": 251.07959,
+      "isotopes": {
+        "249": {"mass": 249.0748539, "composition": -1.0},
+        "250": {"mass": 250.0764062, "composition": -1.0},
+        "251": {"mass": 251.0795886, "composition": -1.0},
+        "252": {"mass": 252.0816272, "composition": -1.0}
+      }
+    },
+    "Es": {
+      "name": "Einsteinium",
+      "atomicNumber": 99,
+      "mass": 252.083,
+      "isotopes": {
+        "252": {"mass": 252.08298, "composition": -1.0}
+      }
+    },
+    "Fm": {
+      "name": "Fermium",
+      "atomicNumber": 100,
+      "mass": 257.09511,
+      "isotopes": {
+        "257": {"mass": 257.0951061, "composition": -1.0}
+      }
+    },
+    "Md": {
+      "name": "Mendelevium",
+      "atomicNumber": 101,
+      "mass": 258.09843,
+      "isotopes": {
+        "258": {"mass": 258.0984315, "composition": -1.0},
+        "260": {"mass": 260.10365, "composition": -1.0}
+      }
+    },
+    "No": {
+      "name": "Nobelium",
+      "atomicNumber": 102,
+      "mass": 259.101,
+      "isotopes": {
+        "259": {"mass": 259.10103, "composition": -1.0}
+      }
+    },
+    "Lr": {
+      "name": "Lawrencium",
+      "atomicNumber": 103,
+      "mass": 266.12,
+      "isotopes": {
+        "262": {"mass": 262.10961, "composition": -1.0}
+      }
+    },
+    "Rf": {
+      "name": "Rutherfordium",
+      "atomicNumber": 104,
+      "mass": 267.122,
+      "isotopes": {
+        "267": {"mass": 267.12179, "composition": -1.0}
+      }
+    },
+    "Db": {
+      "name": "Dubnium",
+      "atomicNumber": 105,
+      "mass": 268.126,
+      "isotopes": {
+        "268": {"mass": 268.12567, "composition": -1.0}
+      }
+    },
+    "Sg": {
+      "name": "Seaborgium",
+      "atomicNumber": 106,
+      "mass": 269.128,
+      "isotopes": {
+        "271": {"mass": 271.13393, "composition": -1.0}
+      }
+    },
+    "Bh": {
+      "name": "Bohrium",
+      "atomicNumber": 107,
+      "mass": 270.133,
+      "isotopes": {
+        "272": {"mass": 272.13826, "composition": -1.0}
+      }
+    },
+    "Hs": {
+      "name": "Hassium",
+      "atomicNumber": 108,
+      "mass": 269.1336,
+      "isotopes": {
+        "270": {"mass": 270.13429, "composition": -1.0}
+      }
+    },
+    "Mt": {
+      "name": "Meitnerium",
+      "atomicNumber": 109,
+      "mass": 277.154,
+      "isotopes": {
+        "276": {"mass": 276.15159, "composition": -1.0}
+      }
+    },
+    "Ds": {
+      "name": "Darmstadtium",
+      "atomicNumber": 110,
+      "mass": 282.166,
+      "isotopes": {
+        "281": {"mass": 281.16451, "composition": -1.0}
+      }
+    },
+    "Rg": {
+      "name": "Roentgenium",
+      "atomicNumber": 111,
+      "mass": 282.169,
+      "isotopes": {
+        "280": {"mass": 280.16514, "composition": -1.0}
+      }
+    },
+    "Cn": {
+      "name": "Copernicium",
+      "atomicNumber": 112,
+      "mass": 286.179,
+      "isotopes": {
+        "285": {"mass": 285.17712, "composition": -1.0}
+      }
+    },
+    "Nh": {
+      "name": "Nihonium",
+      "atomicNumber": 113,
+      "mass": 286.182,
+      "isotopes": {
+        "284": {"mass": 284.17873, "composition": -1.0}
+      }
+    },
+    "Fl": {
+      "name": "Flerovium",
+      "atomicNumber": 114,
+      "mass": 290.192,
+      "isotopes": {
+        "289": {"mass": 289.19042, "composition": -1.0}
+      }
+    },
+    "Mc": {
+      "name": "Moscovium",
+      "atomicNumber": 115,
+      "mass": 290.196,
+      "isotopes": {
+        "288": {"mass": 288.19274, "composition": -1.0}
+      }
+    },
+    "Lv": {
+      "name": "Livermorium",
+      "atomicNumber": 116,
+      "mass": 293.205,
+      "isotopes": {
+        "293": {"mass": 293.20449, "composition": -1.0}
+      }
+    },
+    "Ts": {
+      "name": "Tennessine",
+      "atomicNumber": 117,
+      "mass": 294.211,
+      "isotopes": {
+        "292": {"mass": 292.20746, "composition": -1.0}
+      }
+    },
+    "Og": {
+      "name": "Oganesson",
+      "atomicNumber": 118,
+      "mass": 295.216,
+      "isotopes": {
+        "294": {"mass": 294.21392, "composition": -1.0}
+      }
     }
 },
 "isotope_aliases": {
@@ -809,6 +1198,10 @@
         "massNumber": 3
     },
     "mu": {
+        "element": "H",
+        "massNumber": "mu"
+    },
+    "Mu": {
         "element": "H",
         "massNumber": "mu"
     }
