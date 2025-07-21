@@ -3,6 +3,7 @@
 import logging
 from typing import Any, Dict
 
+import numpy as np
 import pytest
 
 from easy_instanton.utils.elements import element_data
@@ -14,19 +15,22 @@ MOCK_DATA: Dict[str, Any] = {
             "atomicNumber": 1,
             "mass": 1.008,
             "isotopes": {
-                "1": {"mass": 1.007825},
-                "2": {"mass": 2.014102},
-            },
+            "mu": {"mass": 0.113977478, "composition": -1.0},
+            "1": {"mass": 1.00782503223, "composition": 0.999885},
+            "2": {"mass": 2.01410177812, "composition": 0.000115},
+            "3": {"mass": 3.0160492779, "composition": -1.0}
+            }
         },
         "C": {
             "atomicNumber": 6,
             "mass": 12.011,
             "isotopes": {
-                "12": {"mass": 12.0},
-                "13": {"mass": 13.003355},
-            },
+                "12": {"mass": 12.0, "composition": 0.9893},
+                "13": {"mass": 13.00335483507, "composition": 0.0107},
+                "14": {"mass": 14.0032419884, "composition": -1.0}
+            }
         },
-    },
+    }, # elements
     "isotope_aliases": {"D": {"element": "H", "massNumber": 2}},
 }
 
@@ -53,11 +57,11 @@ def mocked_element_data(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.parametrize(
     "symbol, expected_mass",
     [
-        ("C", 12.011),  # Conventional mass
-        ("H", 1.008),  # Conventional mass
-        ("D", 2.014102),  # Isotope mass via alias
-        ("C13", 13.003355),  # Isotope mass via pattern
-        ("H1", 1.007825),  # Isotope mass via pattern
+        ("C", 12.0),  # most-abundant isotope
+        ("H", 1.00782503223),  # most-abundant isotope
+        ("D", 2.01410177812),  # Isotope mass via alias
+        ("C13", 13.00335483507),  # Isotope mass via pattern
+        ("H1", 1.00782503223),  # Isotope mass via pattern
     ],
 )
 def test_get_mass_happy_paths(
@@ -164,3 +168,78 @@ def test_logging_for_invalid_symbol(
 
     # Assert that the specific error message we expect is present in the logs.
     assert "not a valid element" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "input_symbol, expected_base_symbol",
+    [
+        ("H", "H"),       # Base symbol -> Base symbol
+        ("C", "C"),       # Base symbol -> Base symbol
+        ("D", "H"),       # Alias -> Base symbol
+        ("C13", "C"),     # Pattern -> Base symbol
+        ("H1", "H"),      # Pattern -> Base symbol
+    ]
+)
+def test_get_base_symbol(input_symbol: str, expected_base_symbol: str):
+    """Tests that any valid symbol can be resolved to its base element symbol.
+
+    This parameterized test covers all cases: base symbols, aliases, and
+    pattern-based isotopes.
+
+    Parameters
+    ----------
+    input_symbol : str
+        The symbol to be normalized.
+    expected_base_symbol : str
+        The expected fundamental element symbol.
+    """
+    actual_base_symbol = element_data.get_base_symbol(input_symbol)
+    assert actual_base_symbol == expected_base_symbol
+
+
+def test_get_base_symbol_raises_keyerror():
+    """Tests that get_base_symbol raises KeyError for invalid input."""
+    with pytest.raises(KeyError, match="not a valid element"):
+        element_data.get_base_symbol("Xyz")
+
+
+# --- TESTS FOR BATCH-PROCESSING METHODS ---
+
+def test_get_masses_batch():
+    """Tests the batch processing of get_masses."""
+    symbols = ['C', 'D', 'C13', 'H']
+    expected_masses = np.array([12.0, 2.014102, 13.003355, 1.007825])
+    
+    actual_masses = element_data.get_masses(symbols)
+
+    assert isinstance(actual_masses, np.ndarray)
+    assert np.allclose(actual_masses, expected_masses)
+
+
+def test_get_atomic_numbers_batch():
+    """Tests the batch processing of get_atomic_numbers."""
+    symbols = ['C', 'D', 'C13', 'H']
+    expected_numbers = np.array([6, 1, 6, 1])
+    
+    actual_numbers = element_data.get_atomic_numbers(symbols)
+    
+    assert isinstance(actual_numbers, np.ndarray)
+    assert np.array_equal(actual_numbers, expected_numbers)
+
+
+def test_get_base_symbols_batch():
+    """Tests the batch processing of get_base_symbols."""
+    symbols = ['C', 'D', 'C13', 'H']
+    expected_symbols = np.array(['C', 'H', 'C', 'H'])
+    
+    actual_symbols = element_data.get_base_symbols(symbols)
+    
+    assert isinstance(actual_symbols, np.ndarray)
+    assert np.array_equal(actual_symbols, expected_symbols)
+
+
+def test_batch_functions_with_empty_list():
+    """Tests that batch functions return empty arrays for empty input."""
+    assert element_data.get_masses([]).shape == (0,)
+    assert element_data.get_atomic_numbers([]).shape == (0,)
+    assert element_data.get_base_symbols([]).shape == (0,)

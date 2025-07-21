@@ -37,7 +37,7 @@ def test_spot_check_real_data_mass():
     """
     # These values should correspond exactly to what's in your JSON file.
     # We test one conventional mass and one alias.
-    assert abs(element_data.get_mass('H') - 1.008) < 1e-9
+    assert abs(element_data.get_mass('H') - 1.00782503223) < 1e-9
     assert abs(element_data.get_mass('D') - 2.014101778) < 1e-9
 
 
