@@ -30,6 +30,16 @@ MOCK_DATA: Dict[str, Any] = {
                 "14": {"mass": 14.0032419884, "composition": -1.0}
             }
         },
+        "Tc": {
+            "name": "Technetium",
+            "atomicNumber": 43,
+            "mass": 96.90636,
+            "isotopes": {
+                "97": {"mass": 96.9063667, "composition": -1.0},
+                "98": {"mass": 97.9072124, "composition": -1.0},
+                "99": {"mass": 98.9062508, "composition": -1.0}
+            }
+    },
     }, # elements
     "isotope_aliases": {"D": {"element": "H", "massNumber": 2}},
 }
@@ -57,11 +67,19 @@ def mocked_element_data(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.parametrize(
     "symbol, expected_mass",
     [
-        ("C", 12.0),  # most-abundant isotope
-        ("H", 1.00782503223),  # most-abundant isotope
-        ("D", 2.01410177812),  # Isotope mass via alias
-        ("C13", 13.00335483507),  # Isotope mass via pattern
-        ("H1", 1.00782503223),  # Isotope mass via pattern
+        # Case 1: Stable element, should use most abundant isotope's mass
+        ("C", 12.0),
+        ("H", 1.00782503223),
+        
+        # Case 2: Unstable element, should use fallback top-level mass
+        ("Tc", 96.90636),
+        
+        # Case 3: Specific isotope via alias
+        ("D", 2.01410177812),
+        
+        # Case 4: Specific isotope via pattern
+        ("C13", 13.00335483507),
+        ("Tc98", 97.9072124), # Also test specific unstable isotope
     ],
 )
 def test_get_mass_happy_paths(

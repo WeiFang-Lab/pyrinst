@@ -39,6 +39,7 @@ def test_spot_check_real_data_mass():
     # We test one conventional mass and one alias.
     assert abs(element_data.get_mass('H') - 1.00782503223) < 1e-9
     assert abs(element_data.get_mass('D') - 2.014101778) < 1e-9
+    assert abs(element_data.get_mass('Tc') - 96.90636) < 1e-9
 
 
 def test_spot_check_real_data_atomic_number():

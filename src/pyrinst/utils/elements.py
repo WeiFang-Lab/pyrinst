@@ -24,7 +24,7 @@ class ElementData:
         self._elements: Dict[str, Any] = {}
         self._aliases: Dict[str, Any] = {}
         # This new dictionary will store the most abundant isotope for each element.
-        self._default_isotopes: Dict[str, str] = {}
+        self._default_masses: Dict[str, float] = {}
         try:
             self._load_data(data_path)
             self._preprocess_data()  # Pre-calculate defaults after loading
@@ -41,14 +41,14 @@ class ElementData:
             # This is the robust way to access package data.
             # It requires the package to be installed (e.g., `pip install -e .`).
             file_resource = (
-                resources.files('easy_instanton.config').joinpath(data_path)
+                resources.files('pyrinst.config').joinpath(data_path)
             )
             logger.info("Loading data from: %s", file_resource)
             with file_resource.open('r', encoding='utf-8') as f:
                 data = json.load(f)
         except (FileNotFoundError, ModuleNotFoundError) as e:
             logger.error(
-                "Could not find package 'easy_instanton.config'. "
+                "Could not find package 'pyrinst.config'. "
                 "Is the package installed correctly?",
             )
             raise e
@@ -63,37 +63,54 @@ class ElementData:
     
     def _preprocess_data(self) -> None:
         """
-        Pre-processes the loaded data to find the most abundant isotope
-        for each element, which will be used as the default.
-        """
-        logger.info("Preprocessing data to determine default isotopes.")
-        
-        self._default_isotopes = {}
+        Pre-processes data to determine the default mass for each element.
 
+        It first tries to find the mass of the most abundant isotope.
+        If that fails (e.g., for radioactive elements), it falls back to
+        using the top-level 'mass' field for the element.
+        """
+        logger.info("Preprocessing data to determine default masses.")
         for symbol, data in self._elements.items():
             isotopes = data.get('isotopes', {})
-            if not isotopes:
-                logger.warning("Element '%s' has no isotope data.", symbol)
-                continue
+            default_mass = None
+            
+            # Find most abundant isotope
+            if isotopes:
+                most_abundant_isotope_num = None
+                max_composition = -1.0
+                for mass_number, isotope_info in isotopes.items():
+                    composition = isotope_info.get('composition', -1.0)
+                    if composition > max_composition:
+                        max_composition = composition
+                        most_abundant_isotope_num = mass_number
+                
+                # If we found a valid abundant isotope, get its mass.
+                if most_abundant_isotope_num is not None:
+                    default_mass = isotopes[most_abundant_isotope_num]['mass']
+                    logger.debug(
+                        "Default mass for '%s' set from most abundant isotope "
+                        "'%s' (mass: %f).",
+                        symbol, most_abundant_isotope_num, default_mass
+                    )
 
-            most_abundant_isotope = None
-            max_composition = -1.0
-
-            for mass_number, isotope_info in isotopes.items():
-                composition = isotope_info.get('composition', -1.0)
-                # We only consider isotopes with a valid, non-negative composition.
-                if composition > max_composition:
-                    max_composition = composition
-                    most_abundant_isotope = mass_number
-
-            if most_abundant_isotope:
-                self._default_isotopes[symbol] = most_abundant_isotope
-                logger.debug(
-                    "Default isotope for '%s' set to mass number '%s' "
-                    "(composition: %f).",
-                    symbol, most_abundant_isotope, max_composition
-                )
-        logger.debug("Atomic data preprocessing complete.")
+            # Fallback: Use top-level mass if failed
+            if default_mass is None:
+                fallback_mass = data.get('mass')
+                if fallback_mass is not None:
+                    default_mass = fallback_mass
+                    logger.debug(
+                        "Could not find abundant isotope for '%s'. Using "
+                        "fallback mass: %f.", symbol, fallback_mass
+                    )
+                else:
+                    logger.warning(
+                        "No default mass could be determined for element '%s'.",
+                        symbol
+                    )
+            
+            if default_mass is not None:
+                self._default_masses[symbol] = default_mass
+        logger.debug("Data preprocessing complete.")
     
     def _parse_symbol(self, symbol: str) -> Tuple[str, Optional[str]]:
         """Parses a symbol to determine the base element and mass number.
@@ -177,7 +194,7 @@ class ElementData:
 
         Examples
         --------
-        >>> from easy_instanton.utils.elements import element_data
+        >>> from pyrinst.utils.elements import element_data
         >>> # Get conventional mass
         >>> element_data.get_mass('C')
         12.011
@@ -187,27 +204,20 @@ class ElementData:
         """
         element, mass_number = self._parse_symbol(symbol)
 
-        if mass_number is None:
-            if element not in self._default_isotopes:
-                raise KeyError(
-                    f"No default isotope could be determined for element '{element}'."
-                )
-            mass_number = self._default_isotopes[element]
-            logger.debug(
-                "No isotope specified for '%s'; using most abundant: '%s'.",
-                element, mass_number
-            )
+        # If a specific isotope is requested (e.g., 'C13', 'D'), get its mass directly.
+        if mass_number:
+            try:
+                return self._elements[element]['isotopes'][mass_number]['mass']
+            except KeyError:
+                logger.error("Isotope '%s-%s' not in database.", element, mass_number)
+                raise KeyError(f"Isotope '{symbol}' not found.")
 
+        # If a generic symbol is given, return the pre-calculated default mass.
         try:
-            mass = self._elements[element]['isotopes'][mass_number]['mass']
-            logger.debug("Found isotope mass for '%s-%s': %f", element, mass_number, mass)
-            return mass
+            return self._default_masses[element]
         except KeyError:
-            logger.error(
-                "Isotope '%s-%s' for symbol '%s' not in database.",
-                element, mass_number, symbol
-            )
-            raise KeyError(f"Isotope '{symbol}' not found in the database.")
+            logger.error("No default mass available for element '%s'.", element)
+            raise KeyError(f"No default mass could be determined for element '{element}'.")
 
     def get_atomic_number(self, symbol: str) -> int:
         """Gets the atomic number for any valid symbol.
@@ -272,7 +282,7 @@ class ElementData:
 
         Examples
         --------
-        >>> from easy_instanton.utils.elements import element_data
+        >>> from pyrinst.utils.elements import element_data
         >>> element_data.get_base_symbol('D')
         'H'
         >>> element_data.get_base_symbol('C13')
@@ -304,7 +314,7 @@ class ElementData:
 
         Examples
         --------
-        >>> from easy_instanton.utils.elements import element_data
+        >>> from pyrinst.utils.elements import element_data
         >>> symbols = ['C', 'D', 'C13']
         >>> element_data.get_masses(symbols)
         array([12.0, 2.014102, 13.003355])
