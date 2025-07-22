@@ -4,8 +4,8 @@ from abc import ABC
 import numpy as np
 from numpy.linalg import norm
 from numpy.typing import NDArray
-from src.easy_instanton.core.opt.hessian import bofill
-from src.easy_instanton.core.pes.abc import PES
+from pyrinst.core.opt.hessian import bofill
+from pyrinst.core.pes.abc import PES
 
 
 class Data(ABC):

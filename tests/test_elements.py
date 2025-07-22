@@ -6,7 +6,7 @@ from typing import Any, Dict
 import numpy as np
 import pytest
 
-from easy_instanton.utils.elements import element_data
+from pyrinst.utils.elements import element_data
 
 # Define mock data at the module level for clarity and reuse.
 MOCK_DATA: Dict[str, Any] = {

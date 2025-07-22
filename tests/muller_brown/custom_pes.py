@@ -5,7 +5,7 @@ __author__ = 'Jeremy O. Richardson'
 from collections.abc import Sequence
 import numpy as np
 import matplotlib.pyplot as plt
-from src.easy_instanton.core.pes.abc import PES
+from pyrinst.core.pes.abc import PES
 
 
 class CustomPes(PES):

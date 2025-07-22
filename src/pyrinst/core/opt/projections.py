@@ -10,7 +10,7 @@ import math
 import numpy as np
 from numpy.linalg import norm
 from scipy import linalg
-from src.easy_instanton.utils import mechanics
+from pyrinst.utils import mechanics
 
 
 def trans(x, mass=1):

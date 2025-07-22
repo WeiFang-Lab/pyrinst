@@ -8,7 +8,7 @@ environment. They do NOT use mock data.
 
 import pytest
 
-from easy_instanton.utils.elements import element_data
+from pyrinst.utils.elements import element_data
 
 
 def test_data_is_loaded():

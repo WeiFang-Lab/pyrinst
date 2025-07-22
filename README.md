@@ -1,4 +1,4 @@
-# Easy Instanton
+# PyRInst
 
 
 

@@ -8,9 +8,9 @@ from functools import partial
 
 import numpy as np
 
-from easy_instanton.core.modes import Minimum
-from easy_instanton.core.opt import optimizers
-from easy_instanton.utils.logging_config import setup_logging
+from pyrinst.core.modes import Minimum
+from pyrinst.core.opt import optimizers
+from pyrinst.utils.logging_config import setup_logging
 
 parser = argparse.ArgumentParser()
 parser.add_argument('input', help='Initial guess for the optimization in xyz, txt, or pkl format.')

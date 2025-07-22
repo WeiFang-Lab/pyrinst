@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from easy_instanton.io import xyz
+from pyrinst.io import xyz
 
 
 SYMBOLS = ['O', 'H', 'H']

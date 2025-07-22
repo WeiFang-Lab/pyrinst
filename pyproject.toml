@@ -15,7 +15,7 @@ build-backend = "setuptools.build_meta"
 # ==============================================================================
 [project]
 # The name of your project on PyPI. Users will run `pip install $name`.
-name = "easy-instanton"
+name = "pyrinst"
 
 # The SINGLE source of truth for this program's version.
 version = "0.1.0"
