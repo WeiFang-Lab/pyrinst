@@ -32,16 +32,19 @@ args = parser.parse_args()
 from custom_pes import CustomPes
 pes = CustomPes()
 
-prefix, ext = os.path.splitext(args.input)
+prefix, ext = os.path.splitext(args.output)
+if ext in {'.xyz', '.txt', '.pkl'}:
+    args.output = prefix
 setup_logging(verbose=args.verbose, log_file=f'{prefix}.log', result_file=f'{prefix}.out')
 log = logging.getLogger()
+prefix, ext = os.path.splitext(args.input)
 
 # read input file
 if ext == '.xyz':
     raise NotImplementedError  # todo: xyz module
 elif ext == '.txt':
     x = np.loadtxt(args.input)  # todo: 1d instanton
-    data = Minimum(x, pes=pes)
+    data = Minimum(x, pes)
 elif ext == '.pkl':
     with open(args.input, 'rb') as f:
         data = pickle.load(f)
@@ -50,11 +53,7 @@ else:
     log.error(msg)
     raise ValueError(msg)
 
-prefix, ext = os.path.splitext(args.output)
-if ext in {'.xyz', '.txt', '.pkl'}:
-    args.output = prefix
-
-opt = optimizers.ModeFollowing(data.order, maxstep=args.maxstep, verbosity=args.verbosity)
+opt = optimizers.ModeFollowing(data.order, maxstep=args.maxstep)
 opt.search(data, gtol=args.gtol, maxiter=args.maxiter, callback=partial(type(data).output, prefix=args.output))
 
 data.final_output(args.output)
