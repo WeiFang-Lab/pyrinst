@@ -99,6 +99,32 @@ class UnitSystem(abc.ABC):
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} Unit System>"
+    
+    @property
+    @abc.abstractmethod
+    def base_units(self) -> dict[str, str]:
+        """
+        A dictionary defining the fundamental base units for this system.
+        e.g., {'energy': 'eV', 'length': 'A', 'mass': 'amu'}
+        """
+        raise NotImplementedError
+
+    def Energy(self, value: float) -> 'Energy':
+        """Creates an Energy quantity using this system's default energy unit."""
+        unit_name = self.base_units['energy']
+        return Energy(value, unit_name)
+
+    def Length(self, value: float) -> 'Length':
+        unit_name = self.base_units['length']
+        return Length(value, unit_name)
+
+    def Mass(self, value: float) -> 'Mass':
+        unit_name = self.base_units['mass']
+        return Mass(value, unit_name)
+
+    def Time(self, value: float) -> 'Time':
+        unit_name = self.base_units['time']
+        return Time(value, unit_name)
 
 
 class SI(UnitSystem):
@@ -116,6 +142,15 @@ class SI(UnitSystem):
     @property
     def e(self) -> float:
         return sc.e
+    
+    @property
+    def base_units(self) -> dict[str, str]:
+        return {
+            'energy': 'J', 
+            'length': 'm', 
+            'mass': 'kg', 
+            'time': 's'
+            }
 
 
 class AtomicUnits(UnitSystem):
@@ -136,13 +171,35 @@ class AtomicUnits(UnitSystem):
     def e(self) -> float:
         return 1.0
 
+    @property
+    def base_units(self) -> dict[str, str]:
+        return {
+            'energy': 'hartree', 
+            'length': 'bohr', 
+            'mass': 'au', 
+            'time': 'au'
+            }
 
-class HartreeAngstrom(AtomicUnits):
+class HartreeAngstrom(UnitSystem):
     """
     Atomic units for energy (Hartree) with Angstroms for length.
+    Note: In this system, mass is a derived unit.
     """
+    energy = UNIT_REGISTRY['energy']['hartree']
     length = UNIT_REGISTRY['length']['angstrom']
-    mass = sc.hbar**2 / UNIT_REGISTRY['energy']['hartree'] / length**2
+    time = UNIT_REGISTRY['time']['au']
+
+    @property
+    def mass(self) -> float:
+        return self.energy * (self.time**2) / (self.length**2)
+
+    @property
+    def base_units(self) -> dict[str, str]:
+        return {
+            'energy': 'hartree', 
+            'length': 'A', 
+            'time': 'au'
+            }
 
 
 class KcalAfs(UnitSystem):
@@ -150,7 +207,18 @@ class KcalAfs(UnitSystem):
     energy = UNIT_REGISTRY['energy']['kcal/mol']
     length = UNIT_REGISTRY['length']['angstrom']
     time = UNIT_REGISTRY['time']['fs']
-    mass = energy * time**2 / length**2
+
+    @property
+    def mass(self) -> float:
+        return self.energy * (self.time**2) / (self.length**2)
+
+    @property
+    def base_units(self) -> dict[str, str]:
+        return {
+            'energy': 'kcal/mol', 
+            'length': 'A', 
+            'time': 'fs'
+            }
 
 
 class KcalAamu(UnitSystem):
@@ -158,7 +226,18 @@ class KcalAamu(UnitSystem):
     energy = UNIT_REGISTRY['energy']['kcal/mol']
     length = UNIT_REGISTRY['length']['angstrom']
     mass = UNIT_REGISTRY['mass']['amu']
-    time = length * math.sqrt(mass / energy)
+
+    @property
+    def time(self) -> float:
+        return self.length * math.sqrt(self.mass / self.energy)
+
+    @property
+    def base_units(self) -> dict[str, str]:
+        return {
+            'energy': 'kcal/mol', 
+            'length': 'A', 
+            'mass': 'amu'
+            }
 
 
 class EVAamu(UnitSystem):
@@ -166,7 +245,19 @@ class EVAamu(UnitSystem):
     energy = UNIT_REGISTRY['energy']['eV']
     length = UNIT_REGISTRY['length']['angstrom']
     mass = UNIT_REGISTRY['mass']['amu']
-    time = length * math.sqrt(mass / energy)
+
+    @property
+    def time(self) -> float:
+        return self.length * math.sqrt(self.mass / self.energy)
+
+    @property
+    def base_units(self) -> dict[str, str]:
+        # Time is derived in this system.
+        return {
+            'energy': 'eV', 
+            'length': 'A', 
+            'mass': 'amu'
+            }
 
 
 class CmBohrAmu(UnitSystem):
@@ -174,16 +265,18 @@ class CmBohrAmu(UnitSystem):
     energy = UNIT_REGISTRY['energy']['cm-1']
     length = UNIT_REGISTRY['length']['bohr']
     mass = UNIT_REGISTRY['mass']['amu']
-    time = length * math.sqrt(mass / energy)
+    
+    @property
+    def time(self) -> float:
+        return self.length * math.sqrt(self.mass / self.energy)
 
-
-class Wavenumbers(UnitSystem):
-    """A simple system where the characteristic energy is cm^-1."""
-    energy = UNIT_REGISTRY['energy']['cm-1']
-    # Other units are not well-defined in this context, provide defaults.
-    length = 1.0
-    mass = 1.0
-    time = 1.0
+    @property
+    def base_units(self) -> dict[str, str]:
+        return {
+            'energy': 'cm-1', 
+            'length': 'bohr', 
+            'mass': 'amu'
+            }
 
 
 class Quantity:
