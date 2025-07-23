@@ -8,7 +8,7 @@ from functools import partial
 
 import numpy as np
 
-from pyrinst.core.modes import Minimum
+from pyrinst.core import modes_registry
 from pyrinst.core.opt import optimizers
 from pyrinst.utils.logging_config import setup_logging
 
@@ -17,6 +17,8 @@ parser.add_argument('input', help='Initial guess for the optimization in xyz, tx
 parser.add_argument('-o', '--output', default='opt_geom', help='Final optimized geometry.')
 parser.add_argument('-v', '--verbose', type=bool, help='Verbosity level.')
 # todo: case-insensitive
+parser.add_argument(
+    '--mode', choices=('min', 'ts'), required=True, help='Optimize input to minimum, transition state or instanton.')
 parser.add_argument('--phase', choices=('gas', 'liquid', 'solid'), default='gas', help='Phase of the system')
 parser.add_argument('-P', '--PES', choices=('custom',), help='Potential energy surface')
 # todo: choices
@@ -44,7 +46,7 @@ if ext == '.xyz':
     raise NotImplementedError  # todo: xyz module
 elif ext == '.txt':
     x = np.loadtxt(args.input)  # todo: 1d instanton
-    data = Minimum(x, pes)
+    data = modes_registry[args.mode](x, pes)
 elif ext == '.pkl':
     with open(args.input, 'rb') as f:
         data = pickle.load(f)

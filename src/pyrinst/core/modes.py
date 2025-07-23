@@ -25,6 +25,7 @@ class Data(ABC):
         self.x = x
         self.pes = pes
         self.mass = pes.mass
+        self.hbar: float = 1  # todo: units
         self.n_zero = n_zero
         self.pot, self.grad, self.hess = pes.all(x)
         self.freq: NDArray | None = None
@@ -68,3 +69,12 @@ class Data(ABC):
 
 class Minimum(Data):
     order = 0
+
+
+class TransitionState(Data):
+    order = 1
+
+    def final_output(self, prefix: str) -> None:
+        super().final_output(prefix)
+        beta_c = 2 * np.pi / (self.hbar * (-self.freq[0]))
+        logging.info(f'such that beta_c = {beta_c}, T_c = {None} K')  # todo: Tc
