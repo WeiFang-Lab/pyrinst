@@ -29,7 +29,7 @@ from ._unit_data import UNIT_REGISTRY
 log = logging.getLogger(__name__)
 
 
-class AbstractUnitSystem(abc.ABC):
+class UnitSystem(abc.ABC):
     """
     Abstract Base Class for all unit systems.
 
@@ -92,20 +92,16 @@ class AbstractUnitSystem(abc.ABC):
         return self.energy / (sc.k * beta_or_temp)
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, AbstractUnitSystem):
+        """Two unit systems are considered equal if they are of the same class."""
+        if not isinstance(other, UnitSystem):
             return NotImplemented
-        return (
-            math.isclose(self.energy, other.energy) and
-            math.isclose(self.length, other.length) and
-            math.isclose(self.mass, other.mass) and
-            math.isclose(self.time, other.time)
-        )
+        return self.__class__ is other.__class__
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} Unit System>"
 
 
-class SI(AbstractUnitSystem):
+class SI(UnitSystem):
     """International System of Units (SI)."""
     energy = 1.0  # J
     length = 1.0  # m
@@ -122,7 +118,7 @@ class SI(AbstractUnitSystem):
         return sc.e
 
 
-class AtomicUnits(AbstractUnitSystem):
+class AtomicUnits(UnitSystem):
     """
     Atomic units (Hartree, Bohr, etc.).
     Fundamental units: mass=m_e, charge=e, ang. momentum=hbar.
@@ -149,7 +145,7 @@ class HartreeAngstrom(AtomicUnits):
     mass = sc.hbar**2 / UNIT_REGISTRY['energy']['hartree'] / length**2
 
 
-class KcalAfs(AbstractUnitSystem):
+class KcalAfs(UnitSystem):
     """Energy in kcal/mol, length in Angstrom, time in femtoseconds."""
     energy = UNIT_REGISTRY['energy']['kcal/mol']
     length = UNIT_REGISTRY['length']['angstrom']
@@ -157,7 +153,7 @@ class KcalAfs(AbstractUnitSystem):
     mass = energy * time**2 / length**2
 
 
-class KcalAamu(AbstractUnitSystem):
+class KcalAamu(UnitSystem):
     """Energy in kcal/mol, length in Angstrom, mass in amu."""
     energy = UNIT_REGISTRY['energy']['kcal/mol']
     length = UNIT_REGISTRY['length']['angstrom']
@@ -165,7 +161,7 @@ class KcalAamu(AbstractUnitSystem):
     time = length * math.sqrt(mass / energy)
 
 
-class EVAamu(AbstractUnitSystem):
+class EVAamu(UnitSystem):
     """Energy in eV, length in Angstrom, mass in amu."""
     energy = UNIT_REGISTRY['energy']['eV']
     length = UNIT_REGISTRY['length']['angstrom']
@@ -173,7 +169,7 @@ class EVAamu(AbstractUnitSystem):
     time = length * math.sqrt(mass / energy)
 
 
-class CmBohrAmu(AbstractUnitSystem):
+class CmBohrAmu(UnitSystem):
     """Energy in cm^-1, length in bohr, mass in amu."""
     energy = UNIT_REGISTRY['energy']['cm-1']
     length = UNIT_REGISTRY['length']['bohr']
@@ -181,7 +177,7 @@ class CmBohrAmu(AbstractUnitSystem):
     time = length * math.sqrt(mass / energy)
 
 
-class Wavenumbers(AbstractUnitSystem):
+class Wavenumbers(UnitSystem):
     """A simple system where the characteristic energy is cm^-1."""
     energy = UNIT_REGISTRY['energy']['cm-1']
     # Other units are not well-defined in this context, provide defaults.
@@ -253,13 +249,3 @@ class Time(Quantity):
     def __init__(self, value: float, unit: str = 's'):
         super().__init__(value, unit, 'time')
 
-
-# BACKWARD COMPATIBILITY ALIASES
-
-atomic = AtomicUnits
-hartAng = HartreeAngstrom
-kcalAfs = KcalAfs
-kcalAamu = KcalAamu
-eVAamu = EVAamu
-cmbohramu = CmBohrAmu
-wavenumbers = Wavenumbers

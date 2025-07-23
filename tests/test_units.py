@@ -14,7 +14,7 @@ from pyrinst.config import units, _unit_data
 # =============================================================================
 
 class TestUnitSystems:
-    """Groups tests for the AbstractUnitSystem subclasses."""
+    """Groups tests for the UnitSystem subclasses."""
 
     def test_si_system(self):
         """Tests the values of the SI unit system."""
