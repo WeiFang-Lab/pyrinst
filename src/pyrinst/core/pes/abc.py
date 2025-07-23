@@ -8,6 +8,7 @@ class PES(ABC):
     By default, gradients and hessians are computed by finite differences and "both" and "all" functions simply call
     the separate routines.
     """
+    mass: float | NDArray = 1.0
     dx: float = 1e-4
 
     @abstractmethod

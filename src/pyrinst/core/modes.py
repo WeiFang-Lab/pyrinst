@@ -1,23 +1,33 @@
+import logging
 import pickle
 from abc import ABC
+from warnings import warn
 
 import numpy as np
 from numpy.linalg import norm
 from numpy.typing import NDArray
 from pyrinst.core.opt.hessian import bofill
 from pyrinst.core.pes.abc import PES
+from pyrinst.utils.coordinates import mass_weight
+
+log = logging.getLogger(__name__)
+logging.captureWarnings(True)
 
 
 class Data(ABC):
     """
     todo: shape
     """
-    def __init__(self, x: NDArray, n_zero: int = 0, pes: PES | None = None):
+    order = None
+
+    def __init__(self, x: NDArray, pes: PES, n_zero: int = 0):
         assert n_zero in (0, 3, 5, 6)
         self.x = x
-        self.n_zero = n_zero
         self.pes = pes
+        self.mass = pes.mass
+        self.n_zero = n_zero
         self.pot, self.grad, self.hess = pes.all(x)
+        self.freq: NDArray | None = None
 
     def update(self, x: NDArray, calc_hess: bool = False) -> None:
         x_old, grad_old, self.x = self.x, self.grad, x
@@ -42,7 +52,16 @@ class Data(ABC):
     def final_output(self, prefix: str) -> None:
         self.hess = self.pes.hessian(self.x)
         self.output(prefix)
-        # todo: print freq
+        hess_mw = mass_weight(self.hess, self.mass)
+        evals = np.linalg.eigvalsh(hess_mw)  # todo: project
+        self.freq = np.sqrt(abs(evals)) * np.sign(evals)
+        freq_nonzero = self.freq[np.argpartition(np.abs(self.freq), self.n_zero)[self.n_zero:]]
+        zpe = 0.5 * np.sum(freq_nonzero, where=freq_nonzero > 0)
+        log.info(f'frequencies in cm-1:\n{self.freq}')  # todo: units, fmt
+        log.info(f'H.O. ZPE = {zpe:.4f} cm-1')
+        # check for negative eigenvalues
+        if (n := sum(freq_nonzero < 0)) != self.order:
+            warn(f"Wrong number of negative eigenvalues (expected {self.order}, got {n} instead)", RuntimeWarning)
         with open(prefix+'.pkl', 'wb') as f:
             pickle.dump(self, f)
 
