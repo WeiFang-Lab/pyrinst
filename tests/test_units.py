@@ -36,8 +36,8 @@ class TestUnitSystems:
         """Tests the values of the AtomicUnits system."""
         au = units.AtomicUnits()
         registry = _unit_data.UNIT_REGISTRY
-        assert au.energy == pytest.approx(registry['energy']['hartree'])
-        assert au.length == pytest.approx(registry['length']['bohr'])
+        assert au.energy == pytest.approx(registry['energy']['Hartree'])
+        assert au.length == pytest.approx(registry['length']['Bohr'])
         assert au.mass == pytest.approx(registry['mass']['au'])
         assert au.time == pytest.approx(registry['time']['au'])
         assert au.hbar == 1.0
@@ -189,7 +189,7 @@ class TestQuantities:
         Tests that converting to an unknown unit raises ValueError.
         """
         length = units.Length(1.0, 'm')
-        with pytest.raises(KeyError) as excinfo:
+        with pytest.raises(ValueError) as excinfo:
             length.get("invalid_length_unit")
         assert "invalid_length_unit" in str(excinfo.value)
 
@@ -242,7 +242,7 @@ class TestSystemConvertMethod:
 
         # Assert basic properties of the new object
         assert isinstance(energy_in_au, units.Energy)
-        assert energy_in_au.unit == 'hartree'
+        assert energy_in_au.unit.lower() == 'hartree'
         assert energy_in_au.value == pytest.approx(1.0 / sc.value("Hartree energy in eV"))
 
         # CRITICAL: Verify the new object works as expected

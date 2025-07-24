@@ -29,7 +29,7 @@ Examples
 **2. Direct Conversion between Any Two Units using a Quantity Object:**
    (For general-purpose, one-off conversions)
 
->>> units.Energy(1.0, 'hartree').get('cm-1')
+>>> units.Energy(1.0, 'Hartree').get('cm-1')
 219474.63136314112
 >>> units.Length(2.0, 'A').get('bohr')
 3.779451453315013
@@ -301,8 +301,8 @@ class AtomicUnits(UnitSystem):
 
     Fundamental units: mass=m_e, charge=e, ang. momentum=hbar.
     """
-    energy = UNIT_REGISTRY['energy']['hartree']
-    length = UNIT_REGISTRY['length']['bohr']
+    energy = UNIT_REGISTRY['energy']['Hartree']
+    length = UNIT_REGISTRY['length']['Bohr']
     time = UNIT_REGISTRY['time']['au']
     mass = UNIT_REGISTRY['mass']['au']
 
@@ -317,8 +317,8 @@ class AtomicUnits(UnitSystem):
     @property
     def base_units(self) -> dict[str, str]:
         return {
-            'energy': 'hartree', 
-            'length': 'bohr', 
+            'energy': 'Hartree', 
+            'length': 'Bohr', 
             'mass': 'au', 
             'time': 'au'
             }
@@ -331,8 +331,8 @@ class HartreeAngstrom(UnitSystem):
     -----
     In this system, mass is a derived unit.
     """
-    energy = UNIT_REGISTRY['energy']['hartree']
-    length = UNIT_REGISTRY['length']['angstrom']
+    energy = UNIT_REGISTRY['energy']['Hartree']
+    length = UNIT_REGISTRY['length']['Angstrom']
     time = UNIT_REGISTRY['time']['au']
 
     @property
@@ -342,7 +342,7 @@ class HartreeAngstrom(UnitSystem):
     @property
     def base_units(self) -> dict[str, str]:
         return {
-            'energy': 'hartree', 
+            'energy': 'Hartree', 
             'length': 'A', 
             'time': 'au'
             }
@@ -351,7 +351,7 @@ class HartreeAngstrom(UnitSystem):
 class KcalAfs(UnitSystem):
     """Energy in kcal/mol, length in Angstrom, time in femtoseconds."""
     energy = UNIT_REGISTRY['energy']['kcal/mol']
-    length = UNIT_REGISTRY['length']['angstrom']
+    length = UNIT_REGISTRY['length']['Angstrom']
     time = UNIT_REGISTRY['time']['fs']
 
     @property
@@ -370,7 +370,7 @@ class KcalAfs(UnitSystem):
 class KcalAamu(UnitSystem):
     """Energy in kcal/mol, length in Angstrom, mass in amu."""
     energy = UNIT_REGISTRY['energy']['kcal/mol']
-    length = UNIT_REGISTRY['length']['angstrom']
+    length = UNIT_REGISTRY['length']['Angstrom']
     mass = UNIT_REGISTRY['mass']['amu']
 
     @property
@@ -389,7 +389,7 @@ class KcalAamu(UnitSystem):
 class EVAamu(UnitSystem):
     """Energy in eV, length in Angstrom, mass in amu."""
     energy = UNIT_REGISTRY['energy']['eV']
-    length = UNIT_REGISTRY['length']['angstrom']
+    length = UNIT_REGISTRY['length']['Angstrom']
     mass = UNIT_REGISTRY['mass']['amu']
 
     @property

@@ -37,7 +37,7 @@ _RAW_UNIT_REGISTRY = {
         'J': 1.0,
         'joule': 1.0,
         'Eh': sc.value("Hartree energy"),
-        'hartree': sc.value("Hartree energy"),
+        'Hartree': sc.value("Hartree energy"),
         'eV': sc.e,
         'kJ/mol': 1000.0 / sc.N_A,
         'kcal/mol': sc.calorie * 1000.0 / sc.N_A,
