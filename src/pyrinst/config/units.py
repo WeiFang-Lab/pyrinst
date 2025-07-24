@@ -1,20 +1,62 @@
-"""
-A module containing unit conversions.
+"""A robust module for handling physical units and unit systems.
 
-This module provides classes for various unit systems and quantity types
-for physical calculations.
+This module provides a powerful, object-oriented framework for performing
+unit conversions in scientific computing. It is built on two core concepts:
 
-To convert a value from a specific unit system to SI:
->>> from polylib import units
->>> au = units.atomic()
->>> time_in_au = 2.0
->>> time_in_seconds = time_in_au * au.time
->>> print(f"{time_in_au} a.u. is equal to {time_in_seconds:.2e} seconds")
+1.  **UnitSystem**: Classes (e.g., `AtomicUnits`, `EVAamu`) that define a
+    self-consistent physical environment. Their primary role is to provide
+    authoritative conversion factors from the system's base units to SI units.
 
-To perform direct unit conversions for quantities:
->>> energy_in_hartree = units.Energy(1.0, 'hartree')
->>> energy_in_kcal = energy_in_hartree.get('kcal/mol')
->>> print(f"1.0 Hartree is equal to {energy_in_kcal:.2f} kcal/mol")
+2.  **Quantity**: Classes (e.g., `Energy`, `Length`) that encapsulate a
+    numerical value with its corresponding unit. They provide a flexible way
+    to convert between any two known units.
+
+The recommended modern usage combines these two concepts through factory methods,
+enabling clear, type-safe, and context-aware unit conversions.
+
+Examples
+--------
+**1. Basic Conversion to SI using a UnitSystem:**
+   (For converting raw data from a specific computational environment)
+
+>>> from polylib.config import units
+>>> au_system = units.AtomicUnits()
+>>> force_constant_au = 0.1  # A raw value in Hartree/Bohr^2
+>>> k_in_si = force_constant_au * au_system.energy / (au_system.length**2)
+>>> print(f"0.1 Hartree/Bohr^2 is equal to {k_in_si:.2f} J/m^2")
+0.1 Hartree/Bohr^2 is equal to 1556.89 J/m^2
+
+**2. Direct Conversion between Any Two Units using a Quantity Object:**
+   (For general-purpose, one-off conversions)
+
+>>> units.Energy(1.0, 'hartree').get('cm-1')
+219474.63136314112
+>>> units.Length(2.0, 'A').get('bohr')
+3.779451453315013
+
+**3. Recommended Modern Usage: The Factory Method Pattern:**
+   (Combines the clarity of UnitSystem with the power of Quantity)
+
+>>> eva_system = units.EVAamu()
+>>> # Create a 5.0 eV energy object without manually typing 'eV'
+>>> energy = eva_system.Energy(5.0)
+>>> print(energy)
+5.0 eV
+>>> # The created object can then be used for further conversions
+>>> energy.get('kcal/mol')
+115.328...
+
+**4. Converting a Value from One Unit System to Another:**
+   (The safe, recommended way to switch between computational environments)
+
+>>> au_system = units.AtomicUnits()
+>>> ha_system = units.HartreeAngstrom()
+>>> # Create a 2.0 Bohr length object using the source system
+>>> length_in_au = au_system.Length(2.0)
+>>> # Get its numerical value in the target system's default length unit (Angstrom)
+>>> value_in_ha = length_in_au.value_in(ha_system)
+>>> print(f"The value of {length_in_au} is {value_in_ha:.4f} in the {ha_system}.")
+The value of 2.0 bohr is 1.0584 in the <HartreeAngstrom UnitSystem>.
 """
 
 import abc
@@ -77,9 +119,13 @@ class UnitSystem(abc.ABC):
 
     @property
     def e(self) -> float:
-        """Value of elementary charge in this unit system."""
-        # This is a simplified version; exact conversion depends on permittivity.
-        # For most purposes where e is a fundamental unit, it's 1.
+        """Value of elementary charge in this unit system.
+        
+        Notes
+        -----
+        This is a simplified version; exact conversion depends on permittivity.
+        For most purposes where e is a fundamental unit, it's 1.
+        """
         return sc.e / math.sqrt(self.energy * 4 * sc.pi * sc.epsilon_0 * self.length)
 
     @property
@@ -88,7 +134,20 @@ class UnitSystem(abc.ABC):
         return sc.m_u / self.mass
 
     def betaTemp(self, beta_or_temp: float) -> float:
-        """Converts beta to Temperature or Temperature to beta."""
+        """Converts beta to Temperature or Temperature to beta.
+
+        Parameters
+        ----------
+        beta_or_temp : float
+            The value to convert, which can be either beta (in units of 1/energy)
+            or a temperature (in Kelvin).
+
+        Returns
+        -------
+        float
+            If input was beta, returns temperature. If input was temperature,
+            returns beta.
+        """
         return self.energy / (sc.k * beta_or_temp)
 
     def __eq__(self, other: object) -> bool:
@@ -105,24 +164,78 @@ class UnitSystem(abc.ABC):
     def base_units(self) -> dict[str, str]:
         """
         A dictionary defining the fundamental base units for this system.
-        e.g., {'energy': 'eV', 'length': 'A', 'mass': 'amu'}
+
+        Examples
+        --------
+        {'energy': 'eV', 'length': 'A', 'mass': 'amu'}
         """
         raise NotImplementedError
 
     def Energy(self, value: float) -> 'Energy':
-        """Creates an Energy quantity using this system's default energy unit."""
+        """Creates an Energy quantity using this system's default energy unit.
+        
+        Parameters
+        ----------
+        value : float
+            The numerical value of the energy.
+
+        Returns
+        -------
+        Energy
+            An `Energy` object initialized with the given value and the
+            system's default energy unit.
+        """
         unit_name = self.base_units['energy']
         return Energy(value, unit_name)
 
     def Length(self, value: float) -> 'Length':
+        """Creates a Length quantity using this system's default length unit.
+
+        Parameters
+        ----------
+        value : float
+            The numerical value of the length.
+
+        Returns
+        -------
+        Length
+            A `Length` object initialized with the given value and the
+            system's default length unit.
+        """
         unit_name = self.base_units['length']
         return Length(value, unit_name)
 
     def Mass(self, value: float) -> 'Mass':
+        """Creates a Mass quantity using this system's default mass unit.
+
+        Parameters
+        ----------
+        value : float
+            The numerical value of the mass.
+
+        Returns
+        -------
+        Mass
+            A `Mass` object initialized with the given value and the
+            system's default mass unit.
+        """
         unit_name = self.base_units['mass']
         return Mass(value, unit_name)
 
     def Time(self, value: float) -> 'Time':
+        """Creates a Time quantity using this system's default time unit.
+
+        Parameters
+        ----------
+        value : float
+            The numerical value of the time.
+
+        Returns
+        -------
+        Time
+            A `Time` object initialized with the given value and the
+            system's default time unit.
+        """
         unit_name = self.base_units['time']
         return Time(value, unit_name)
 
@@ -156,6 +269,7 @@ class SI(UnitSystem):
 class AtomicUnits(UnitSystem):
     """
     Atomic units (Hartree, Bohr, etc.).
+
     Fundamental units: mass=m_e, charge=e, ang. momentum=hbar.
     """
     energy = UNIT_REGISTRY['energy']['hartree']
@@ -183,7 +297,10 @@ class AtomicUnits(UnitSystem):
 class HartreeAngstrom(UnitSystem):
     """
     Atomic units for energy (Hartree) with Angstroms for length.
-    Note: In this system, mass is a derived unit.
+
+    Notes
+    -----
+    In this system, mass is a derived unit.
     """
     energy = UNIT_REGISTRY['energy']['hartree']
     length = UNIT_REGISTRY['length']['angstrom']
@@ -280,12 +397,47 @@ class CmBohrAmu(UnitSystem):
 
 
 class Quantity:
+    """A base class for a physical quantity, encapsulating a value and a unit.
+
+    This class provides a robust, object-oriented way to handle physical
+    quantities. It prevents mixing units and provides clear, explicit methods
+    for converting between different units or unit systems.
+
+    All conversion logic is powered by a central, case-insensitive
+    UNIT_REGISTRY, ensuring a single source of truth for all physical constants.
+
+    Attributes
+    ----------
+    value : float
+        The numerical value of the quantity.
+    unit : str
+        The unit associated with the value (e.g., 'eV', 'A').
+    quantity_type : str
+        The type of physical quantity ('energy', 'length', etc.).
+
+    Examples
+    --------
+    >>> energy = Energy(1.0, 'hartree')
+    >>> print(energy)
+    1.0 hartree
+
+    Get the numerical value in a different unit:
+    >>> energy.get('eV')
+    27.211...
+
+    Create a new quantity object with a different unit:
+    >>> energy_in_ev = energy.change('eV')
+    >>> print(energy_in_ev)
+    27.211... eV
+
+    Get the numerical value in a target unit system's defaults:
+    >>> eva_system = EVAamu()
+    >>> energy.value_in(eva_system)
+    27.211...
     """
-    A base class for a physical quantity, combining a value and a unit.
-    It uses the central UNIT_REGISTRY for all conversion logic.
-    """
+
     def __init__(self, value: float, unit: str, quantity_type: str):
-        self._registry = UNIT_REGISTRY.get(quantity_type)
+        self._registry = UNIT_REGISTRY[quantity_type]
         if unit.lower() not in self._registry:
             raise ValueError(
                 f"Unit '{unit}' is not a recognized unit for the physical "
@@ -296,26 +448,88 @@ class Quantity:
         self.quantity_type = quantity_type
 
     def get(self, to_unit: str) -> float:
-        """Return the value of the quantity in the specified unit."""
+        """Returns the numerical value of the quantity in a specified unit.
+
+        This is the general-purpose method for converting between any two
+        known units by providing their string names.
+
+        Parameters
+        ----------
+        to_unit : str
+            The string name of the target unit (e.g., 'eV', 'cm-1').
+
+        Returns
+        -------
+        float
+            The numerical value in the target unit.
+
+        Raises
+        ------
+        ValueError
+            If `to_unit` is not a recognized unit for this quantity type.
+        """
         if to_unit.lower() not in self._registry:
             raise ValueError(
                 f"Cannot convert to '{to_unit}'; it is not a recognized unit "
                 f"for '{self.quantity_type}'."
             )
 
-        from_si_factor = self._registry[self.unit.lower()]
-        to_si_factor = self._registry[to_unit.lower()]
+        from_si_factor = self._registry[self.unit]  # Relies on CaseInsensitiveDict
+        to_si_factor = self._registry[to_unit]      # Relies on CaseInsensitiveDict
 
         si_value = self.value * from_si_factor
-        final_value = si_value / to_si_factor
-        return final_value
+        return si_value / to_si_factor
 
     def change(self, new_unit: str) -> "Quantity":
-        """Return a new Quantity object in the new unit."""
+        """Creates a new Quantity object converted to a new unit.
+
+        This method is useful for chaining operations or when the converted
+        quantity needs to be passed to other functions as a complete object.
+
+        Parameters
+        ----------
+        new_unit : str
+            The string name of the target unit.
+
+        Returns
+        -------
+        Quantity
+            A new instance of the same Quantity subclass with the new unit and value.
+        """
         new_value = self.get(new_unit)
         return self.__class__(new_value, new_unit)
 
+    def value_in(self, target_system: 'UnitSystem') -> float:
+        """Calculates the value of this quantity in a target unit system.
+
+        This convenience method uses a UnitSystem object to determine the target
+        unit, providing a type-safe way to convert to a system's default unit.
+
+        Parameters
+        ----------
+        target_system : UnitSystem
+            An instance of a UnitSystem subclass.
+
+        Returns
+        -------
+        float
+            The value in the target system's default unit for this quantity type.
+
+        Raises
+        ------
+        KeyError
+            If the target system does not define a base unit for this
+            quantity's physical type (e.g., for a derived unit).
+        """
+        # Get the name of the target unit (e.g., 'A', 'eV') from the system
+        target_unit_name = target_system.base_units[self.quantity_type]
+
+        # Use the existing, robust .get() method to perform the conversion
+        return self.get(target_unit_name)
+
     def __str__(self) -> str:
+        """Provides a user-friendly string representation of the quantity."""
+        # Use :g for general-purpose number formatting to avoid trailing zeros
         return f"{self.value:g} {self.unit}"
 
 
@@ -341,4 +555,3 @@ class Time(Quantity):
     """Represents a time quantity."""
     def __init__(self, value: float, unit: str = 's'):
         super().__init__(value, unit, 'time')
-
