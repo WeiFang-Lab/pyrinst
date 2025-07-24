@@ -189,61 +189,70 @@ class TestQuantities:
         Tests that converting to an unknown unit raises ValueError.
         """
         length = units.Length(1.0, 'm')
-        with pytest.raises(ValueError) as excinfo:
+        with pytest.raises(KeyError) as excinfo:
             length.get("invalid_length_unit")
         assert "invalid_length_unit" in str(excinfo.value)
 
 
-# TESTS FOR INTER-SYSTEM CONVERSIONS
+# TESTS FOR THE UnitSystem.convert() METHOD
 
-class TestSystemConversions:
+class TestSystemConvertMethod:
     """
     Tests the functionality of converting a Quantity object from one
-    unit system to another using the .value_in() method.
+    unit system's context to another using the `UnitSystem.convert()` method.
     """
 
-    def test_length_conversion_between_systems(self):
+    def test_convert_length_between_systems(self):
         """
-        Tests converting a length from AtomicUnits (bohr) to
-        HartreeAngstrom (Angstrom).
+        Tests converting a Length object from AtomicUnits (bohr) to
+        the HartreeAngstrom system (which uses Angstrom).
         """
         # 1. Define source and target unit systems
         au_system = units.AtomicUnits()
         ha_system = units.HartreeAngstrom()
 
-        # 2. Create a length object using the source system's factory method
-        length_in_au = au_system.Length(2.0)  # This is 2.0 bohr
+        # 2. Create a length object from the source system
+        length_in_au = au_system.Length(2.0)  # This is a 2.0 bohr Quantity
 
-        # 3. Use the .value_in() method to get the numerical value in the target system
-        value_in_ha = length_in_au.value_in(ha_system)
+        # 3. Use the target system's .convert() method
+        converted_length_obj = ha_system.convert(length_in_au)
 
-        # 4. Manually calculate the expected value for verification
-        #    2.0 bohr -> SI -> Angstrom
+        # 4. Assert the returned object is of the correct type and has the correct unit
+        assert isinstance(converted_length_obj, units.Length)
+        # The target unit should be 'A' as defined in HartreeAngstrom.base_units
+        assert converted_length_obj.unit.lower() == 'a'
+
+        # 5. Assert the value is correct by manual calculation
         expected_value = (2.0 * sc.value("Bohr radius")) / sc.angstrom
-        assert value_in_ha == pytest.approx(expected_value)
-        # Also check the direct conversion for consistency
-        assert length_in_au.get('A') == pytest.approx(value_in_ha)
+        assert converted_length_obj.value == pytest.approx(expected_value)
 
-    def test_energy_conversion_between_systems(self):
+    def test_convert_energy_and_verify_functionality(self):
         """
-        Tests converting an energy from EVAamu (eV) to
-        AtomicUnits (Hartree).
+        Tests converting an Energy object and ensures the resulting object
+        is fully functional by calling .get() on it.
         """
         eva_system = units.EVAamu()
         au_system = units.AtomicUnits()
 
-        # Create a 27.211... eV energy object
-        energy_in_eva = eva_system.Energy(sc.value("Hartree energy in eV"))
+        # Create a 1.0 eV energy object
+        energy_in_eva = eva_system.Energy(1.0)
 
-        # Get its value in the AtomicUnits system (which is Hartree)
-        value_in_au = energy_in_eva.value_in(au_system)
+        # Convert it to the AtomicUnits system
+        energy_in_au = au_system.convert(energy_in_eva)
 
-        # The result should be approximately 1.0
-        assert value_in_au == pytest.approx(1.0)
+        # Assert basic properties of the new object
+        assert isinstance(energy_in_au, units.Energy)
+        assert energy_in_au.unit == 'hartree'
+        assert energy_in_au.value == pytest.approx(1.0 / sc.value("Hartree energy in eV"))
 
-    def test_conversion_failure_for_derived_unit_target(self):
+        # CRITICAL: Verify the new object works as expected
+        # Can it convert its value to yet another unit?
+        value_in_kcal = energy_in_au.get('kcal/mol')
+        assert value_in_kcal == pytest.approx(1.0 / sc.value("Hartree energy in eV") * 627.509)
+
+    def test_convert_failure_for_derived_unit_target(self):
         """
-        Tests that .value_in() correctly raises a KeyError when the target
+        Tests that .convert() correctly raises a KeyError when the target
         system does not have a defined base unit for the quantity type.
         This is a critical safety feature.
         """
@@ -253,10 +262,10 @@ class TestSystemConversions:
         # Create a mass object in a system where mass is a base unit
         mass_in_au = au_system.Mass(1.0)  # This is 1.0 electron mass
 
-        # Attempt to get its value in the HartreeAngstrom system, where
+        # Attempt to convert it to the HartreeAngstrom system, where
         # mass is a derived unit and has no entry in `base_units`.
         with pytest.raises(KeyError) as excinfo:
-            mass_in_au.value_in(ha_system)
+            ha_system.convert(mass_in_au)
 
         # The error should clearly indicate that 'mass' is not a base unit
         # in the target system.

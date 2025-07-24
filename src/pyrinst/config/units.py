@@ -63,6 +63,7 @@ import abc
 import logging
 import math
 from scipy import constants as sc
+from typing import Self
 
 # Import the data from its separate, dedicated module
 from ._unit_data import UNIT_REGISTRY
@@ -132,6 +133,34 @@ class UnitSystem(abc.ABC):
     def amu(self) -> float:
         """Atomic mass unit in this system's mass units."""
         return sc.m_u / self.mass
+
+    def convert(self, quantity_obj: 'Quantity') -> Self:
+        """Converts a given Quantity object to this unit system.
+
+        This is the most powerful and recommended method for converting a quantity
+        from one unit system's context to another, as it returns a new,
+        fully functional Quantity object.
+
+        Args:
+            quantity_obj: An existing Quantity object (e.g., Energy, Length)
+                          from any source system.
+
+        Returns:
+            A new Quantity object of the same physical type, expressed in the
+            base unit of this system.
+
+        Raises:
+            KeyError: If this system does not define a base unit for the
+                      given quantity's physical type.
+        """
+        # 1. Get the target unit name from self (the current system).
+        #    e.g., for EVAamu, if quantity_obj is an Energy, this gets 'eV'.
+        target_unit_name = self.base_units[quantity_obj.quantity_type]
+
+        # 2. Delegate the conversion logic to the quantity object's own
+        #    .change() method. The .change() method already knows how to
+        #    create a new object in any target unit.
+        return quantity_obj.change(target_unit_name)
 
     def betaTemp(self, beta_or_temp: float) -> float:
         """Converts beta to Temperature or Temperature to beta.
@@ -400,13 +429,12 @@ class Quantity:
     """A base class for a physical quantity, encapsulating a value and a unit.
 
     This class provides a robust, object-oriented way to handle physical
-    quantities. It prevents mixing units and provides clear, explicit methods
-    for converting between different units or unit systems.
+    quantities. It serves as the foundation for unit conversions.
 
     All conversion logic is powered by a central, case-insensitive
-    UNIT_REGISTRY, ensuring a single source of truth for all physical constants.
+    `UNIT_REGISTRY`, ensuring a single source of truth for physical constants.
 
-    Attributes
+    Parameters
     ----------
     value : float
         The numerical value of the quantity.
@@ -415,27 +443,15 @@ class Quantity:
     quantity_type : str
         The type of physical quantity ('energy', 'length', etc.).
 
-    Examples
-    --------
-    >>> energy = Energy(1.0, 'hartree')
-    >>> print(energy)
-    1.0 hartree
-
-    Get the numerical value in a different unit:
-    >>> energy.get('eV')
-    27.211...
-
-    Create a new quantity object with a different unit:
-    >>> energy_in_ev = energy.change('eV')
-    >>> print(energy_in_ev)
-    27.211... eV
-
-    Get the numerical value in a target unit system's defaults:
-    >>> eva_system = EVAamu()
-    >>> energy.value_in(eva_system)
-    27.211...
+    Attributes
+    ----------
+    value : float
+        The numerical value of the quantity.
+    unit : str
+        The unit associated with the value.
+    quantity_type : str
+        The type of physical quantity.
     """
-
     def __init__(self, value: float, unit: str, quantity_type: str):
         self._registry = UNIT_REGISTRY[quantity_type]
         if unit.lower() not in self._registry:
@@ -448,10 +464,11 @@ class Quantity:
         self.quantity_type = quantity_type
 
     def get(self, to_unit: str) -> float:
-        """Returns the numerical value of the quantity in a specified unit.
+        """Return the numerical value of the quantity in a specified unit.
 
         This is the general-purpose method for converting between any two
-        known units by providing their string names.
+        known units by providing their string names. It returns a raw float
+        for direct use in calculations.
 
         Parameters
         ----------
@@ -461,12 +478,7 @@ class Quantity:
         Returns
         -------
         float
-            The numerical value in the target unit.
-
-        Raises
-        ------
-        ValueError
-            If `to_unit` is not a recognized unit for this quantity type.
+            The numerical value of the quantity in the target unit.
         """
         if to_unit.lower() not in self._registry:
             raise ValueError(
@@ -474,14 +486,13 @@ class Quantity:
                 f"for '{self.quantity_type}'."
             )
 
-        from_si_factor = self._registry[self.unit]  # Relies on CaseInsensitiveDict
-        to_si_factor = self._registry[to_unit]      # Relies on CaseInsensitiveDict
-
+        from_si_factor = self._registry[self.unit]
+        to_si_factor = self._registry[to_unit]
         si_value = self.value * from_si_factor
         return si_value / to_si_factor
 
-    def change(self, new_unit: str) -> "Quantity":
-        """Creates a new Quantity object converted to a new unit.
+    def change(self, new_unit: str) -> Self:
+        """Create a new Quantity object converted to a new unit.
 
         This method is useful for chaining operations or when the converted
         quantity needs to be passed to other functions as a complete object.
@@ -493,43 +504,15 @@ class Quantity:
 
         Returns
         -------
-        Quantity
-            A new instance of the same Quantity subclass with the new unit and value.
+        Self
+            A new instance of the same `Quantity` subclass with the new
+            unit and value. `typing.Self` ensures correct type hinting.
         """
         new_value = self.get(new_unit)
         return self.__class__(new_value, new_unit)
 
-    def value_in(self, target_system: 'UnitSystem') -> float:
-        """Calculates the value of this quantity in a target unit system.
-
-        This convenience method uses a UnitSystem object to determine the target
-        unit, providing a type-safe way to convert to a system's default unit.
-
-        Parameters
-        ----------
-        target_system : UnitSystem
-            An instance of a UnitSystem subclass.
-
-        Returns
-        -------
-        float
-            The value in the target system's default unit for this quantity type.
-
-        Raises
-        ------
-        KeyError
-            If the target system does not define a base unit for this
-            quantity's physical type (e.g., for a derived unit).
-        """
-        # Get the name of the target unit (e.g., 'A', 'eV') from the system
-        target_unit_name = target_system.base_units[self.quantity_type]
-
-        # Use the existing, robust .get() method to perform the conversion
-        return self.get(target_unit_name)
-
     def __str__(self) -> str:
-        """Provides a user-friendly string representation of the quantity."""
-        # Use :g for general-purpose number formatting to avoid trailing zeros
+        """Return a user-friendly string representation."""
         return f"{self.value:g} {self.unit}"
 
 
