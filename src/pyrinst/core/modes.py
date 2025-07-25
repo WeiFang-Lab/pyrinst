@@ -6,6 +6,8 @@ from warnings import warn
 import numpy as np
 from numpy.linalg import norm
 from numpy.typing import NDArray
+
+from pyrinst.config.formats import FORMATS
 from pyrinst.core.opt.hessian import bofill
 from pyrinst.core.pes.abc import PES
 from pyrinst.utils.coordinates import mass_weight
@@ -43,11 +45,11 @@ class Data(ABC):
 
     def __str__(self):
         """used for optimization only"""
-        return f'V = {self.pot:.5f}, |G| = {norm(self.grad):.5e}'
+        return f'V = {self.pot:{FORMATS["energy"]}}, |G| = {norm(self.grad):.5e}'
 
     def output(self, prefix: str) -> None:
         # todo: save traj, xyz
-        comment = f'V = {self.pot:.18f}' if self.pot is not None else ''
+        comment = f'V = {self.pot:{FORMATS["energy"]}}' if self.pot is not None else ''
         np.savetxt(prefix+'.txt', self.x, fmt='%15.8f', header=comment)
 
     def final_output(self, prefix: str) -> None:
