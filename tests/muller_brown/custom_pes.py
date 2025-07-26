@@ -5,6 +5,7 @@ __author__ = 'Jeremy O. Richardson'
 from collections.abc import Sequence
 import numpy as np
 import matplotlib.pyplot as plt
+from pyrinst.config.units import HartreeAngstrom, Mass
 from pyrinst.core.pes.abc import PES
 
 
@@ -33,8 +34,9 @@ class CustomPes(PES):
         self.TS2 = [0.21248636, 0.29298824]
 
         self.au2kcal = 627.509474063056
-        # self.UNITS = units.hartAng()  todo
-        # self.mass = np.array([1.00748, 1.00748]) / units.Mass(units.hartAng.mass).get('amu')
+        self.units = HartreeAngstrom()
+        # self.mass = np.ones(2) * self.units.convert(Mass(1.00748, 'amu'))
+        self.mass = np.array([1.00748, 1.00748]) / Mass(self.units.mass).get('amu')
         self.atomlist = ['H', 'H']
 
     def potential(self, x: Sequence):

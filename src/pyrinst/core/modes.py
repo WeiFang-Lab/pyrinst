@@ -8,6 +8,7 @@ from numpy.linalg import norm
 from numpy.typing import NDArray
 
 from pyrinst.config.formats import FORMATS
+from pyrinst.config.units import UnitSystem
 from pyrinst.core.opt.hessian import bofill
 from pyrinst.core.pes.abc import PES
 from pyrinst.utils.coordinates import mass_weight
@@ -26,8 +27,9 @@ class Data(ABC):
         assert n_zero in (0, 3, 5, 6)
         self.x = x
         self.pes = pes
-        self.mass = pes.mass
-        self.hbar: float = 1  # todo: units
+        self.mass: float | NDArray = pes.mass
+        self.units: UnitSystem = pes.units
+        self.hbar: float = self.units.hbar
         self.n_zero = n_zero
         self.pot, self.grad, self.hess = pes.all(x)
         self.freq: NDArray | None = None
