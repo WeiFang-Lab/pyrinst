@@ -8,6 +8,7 @@ from functools import partial
 
 import numpy as np
 
+from pyrinst.config.formats import FORMATS
 from pyrinst.core import modes_registry
 from pyrinst.core.opt import optimizers
 from pyrinst.utils.logging_config import setup_logging
