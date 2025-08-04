@@ -9,7 +9,7 @@ from pyrinst.config.units import HartreeAngstrom, Mass
 from pyrinst.core.pes.abc import PES
 
 
-class CustomPes(PES):
+class CustomPES(PES):
     def __init__(self):
         """
         Müller-Brown potential.
