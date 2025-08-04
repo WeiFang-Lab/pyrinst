@@ -74,6 +74,6 @@ class CustomPES(PES):
 
 
 if __name__ == '__main__':
-    MB = CustomPes()
+    MB = CustomPES()
     MB.plot()
 
