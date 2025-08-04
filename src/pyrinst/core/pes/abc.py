@@ -32,3 +32,31 @@ class PES(ABC):
     def all(self, x: NDArray) -> tuple[float, NDArray, NDArray]:
         energy, grad = self.both(x)
         return energy, grad, self.hessian(x)
+
+
+class PESProxy(ABC):
+    """
+    Abstract base class for a Potential Energy Surface (PES) proxy.
+
+    This class is designed to encapsulate a PES object and transparently
+    delegate attribute and method access to it.
+
+    Parameters
+    ----------
+    pes : PES
+        The Potential Energy Surface (PES) object to be encapsulated and proxied.
+
+    Attributes
+    ----------
+    _pes : PES
+        The internally encapsulated PES object.
+    """
+    def __init__(self, pes):
+        self._pes = pes
+
+    def __getattr__(self, name):
+        return getattr(self._pes, name)
+
+    def __setstate__(self, state):
+        """Although this method behaves exactly the same as the default, it is required for pickling."""
+        self.__dict__.update(state)

@@ -10,12 +10,13 @@ class NewtonRaphson:
     """Base class of all mode-following optimizers.
     The standard Newton-Raphson ignores argument order and just optimizes to any nearby stationary point.
     """
-    def __init__(self, maxstep=None, project=None):
+    def __init__(self, maxstep=None, project=None, update: bool = True):
         """
         verbosity -- controls messages
         """
         self.maxstep = maxstep
         self.project = project
+        self.update = update
 
     def scale(self, h):
         if self.maxstep is not None:
@@ -32,7 +33,7 @@ class NewtonRaphson:
         # scale attempted step if it is too large
         h = self.scale(h)
         # take step
-        data.move(h)
+        data.move(h, self.update)
         log.info(f'step ={norm(h):.5e}')
 
     def search(self, data, gtol=1e-5, maxiter=100, callback=None):
@@ -43,8 +44,6 @@ class NewtonRaphson:
         callback -- a user-supplied function called as callback(x,y) after each iteration
         """
         xt = [data.x.copy()]
-        converged = False
-        message = 'already converged'
         n_digit = int(np.log10(maxiter)) + 1
 
         for i in range(maxiter):
@@ -52,8 +51,7 @@ class NewtonRaphson:
 
             # check for convergence
             if norm(data.grad) < gtol:
-                converged = True
-                message = f'converged after {i} steps'
+                log.info(f'converged after {i} steps')
                 break
             # update data by one iteration
             self.iterate(data)
@@ -65,14 +63,10 @@ class NewtonRaphson:
             log.debug(f'new G = {data.grad}')
             log.debug(f'new H = {data.hess}')
 
-        if converged:
-            log.info(message)
         else:
-            message = "WARNING: did not converge"
-            log.warning(message)
+            log.warning('WARNING: did not converge')
 
         data.xt = np.array(xt)
-        data.converged = converged
 
 
 class ModeFollowing(NewtonRaphson):
@@ -108,7 +102,7 @@ class ModeFollowing(NewtonRaphson):
         h = self.scale(h)
         h = np.dot(eig_vecs, h).reshape(data.x.shape)
         # take step
-        data.move(h)
+        data.move(h, self.update)
         log.info(f'step ={norm(h):.5e}')
         log.debug(f'eigvals: {b}')
         return data
