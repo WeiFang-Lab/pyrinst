@@ -9,8 +9,7 @@ from functools import partial
 import numpy as np
 
 from pyrinst.config.formats import FORMATS
-from pyrinst.core import modes_registry, Minimum, TransitionState, Instanton
-from pyrinst.core.opt import optimizers
+from pyrinst.core import modes_registry, Minimum, TransitionState, Instanton, optimizers
 from pyrinst.utils.logging_config import setup_logging
 from pyrinst.io.xyz import load
 
@@ -32,7 +31,7 @@ parser.add_argument('-P', '--PES', choices=('custom',), help='Potential energy s
 parser.add_argument(
     '-F', '--mainInputFile', help='Main input file (for a SCF calculation): vasp: INCAR; gaussian/orca/molpro/cp2k: '
     'full input file without the geometry. This is also used by CustomPes as the input in dictionary format.')
-parser.add_argument('--opt', choices=['EF', 'MEP', 'lBFGS'], default='EF', help='Optimization algorithm to use.')
+parser.add_argument('--opt', choices=optimizers.keys(), default='EF', help='Optimization algorithm to use.')
 parser.add_argument('-g', '--gtol', default=1e-3, type=float, help='Tolerance in gradient for optimization.')
 parser.add_argument('--maxstep', default=0.3, type=float, help='Max-step in optimization.')
 parser.add_argument('--maxiter', default=10, type=int, help='Max-iters in optimization.')
@@ -98,7 +97,7 @@ if args.link:
             elif isinstance(link, Minimum):
                 data.rct = link
 
-opt = optimizers.ModeFollowing(data.order, maxstep=args.maxstep)
+opt = optimizers[args.opt](order=data.order, maxstep=args.maxstep)
 opt.search(data, gtol=args.gtol, maxiter=args.maxiter, callback=partial(type(data).output, prefix=args.output))
 
 data.final_output(args.output)
