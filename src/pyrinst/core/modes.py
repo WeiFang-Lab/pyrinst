@@ -2,6 +2,7 @@ import logging
 import math
 import pickle
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from warnings import warn
 
 import numpy as np
@@ -11,7 +12,6 @@ from scipy.interpolate import CubicSpline
 
 from pyrinst.config.formats import FORMATS
 from pyrinst.core.rp import Beads, Springs
-from pyrinst.core.opt.hessian import bofill
 from pyrinst.core.pes.abc import PES, PESProxy
 from pyrinst.utils.coordinates import mass_weight
 
@@ -40,15 +40,15 @@ class Data(PESProxy, ABC):
     def dof(self) -> int:
         return self.x.size
 
-    def recalc(self, x: NDArray, update: bool = False) -> None:
+    def recalc(self, x: NDArray, update: Callable | None = None) -> None:
         x_old, grad_old, self.x = self.x, self.grad, x
         if update:
             self.pot, self.grad = self.both(self.x)
-            self.hess = bofill(self.hess, (self.x - x_old).ravel(), (self.grad - grad_old).ravel())
+            self.hess = update(self.hess, (self.x - x_old).ravel(), (self.grad - grad_old).ravel())
         else:
             self.pot, self.grad, self.hess = self.all(self.x)
 
-    def move(self, dx: NDArray, update: bool = False) -> None:
+    def move(self, dx: NDArray, update: Callable | None = None) -> None:
         self.recalc(self.x + dx, update)
 
     def __str__(self):

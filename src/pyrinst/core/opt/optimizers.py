@@ -1,9 +1,11 @@
 import logging
+from collections.abc import Callable
 import numpy as np
 from numpy.linalg import norm
 from numpy.typing import NDArray
 from scipy import linalg
 from pyrinst.core import Data
+from .hessian import bofill, bfgs, powell
 
 log = logging.getLogger(__name__)
 
@@ -18,7 +20,7 @@ class NewtonRaphson:
         """
         self.maxstep = maxstep
         self.project = project
-        self.update = update
+        self.update: Callable | None = bofill if update else None
 
     def scale(self, h):
         if self.maxstep is not None:
@@ -73,8 +75,8 @@ class NewtonRaphson:
 
 class ModeFollowing(NewtonRaphson):
     """Following Wales, The Journal of Chemical Physics 101, 3750 (1994)"""
-    def __init__(self, order=1, maxstep=None, project=None):
-        super().__init__(maxstep, project)
+    def __init__(self, order=1, maxstep=None, project=None, update: bool = True):
+        super().__init__(maxstep, project, update)
         self.order = order
 
     def step(self, f, b):
@@ -220,4 +222,47 @@ class LBFGS(NewtonRaphson):
         super().search(data, gtol, maxiter, callback)
 
 
-optimizers: dict[str, type] = {'EF': ModeFollowing, 'lBFGS': LBFGS}
+class StreamBedWalk(ModeFollowing):
+    """
+    J. Chem. Phys. 1990, 92 (1), 340–346.
+    Walks from x0 to a minimum (order=0), transition state (order=1) or other saddle point (order>1)
+    of the potential energy surface.
+    """
+    def __init__(self, update: bool = True, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.update = (bfgs if self.order == 0 else powell) if update else None
+
+    def step(self, f, b):
+        if self.order == 0:
+            xv = -f / b
+            alpha = 1
+            lam = b[0] + abs(f[0] / self.maxstep) if b[0] < 0 or norm(xv) > self.maxstep else 0
+
+        else:
+            # invert sign in cases of order>1 only
+            b[1:self.order] *= -1
+            f[1:self.order] *= -1
+            b0 = b[0]
+            b1 = b[1]
+
+            if b0 > 0:  # b[1:] also must be +ve
+                if 0.5 * b1 > b0:
+                    alpha = 1
+                    lam = 0.5 * (b0 + 0.5 * b1)  # choose midpoint
+                else:
+                    alpha = (b1 - b0) / b1  # change alpha so that it's possible
+                    lam = 0.25 * (3 * b0 + b1)  # midpoint between b0 and b1*(1-alpha/2)
+            elif b1 < 0:  # b0 also must be -ve
+                if b1 >= 0.5 * b0:
+                    alpha = 1
+                    lam = 0.5 * (0.5 * b0 + b1)
+                else:
+                    alpha = (b0 - b1) / b1
+                    lam = 0.25 * (b0 + 3 * b1)
+            else:  # b0 is -ve but others are +ve
+                alpha = 1
+                lam = 0.25 * (b0 + b1)
+        return alpha * f / (lam - b)  # step in ev space
+
+
+optimizers: dict[str, type] = {'EF': ModeFollowing, 'lBFGS': LBFGS, 'SBW': StreamBedWalk}

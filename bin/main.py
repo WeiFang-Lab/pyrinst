@@ -35,8 +35,7 @@ parser.add_argument('--opt', choices=optimizers.keys(), default='EF', help='Opti
 parser.add_argument('-g', '--gtol', default=1e-3, type=float, help='Tolerance in gradient for optimization.')
 parser.add_argument('--maxstep', default=0.3, type=float, help='Max-step in optimization.')
 parser.add_argument('--maxiter', default=10, type=int, help='Max-iters in optimization.')
-parser.add_argument(
-    '--no-update', action='store_true', help="Don't use update formula but recompute Hessian at each step.")
+parser.add_argument('--no-update', action='store_true', help="Don't update but recompute Hessian at each step.")
 parser.add_argument('-N', '--beads', type=int, help='Number of ring-polymer beads (default chosen from input file).')
 parser.add_argument('-s', '--spread', default=0.1, type=float, help="Spread of initial guess.")
 args = parser.parse_args()
@@ -97,7 +96,7 @@ if args.link:
             elif isinstance(link, Minimum):
                 data.rct = link
 
-opt = optimizers[args.opt](order=data.order, maxstep=args.maxstep)
+opt = optimizers[args.opt](order=data.order, maxstep=args.maxstep, update=not args.no_update)
 opt.search(data, gtol=args.gtol, maxiter=args.maxiter, callback=partial(type(data).output, prefix=args.output))
 
 data.final_output(args.output)

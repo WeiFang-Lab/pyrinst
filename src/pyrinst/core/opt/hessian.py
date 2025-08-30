@@ -5,7 +5,25 @@ from numpy.typing import NDArray
 from scipy import linalg
 
 
-def bofill(hess: NDArray, d: NDArray, dg: NDArray):
+def bfgs(hess: NDArray, d: NDArray, dg: NDArray) -> NDArray:
+    hy = linalg.blas.dgemv(1.0, hess, d)  # use scipy blas for efficiency
+    dy = np.dot(d, dg)
+    a1 = (1 + np.dot(d, hy) / dy) / dy
+    for i in range(len(hess)):  # memory efficient implementation without efficiency loss
+        hess[i] += a1 * d[i] * d - (d[i] * hy + hy[i] * d) / dy
+    return hess
+
+
+def powell(hess: NDArray, d: NDArray, dg: NDArray) -> NDArray:
+    """update Cartesian Hessian using gradient; for TS searches
+    d is change in position and dg change in gradient"""
+    ddi = 1 / np.dot(d, d)
+    y = dg - linalg.blas.dgemv(1.0, hess, d)  # use scipy blas for efficiency
+    hess += ddi * (np.outer(y, d) + np.outer(d, y) - np.dot(y, d) * np.outer(d, d) * ddi)
+    return hess
+
+
+def bofill(hess: NDArray, d: NDArray, dg: NDArray) -> NDArray:
     """update Hessian according to Bofill, JCC 15, 1 (1994)  # todo: doc
     is equivalent to H += (1-phi)*MS + phi*Powell
     """
