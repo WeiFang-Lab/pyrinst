@@ -36,7 +36,6 @@ class Formats:
 
     STEP_INDEX = "3d"  # Integer, 5 characters wide
 
-    MAX_LINE_LENGTH = 88
     ARRAY_SPACE = ' ' * 4
 
 
