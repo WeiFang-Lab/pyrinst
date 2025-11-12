@@ -224,3 +224,60 @@ class Time(Quantity):
             The unit of time, by default 's' (seconds).
         """
         super().__init__(value, unit, 'time')
+
+
+class Temperature:
+    """
+    A static utility class for temperature and beta conversions.
+
+    This class is NOT a subclass of Quantity because the conversion
+    between temperature (T) and inverse temperature (beta = 1/kT)
+    is a physical formula, not a simple unit conversion.
+
+    It provides static methods to convert between T (in Kelvin)
+    and beta (in the project's internal 1/Hartree).
+    """
+
+    # We store kb_au as a class variable so it's only calculated once.
+    # It relies on the Energy class already being defined.
+    # This gets the Boltzmann constant in (Hartree / K)
+    _kb_au: float = Energy(1.0, 'K').get('Hartree')
+
+    @staticmethod
+    def to_beta(temp_kelvin: float) -> float:
+        """
+        Converts a temperature in Kelvin to the internal beta.
+
+        Parameters
+        ----------
+        temp_kelvin : float
+            Temperature in Kelvin (K).
+
+        Returns
+        -------
+        float
+            The inverse temperature beta in internal atomic units (1/Hartree).
+        """
+        if temp_kelvin <= 0:
+            raise ValueError("Temperature must be positive.")
+        return 1.0 / (temp_kelvin * Temperature._kb_au)
+
+    @staticmethod
+    def to_kelvin(beta_au: float) -> float:
+        """
+        Converts an internal beta value back to temperature in Kelvin.
+
+        Parameters
+        ----------
+        beta_au : float
+            The inverse temperature beta in internal atomic units (1/Hartree).
+
+        Returns
+        -------
+        float
+            Temperature in Kelvin (K).
+        """
+        if beta_au <= 0:
+            raise ValueError("Beta must be positive.")
+        return 1.0 / (beta_au * Temperature._kb_au)
+
