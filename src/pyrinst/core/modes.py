@@ -10,7 +10,7 @@ from numpy.linalg import norm
 from numpy.typing import NDArray
 from scipy.interpolate import CubicSpline
 
-from pyrinst.utils.formats import Formats
+from pyrinst.utils.formats import Formats, format_array
 from .rp import Beads, Springs
 from .pes.abc import PES, PESProxy
 from pyrinst.utils.coordinates import mass_weight
@@ -53,7 +53,7 @@ class Data(PESProxy, ABC):
 
     def __str__(self):
         """used for optimization only"""
-        return f'V = {self.pot:{Formats.ENERGY}}, |G| = {norm(self.grad):.5e}'
+        return f'V = {self.pot:{Formats.ENERGY}}, |G| = {norm(self.grad):{Formats.GRAD_NORM}}'
 
     def output(self, prefix: str) -> None:
         # todo: save traj, xyz
@@ -79,8 +79,9 @@ class Data(PESProxy, ABC):
     def print_freq(self, raise_error: bool) -> None:
         freq_nonzero = self.freq[np.argpartition(np.abs(self.freq), self.n_zero)[self.n_zero:]]
         zpe = 0.5 * self.hbar * np.sum(freq_nonzero, where=freq_nonzero > 0)
-        log.info(f'frequencies in cm-1:\n{self.units.Energy(self.freq).get("cm-1")}')  # todo: fmt
-        log.info(f'H.O. ZPE = {self.units.Energy(zpe).get("cm-1"):.4f} cm-1')
+        freq_cm: NDArray = self.units.Energy(self.freq).get("cm-1")
+        log.info(f'frequencies in cm-1:\n{format_array(freq_cm, fmt=Formats.FREQUENCY)}')
+        log.info(f'H.O. ZPE = {self.units.Energy(zpe).get("cm-1"):{Formats.FREQUENCY}} cm-1')
         # check for negative eigenvalues
         if (n := sum(freq_nonzero < 0)) != self.order:
             msg: str = f'Wrong number of negative eigenvalues (expected {self.order}, got {n} instead)'
@@ -277,7 +278,7 @@ class Instanton(Minimum):
         # todo: molecule
         log.info('computing bead potentials, gradients and Hessians...')
         self.recalc_hess()
-        log.info(f'S/hbar = {self.action/self.hbar}')
+        log.info(f'S/hbar = {self.action/self.hbar:{Formats.ACTION}}')
         self.save(prefix)
 
     def recalc_hess(self) -> None:
@@ -308,7 +309,8 @@ class Instanton(Minimum):
         lam: NDArray = np.linalg.eigvalsh(mass_weight(self.hess_full, self.mass, dim=self.x[0].size))
         self.freq = np.sqrt(abs(lam)) * np.sign(lam)
         freq_nonzero: NDArray = self.freq[np.argpartition(abs(self.freq), self.n_zero+1)[self.n_zero+1:]]
-        log.info(f'first 12 frequencies in cm-1:\n{self.units.Energy(self.freq[:12]).get("cm-1")}')  # todo: fmt
+        freq_12_cm: NDArray = self.units.Energy(self.freq[:12]).get("cm-1")
+        log.info(f'first 12 frequencies in cm-1:\n{format_array(freq_12_cm, fmt=Formats.FREQUENCY)}')
         order: int = sum(freq_nonzero < 0)
         if order == 2 and self.units.Energy(freq_nonzero[1]).get("cm-1") < 100:
             raise NotImplemented
@@ -317,7 +319,7 @@ class Instanton(Minimum):
         beta_n: float = beta / self.n
         res = - sum(np.log(beta_n * self.hbar * abs(freq_nonzero))) + (self.n_zero + 1) * math.log(self.n)
         res += 0.5 * (math.log(2 * np.pi * bn) - math.log(beta_n * self.hbar ** 2))
-        log.info(f'log(Z_vib) = {res}')
+        log.info(f'log(Z_vib) = {res:{Formats.LOG_PARTITION_FUNCTION}}')
         return res
 
     def calc_rate(self, beta: float, n: int | None = None) -> None:
@@ -333,27 +335,28 @@ class Instanton(Minimum):
             log_pf_ts = np.zeros(3)
         log_pf_rct: NDArray = np.array(self.rct.log_pf[(beta, n)]) if self.rct else np.zeros(3)
         log.info(f'\n{"-"*11}\nInstanton\n{"-"*11}')
-        log.info(f'V_turn = ({self.pot_cl[0]}, {self.pot_cl[-1]})')
-        log.info(f'E = {self.energy}')
+        log.info(f'V_turn = ({self.pot_cl[0]:{Formats.ENERGY}}, {self.pot_cl[-1]:{Formats.ENERGY}})')
+        log.info(f'E = {self.energy:{Formats.ENERGY}}')
         self.calc_pf(beta, n)
         log_pf_inst: NDArray = np.array(self.log_pf[(beta, n)])
+        fmt: str = Formats.PARTITION_FUNCTION
         if self.ts:
             log_pf: NDArray = log_pf_inst - log_pf_ts
             assert math.isclose(log_pf[0], 0), 'Ratio between Z_trans should be 1'
             log.info('\nComputing instanton tunnelling factor from instanton and TS data...')
             pf: NDArray = np.exp(log_pf)
             log.info('Partition functions (instanton/TS):')
-            log.info(f'  trans {pf[0]}\n  rot   {pf[1]}\n  vib   {pf[2]*self.n}')
+            log.info(f'  trans {pf[0]:{fmt}}\n  rot   {pf[1]:{fmt}}\n  vib   {pf[2]:{fmt}}')
             action: float = self.action / self.hbar - beta * self.ts.pot
-            log.info(f'S/hbar - beta*V_TS = {action}')
-            log.info(f'kInst/kEyring = {math.exp(sum(log_pf) - action):e}')
+            log.info(f'S/hbar - beta*V_TS = {action:{Formats.ACTION}}')
+            log.info(f'kInst/kEyring = {math.exp(sum(log_pf) - action):{Formats.TUNNELING_FACTOR}}')
         if self.rct:
             log_pf: NDArray = log_pf_inst - log_pf_rct
             assert math.isclose(log_pf[0], 0), 'Ratio between Z_trans should be 1 for a unimolecular reaction'
             log.info('\nComputing thermal instanton rate from instanton and reactant minima...')
             pf: NDArray = np.exp(log_pf)
             log.info('Partition functions (instanton/reactant):')
-            log.info(f'  trans {pf[0]}\n  rot   {pf[1]}\n  vib   {pf[2]}')
+            log.info(f'  trans {pf[0]:{fmt}}\n  rot   {pf[1]:{fmt}}\n  vib   {pf[2]:{fmt}}')
             action: float = self.action / self.hbar - beta * self.rct.pot
             log.info(f'S/hbar - beta*V_r = {action}')
             k: float = 1 / (2 * np.pi * beta * self.hbar) * math.exp(sum(log_pf) - action)
