@@ -10,9 +10,9 @@ from numpy.linalg import norm
 from numpy.typing import NDArray
 from scipy.interpolate import CubicSpline
 
-from pyrinst.config.formats import FORMATS
-from pyrinst.core.rp import Beads, Springs
-from pyrinst.core.pes.abc import PES, PESProxy
+from pyrinst.utils.formats import Formats
+from .rp import Beads, Springs
+from .pes.abc import PES, PESProxy
 from pyrinst.utils.coordinates import mass_weight
 
 log = logging.getLogger(__name__)
@@ -53,11 +53,11 @@ class Data(PESProxy, ABC):
 
     def __str__(self):
         """used for optimization only"""
-        return f'V = {self.pot:{FORMATS["energy"]}}, |G| = {norm(self.grad):.5e}'
+        return f'V = {self.pot:{Formats.ENERGY}}, |G| = {norm(self.grad):.5e}'
 
     def output(self, prefix: str) -> None:
         # todo: save traj, xyz
-        comment = f'V = {self.pot:{FORMATS["energy"]}}' if self.pot is not None else ''
+        comment = f'V = {self.pot:{Formats.ENERGY}}' if self.pot is not None else ''
         np.savetxt(prefix+'.txt', self.x, fmt='%15.8f', header=comment)
 
     def final_output(self, prefix: str) -> None:
@@ -111,13 +111,13 @@ class Minimum(Data):
 
     def trans(self, beta: float) -> float:
         res: float = 1
-        log.info(f'Z_trans = {res:{FORMATS['pf']}} per volume')
         return math.log(res)  # todo
 
     def rot(self, beta: float) -> float:
         res: float = 1
-        log.info(f'Z_rot = {res:{FORMATS["pf"]}}')
         return math.log(res)  # todo
+        log.info(f'Z_trans = {res:{Formats.PARTITION_FUNCTION}} per volume')
+        log.info(f'Z_rot = {res:{Formats.PARTITION_FUNCTION}}')
 
     def vib(self, beta: float, n: int | None = None) -> float:
         self.print_freq(raise_error=True)
@@ -128,7 +128,7 @@ class Minimum(Data):
             freq = 2 * n / (beta * self.hbar) * np.arcsinh(beta * self.hbar * freq / (2 * n))
             msg = f'({n}-bead approx)'
         res: float = - sum(np.log(2 * np.sinh(0.5 * beta * self.hbar * freq)))
-        log.info(f'{msg} log(Z_vib) = {res:{FORMATS["log pf"]}}')
+        log.info(f'{msg} log(Z_vib) = {res:{Formats.LOG_PARTITION_FUNCTION}}')
         return res
 
     @property
@@ -137,7 +137,7 @@ class Minimum(Data):
 
     def calc_rate(self, beta: float, n: int | None = None) -> None:
         log.info(f'\n{"-"*9}\nMinimum\n{"-"*9}')
-        log.info(f'min V = {self.pot:{FORMATS["energy"]}}')
+        log.info(f'min V = {self.pot:{Formats.ENERGY}}')
         self.calc_pf(beta, n)
 
 
@@ -153,7 +153,7 @@ class TransitionState(Minimum):
         self.recalc_hess()
         self.print_freq(raise_error=False)
         self.beta_c = 2 * np.pi / (self.hbar * (-self.freq[0]))
-        fmt = FORMATS['temperature']
+        fmt = Formats.TEMPERATURE
         logging.info(f'such that beta_c = {self.beta_c:{fmt}}, T_c = {self.units.betaTemp(self.beta_c):{fmt}} K')
         self.save(prefix)
 
@@ -169,10 +169,10 @@ class TransitionState(Minimum):
         else:
             log_pf_rct = np.zeros(3)
         log.info(f'\n{"-" * 18}\nTransition State\n{"-" * 18}')
-        msg: str = f'TS V = {self.pot:{FORMATS["energy"]}}'
+        msg: str = f'TS V = {self.pot:{Formats.ENERGY}}'
         if self.rct:
             barrier: float | None = self.pot - self.rct.pot
-            msg += f'; barrier = {barrier:{FORMATS["energy"]}}'
+            msg += f'; barrier = {barrier:{Formats.ENERGY}}'
         else:
             barrier = None
         log.info(msg)
@@ -183,19 +183,19 @@ class TransitionState(Minimum):
             log.info('\nComputing Eyring TST rate from TS and reactant minima...')
             pf: NDArray = np.exp(log_pf)
             log.info('Partition functions (TS/reactant):')
-            fmt: str = FORMATS['pf']
+            fmt: str = Formats.PARTITION_FUNCTION
             log.info(f'  trans {pf[0]:{fmt}}\n  rot   {pf[1]:{fmt}}\n  vib   {pf[2]:{fmt}}')
             # todo: symmetry factor
             beta_hbar: float = beta * self.hbar
             k_eyring: float = 1 / (2 * np.pi * beta_hbar) * math.exp(sum(log_pf) - beta * barrier)
             k_eyring_si: float = k_eyring / self.units.time
-            log.info(f'kEyring = {k_eyring:{FORMATS["rate"]}} = {k_eyring_si:{FORMATS["rate"]}} s-1')
-            log.info(f'log10(kEyring / s^-1) = {math.log10(k_eyring_si):{FORMATS["log rate"]}}')
             if beta < self.beta_c:  # exact tunneling correction for the parabolic barrier
                 k_pb = k_eyring * 0.5 * beta_hbar * (-self.freq[0]) / math.sin(0.5 * beta_hbar * (-self.freq[0]))
                 k_pb_si: float = k_pb / self.units.time
-                log.info(f'kPB = {k_pb:{FORMATS["rate"]}} = {k_pb_si:{FORMATS["rate"]}} s-1')
-                log.info(f'log10(kPB / s^-1) = {math.log10(k_pb_si):{FORMATS["log rate"]}}')
+            log.info(f'kEyring = {k_eyring:{Formats.RATE}} = {k_eyring_si:{Formats.RATE}} s-1')
+            log.info(f'log10(kEyring / s^-1) = {math.log10(k_eyring_si):{Formats.LOG_RATE}}')
+                log.info(f'kPB = {k_pb:{Formats.RATE}} = {k_pb_si:{Formats.RATE}} s-1')
+                log.info(f'log10(kPB / s^-1) = {math.log10(k_pb_si):{Formats.LOG_RATE}}')
 
     def spread(self, n: int, beta: float, length: float = 0.1) -> 'Instanton':
         mode: NDArray = self.normal_modes[:, 0].reshape(self.x.shape) / np.sqrt(self.mass)  # un-mass-weighted mode

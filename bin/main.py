@@ -8,7 +8,7 @@ from functools import partial
 
 import numpy as np
 
-from pyrinst.config.formats import FORMATS
+from pyrinst.utils.formats import Formats
 from pyrinst.core import modes_registry, Minimum, TransitionState, Instanton, optimizers
 from pyrinst.utils.logging_config import setup_logging
 from pyrinst.io.xyz import load
@@ -106,7 +106,7 @@ if beta is None:
     exit()
 
 log.info('\nComputing rate...')
-fmt: str = FORMATS["temperature"]
+fmt: str = Formats.BETA
 log.info(f'T = {temp:{fmt}} K, 1000/T(K) = {1000/temp:{fmt}}; beta = {beta:{fmt}}')
 
 data.calc_rate(beta)
