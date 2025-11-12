@@ -1,272 +1,181 @@
 """
-Test suite for the refactored units module.
+Unit tests for the unit conversion toolkit in `pyrinst.utils.units`.
 
-This file contains a series of tests to ensure the correctness and robustness
-of the unit systems, quantity classes, and factory methods defined in the
-units module.
+Design Logic:
+1.  This is a pure unit test for `units.py`. It does NOT test `constants.py`
+    or any other part of the application.
+2.  The `units.py` module's main dependency is the `_unit_data.py`
+    database. We import this database as the "source of truth" to
+    validate the conversion logic.
+3.  Tests are grouped by functionality:
+    - `TestQuantityBase`: Checks error handling and type-agnostic
+      methods like `change()`.
+    - `TestQuantitySubclasses`: Ensures subclasses (`Energy`, `Length`, etc.)
+      are set up correctly.
+    - `TestQuantityConversions`: Uses parameterization to verify the
+      mathematical correctness of a wide range of conversions.
 """
 
-import math
 import pytest
-from scipy import constants as sc
 
-from pyrinst.config import units, _unit_data
+# The module we are testing
+from pyrinst.utils import units
+
+# The database we are testing against
+from pyrinst.config import _unit_data
 
 
-# TESTS FOR UNIT SYSTEM CLASSES (e.g., AtomicUnits, EVAamu)
+# --- 1. Load the "source of truth" from the project's database ---
+# We will test that the units.py module can correctly use these factors.
+REGISTRY = _unit_data.UNIT_REGISTRY
 
-class TestUnitSystems:
+# Get SI conversion factors for cross-checking
+HARTREE_SI = REGISTRY['energy']['hartree']
+EV_SI = REGISTRY['energy']['ev']
+KCAL_MOL_SI = REGISTRY['energy']['kcal/mol']
+CM_INV_SI = REGISTRY['energy']['cm-1']
+
+BOHR_SI = REGISTRY['length']['bohr']
+ANGSTROM_SI = REGISTRY['length']['angstrom']
+
+AMU_SI = REGISTRY['mass']['amu']
+AU_MASS_SI = REGISTRY['mass']['au']  # This is m_e
+
+AU_TIME_SI = REGISTRY['time']['au']
+FS_SI = REGISTRY['time']['fs']
+PS_SI = REGISTRY['time']['ps']
+
+
+class TestQuantityBase:
+    """Tests the core, type-agnostic functionality of the Quantity base class."""
+
+    def test_quantity_initialization_invalid_unit(self) -> None:
+        """
+        Tests that initializing a Quantity with a unit not in the
+        database raises a ValueError.
+        """
+        with pytest.raises(ValueError, match="not a recognized unit"):
+            units.Quantity(1.0, "NotARealUnit", "energy")
+
+    def test_get_invalid_target_unit(self) -> None:
+        """
+        Tests that calling .get() with an invalid target unit
+        raises a ValueError.
+        """
+        # Create a valid object
+        e = units.Energy(1.0, "eV")
+        # Try to convert to an invalid unit
+        with pytest.raises(ValueError, match="Cannot convert to"):
+            e.get("NotARealUnit")
+
+    def test_change_method(self) -> None:
+        """
+        Tests that the .change() method correctly returns a new object
+        of the same class with the converted value and new unit.
+        """
+        e_hartree = units.Energy(1.0, "Hartree")
+        e_ev = e_hartree.change("eV")
+
+        # Check that it returned the correct class
+        assert isinstance(e_ev, units.Energy)
+        
+        # Check that the new object has the correct attributes
+        assert e_ev.unit == "eV"
+        assert e_ev.value == pytest.approx(e_hartree.get("eV"))
+        
+        # Check that the original object is unchanged
+        assert e_hartree.unit == "Hartree"
+        assert e_hartree.value == 1.0
+
+    def test_str_representation(self) -> None:
+        """Tests the __str__ method for a clean output."""
+        e = units.Energy(2.5, "eV")
+        assert str(e) == "2.5 eV"
+        
+        # Test the 'g' formatting for large/small numbers
+        l = units.Length(1.0e-10, "m")
+        assert str(l) == "1e-10 m"
+
+
+class TestQuantitySubclasses:
+    """Tests the specific subclasses: Energy, Length, Mass, Time."""
+
+    def test_subclasses_set_correct_quantity_type(self) -> None:
+        """
+        Tests that each subclass correctly initializes its
+        parent with the right `quantity_type` string.
+        """
+        assert units.Energy(1, 'eV').quantity_type == 'energy'
+        assert units.Length(1, 'A').quantity_type == 'length'
+        assert units.Mass(1, 'amu').quantity_type == 'mass'
+        assert units.Time(1, 'fs').quantity_type == 'time'
+
+    def test_subclasses_use_correct_default_unit(self) -> None:
+        """
+        Tests that subclasses default to the correct SI unit
+        if one is not provided.
+        """
+        assert units.Energy(1.0).unit == 'J'
+        assert units.Length(1.0).unit == 'm'
+        assert units.Mass(1.0).unit == 'kg'
+        assert units.Time(1.0).unit == 's'
+
+
+# --- 3. The main conversion logic test ---
+
+@pytest.mark.parametrize(
+    "Cls, value, from_unit, to_unit, expected",
+    [
+        # --- Energy Conversions ---
+        (units.Energy, 1.0, 'hartree', 'ev', HARTREE_SI / EV_SI),
+        (units.Energy, 1.0, 'ev', 'hartree', EV_SI / HARTREE_SI),
+        (units.Energy, 1.0, 'kcal/mol', 'J', KCAL_MOL_SI),
+        (units.Energy, 1.0, 'J', 'kcal/mol', 1.0 / KCAL_MOL_SI),
+        (units.Energy, 1.0, 'hartree', 'cm-1', HARTREE_SI / CM_INV_SI),
+        (units.Energy, 1000.0, 'cm-1', 'ev', (1000.0 * CM_INV_SI) / EV_SI),
+
+        # --- Length Conversions ---
+        (units.Length, 1.0, 'bohr', 'A', BOHR_SI / ANGSTROM_SI),
+        (units.Length, 1.0, 'A', 'bohr', ANGSTROM_SI / BOHR_SI),
+        (units.Length, 1.0, 'm', 'bohr', 1.0 / BOHR_SI),
+
+        # --- Mass Conversions ---
+        (units.Mass, 1.0, 'amu', 'au', AMU_SI / AU_MASS_SI), # amu to m_e
+        (units.Mass, 1.0, 'au', 'amu', AU_MASS_SI / AMU_SI), # m_e to amu
+        (units.Mass, 1.0, 'kg', 'amu', 1.0 / AMU_SI),
+
+        # --- Time Conversions ---
+        (units.Time, 1.0, 'fs', 'au', FS_SI / AU_TIME_SI),
+        (units.Time, 1.0, 'au', 'fs', AU_TIME_SI / FS_SI),
+        (units.Time, 1.0, 'ps', 's', PS_SI),
+
+        # --- Identity and Case-Insensitivity ---
+        (units.Energy, 12.34, 'eV', 'eV', 12.34),
+        (units.Length, 1.0, 'A', 'angstrom', 1.0),
+        (units.Energy, 1.0, 'HARTREE', 'ev', HARTREE_SI / EV_SI), # Mixed class/case
+    ]
+)
+def test_quantity_conversions(
+    Cls: type, 
+    value: float, 
+    from_unit: str, 
+    to_unit: str, 
+    expected: float
+) -> None:
     """
-    Groups tests for the UnitSystem subclasses.
-    Verifies the correctness of their conversion factors and properties.
+    Tests a wide range of conversions for mathematical correctness.
+    
+    This parameterized test creates a Quantity object of type `Cls` and
+    verifies that its `.get()` method produces the `expected` value.
+    The expected values are calculated from the SI factors loaded from
+    `_unit_data.py`, ensuring the test logic is self-consistent
+    with the project's database.
     """
-
-    def test_si_system_values(self):
-        """Tests the values of the SI unit system."""
-        si = units.SI()
-        assert si.energy == 1.0
-        assert si.length == 1.0
-        assert si.mass == 1.0
-        assert si.time == 1.0
-        assert si.hbar == sc.hbar
-        assert si.e == sc.e
-        assert si.base_units == {'energy': 'J', 'length': 'm', 'mass': 'kg', 'time': 's'}
-
-    def test_atomic_units_system_values(self):
-        """Tests the values of the AtomicUnits system."""
-        au = units.AtomicUnits()
-        registry = _unit_data.UNIT_REGISTRY
-        assert au.energy == pytest.approx(registry['energy']['Hartree'])
-        assert au.length == pytest.approx(registry['length']['Bohr'])
-        assert au.mass == pytest.approx(registry['mass']['au'])
-        assert au.time == pytest.approx(registry['time']['au'])
-        assert au.hbar == 1.0
-
-    def test_kcalafs_derived_mass(self):
-        """Ensures the derived mass in KcalAfs is physically consistent."""
-        system = units.KcalAfs()
-        expected_mass = system.energy * (system.time ** 2) / (system.length ** 2)
-        assert system.mass == pytest.approx(expected_mass)
-
-    def test_kcalaamu_derived_time(self):
-        """Ensures the derived time in KcalAamu is physically consistent."""
-        system = units.KcalAamu()
-        expected_time = system.length * math.sqrt(system.mass / system.energy)
-        assert system.time == pytest.approx(expected_time)
-
-    def test_cmbohramu_derived_time(self):
-        """Ensures the derived time in CmBohrAmu is physically consistent."""
-        system = units.CmBohrAmu()
-        expected_time = system.length * math.sqrt(system.mass / system.energy)
-        assert system.time == pytest.approx(expected_time)
-
-    def test_system_equality(self):
-        """Tests the equality check, which should be based on class type."""
-        au1 = units.AtomicUnits()
-        au2 = units.AtomicUnits()
-        ha = units.HartreeAngstrom()
-
-        assert au1 == au2
-        assert au1 != ha
-        assert au1 != "some string"  # Should handle comparison with other types
-
-    def test_base_units_property(self):
-        """Tests that the base_units property is correctly defined."""
-        eva = units.EVAamu()
-        ha = units.HartreeAngstrom()
-
-        assert eva.base_units == {'energy': 'eV', 'length': 'A', 'mass': 'amu'}
-        # Mass and Time are derived, so they should not be in base_units
-        assert 'time' not in eva.base_units
-
-        # Mass is derived in HartreeAngstrom, so it should not be a base unit
-        assert 'mass' not in ha.base_units
-
-
-# TESTS FOR FACTORY METHODS (e.g., system.Energy())
-
-class TestFactoryMethods:
-    """Tests the factory methods (.Energy(), .Length(), etc.) on UnitSystem."""
-
-    def test_factory_method_on_base_unit(self):
-        """
-        Tests that factory methods work correctly when called for a
-        fundamental unit of a system.
-        """
-        eva_system = units.EVAamu()
-        # Create an energy object using the factory; no unit string needed.
-        energy = eva_system.Energy(5.0)
-
-        assert isinstance(energy, units.Energy)
-        assert energy.unit == 'eV'
-        assert energy.value == 5.0
-        # Check conversion to verify the object is functional
-        assert energy.get('J') == pytest.approx(5.0 * sc.e)
-
-    def test_factory_method_failure_on_derived_unit(self):
-        """
-        Tests that calling a factory method for a derived unit (which has no
-        simple name) correctly raises a KeyError. This is expected behavior.
-        """
-        ha_system = units.HartreeAngstrom()
-        # The 'mass' unit in HartreeAngstrom is derived and has no base name.
-        # Therefore, calling .Mass() should fail, which is correct.
-        with pytest.raises(KeyError) as excinfo:
-            ha_system.Mass(1.0)
-        # Check that the error message clearly indicates the missing key.
-        assert "'mass'" in str(excinfo.value)
-
-
-# TESTS FOR QUANTITY CLASSES (e.g., Energy, Length)
-
-class TestQuantities:
-    """
-    Tests the Quantity subclasses for direct unit conversions and error handling
-    with a wide range of examples.
-    """
-
-    @pytest.mark.parametrize(
-        "value, from_unit, to_unit, expected",
-        [
-            # --- Energy Conversions ---
-            (1.0, 'hartree', 'eV', sc.value("Hartree energy in eV")),
-            (27.21138, 'eV', 'hartree', 1.0),
-            (1.0, 'hartree', 'kcal/mol', 627.509),
-            (1.0, 'kcal/mol', 'J', sc.calorie * 1000 / sc.N_A),
-            (1.0, 'eV', 'J', sc.e),
-            (1.0, 'J', 'erg', 1e7),
-
-            # --- Conversions to/from Wavenumbers (cm-1) ---
-            (1.0, 'hartree', 'cm-1', 219474.63),
-            (1.0, 'eV', 'cm-1', 8065.54),
-            (1.0, 'kcal/mol', 'cm-1', 349.755),
-            (1.0, 'J', 'cm-1', 1 / (sc.h * sc.c * 100)),
-            (1000.0, 'cm-1', 'eV', 0.123984),
-
-            # --- Length Conversions ---
-            (1.0, 'bohr', 'A', sc.value("Bohr radius") / sc.angstrom),
-            (1.0, 'A', 'm', sc.angstrom),
-            (1.0, 'in', 'cm', 2.54),
-            (1.0, 'm', 'bohr', 1 / sc.value("Bohr radius")),
-
-            # --- Mass and Time Conversions ---
-            (1.0, 'amu', 'kg', sc.m_u),
-            (1.0, 'Da', 'g', sc.m_u * 1000),
-            (1.0, 'fs', 's', sc.femto),
-            (1.0, 's', 'ps', 1e12),
-
-            # --- Identity and Case-Insensitivity ---
-            (10.0, 'eV', 'eV', 10.0),
-            (1.0, 'HARTREE', 'ev', sc.value("Hartree energy in eV")),
-        ]
-    )
-    def test_extensive_conversions(self, value, from_unit, to_unit, expected):
-        """Tests a wide range of unit conversions for correctness."""
-        # Determine quantity type based on unit
-        registry = _unit_data.UNIT_REGISTRY
-        if from_unit.lower() in registry['energy']:
-            quantity = units.Energy(value, from_unit)
-        elif from_unit.lower() in registry['length']:
-            quantity = units.Length(value, from_unit)
-        elif from_unit.lower() in registry['mass']:
-            quantity = units.Mass(value, from_unit)
-        else:
-            quantity = units.Time(value, from_unit)
-
-        result = quantity.get(to_unit)
-        assert result == pytest.approx(expected, rel=1e-5)
-
-    def test_invalid_unit_instantiation(self):
-        """
-        Tests that creating a Quantity with an unknown unit raises ValueError.
-        """
-        with pytest.raises(ValueError) as excinfo:
-            units.Energy(1.0, "invalid_unit")
-        assert "invalid_unit" in str(excinfo.value)
-
-    def test_invalid_unit_conversion(self):
-        """
-        Tests that converting to an unknown unit raises ValueError.
-        """
-        length = units.Length(1.0, 'm')
-        with pytest.raises(ValueError) as excinfo:
-            length.get("invalid_length_unit")
-        assert "invalid_length_unit" in str(excinfo.value)
-
-
-# TESTS FOR THE UnitSystem.convert() METHOD
-
-class TestSystemConvertMethod:
-    """
-    Tests the functionality of converting a Quantity object from one
-    unit system's context to another using the `UnitSystem.convert()` method.
-    """
-
-    def test_convert_length_between_systems(self):
-        """
-        Tests converting a Length object from AtomicUnits (bohr) to
-        the HartreeAngstrom system (which uses Angstrom).
-        """
-        # 1. Define source and target unit systems
-        au_system = units.AtomicUnits()
-        ha_system = units.HartreeAngstrom()
-
-        # 2. Create a length object from the source system
-        length_in_au = au_system.Length(2.0)  # This is a 2.0 bohr Quantity
-
-        # 3. Use the target system's .convert() method
-        converted_length_obj = ha_system.convert(length_in_au)
-
-        # 4. Assert the returned object is of the correct type and has the correct unit
-        assert isinstance(converted_length_obj, units.Length)
-        # The target unit should be 'A' as defined in HartreeAngstrom.base_units
-        assert converted_length_obj.unit.lower() == 'a'
-
-        # 5. Assert the value is correct by manual calculation
-        expected_value = (2.0 * sc.value("Bohr radius")) / sc.angstrom
-        assert converted_length_obj.value == pytest.approx(expected_value)
-
-    def test_convert_energy_and_verify_functionality(self):
-        """
-        Tests converting an Energy object and ensures the resulting object
-        is fully functional by calling .get() on it.
-        """
-        eva_system = units.EVAamu()
-        au_system = units.AtomicUnits()
-
-        # Create a 1.0 eV energy object
-        energy_in_eva = eva_system.Energy(1.0)
-
-        # Convert it to the AtomicUnits system
-        energy_in_au = au_system.convert(energy_in_eva)
-
-        # Assert basic properties of the new object
-        assert isinstance(energy_in_au, units.Energy)
-        assert energy_in_au.unit.lower() == 'hartree'
-        assert energy_in_au.value == pytest.approx(1.0 / sc.value("Hartree energy in eV"))
-
-        # CRITICAL: Verify the new object works as expected
-        # Can it convert its value to yet another unit?
-        value_in_kcal = energy_in_au.get('kcal/mol')
-        assert value_in_kcal == pytest.approx(1.0 / sc.value("Hartree energy in eV") * 627.509)
-
-    def test_convert_failure_for_derived_unit_target(self):
-        """
-        Tests that .convert() correctly raises a KeyError when the target
-        system does not have a defined base unit for the quantity type.
-        This is a critical safety feature.
-        """
-        au_system = units.AtomicUnits()
-        ha_system = units.HartreeAngstrom()
-
-        # Create a mass object in a system where mass is a base unit
-        mass_in_au = au_system.Mass(1.0)  # This is 1.0 electron mass
-
-        # Attempt to convert it to the HartreeAngstrom system, where
-        # mass is a derived unit and has no entry in `base_units`.
-        with pytest.raises(KeyError) as excinfo:
-            ha_system.convert(mass_in_au)
-
-        # The error should clearly indicate that 'mass' is not a base unit
-        # in the target system.
-        assert "'mass'" in str(excinfo.value)
+    # Create the object, e.g., units.Energy(1.0, 'hartree')
+    obj = Cls(value, from_unit)
+    
+    # Perform the conversion, e.g., obj.get('ev')
+    result = obj.get(to_unit)
+    
+    # Check against the expected value
+    assert result == pytest.approx(expected)
