@@ -45,6 +45,11 @@ AU_TIME_SI = REGISTRY['time']['au']
 FS_SI = REGISTRY['time']['fs']
 PS_SI = REGISTRY['time']['ps']
 
+KB_AU_HARTREE_PER_KELVIN = (
+    _unit_data.UNIT_REGISTRY['energy']['K'] / 
+    _unit_data.UNIT_REGISTRY['energy']['Hartree']
+)
+
 
 class TestQuantityBase:
     """Tests the core, type-agnostic functionality of the Quantity base class."""
@@ -179,3 +184,75 @@ def test_quantity_conversions(
     
     # Check against the expected value
     assert result == pytest.approx(expected)
+
+class TestTemperature:
+    """
+    Unit tests for the static `Temperature` utility class.
+    
+    These tests assume the `Temperature` class exists in `pyrinst.utils.units`
+    and that it self-manages its own `_kb_au` constant.
+    """
+    
+    def test_to_beta_happy_path(self) -> None:
+        """
+        Tests the T (Kelvin) -> beta (1/Hartree) conversion.
+        """
+        temp_k = 300.0
+        # This is the expected calculation: 1.0 / (T * Kb_au)
+        expected_beta = 1.0 / (300.0 * KB_AU_HARTREE_PER_KELVIN)
+        
+        # We call the static method on the units.Temperature class
+        assert units.Temperature.to_beta(temp_k) == pytest.approx(expected_beta)
+
+    def test_to_kelvin_happy_path(self) -> None:
+        """
+        Tests the beta (1/Hartree) -> T (Kelvin) conversion.
+        """
+        beta_au = 1000.0  # An arbitrary internal beta value
+        expected_temp = 1.0 / (1000.0 * KB_AU_HARTREE_PER_KELVIN)
+        
+        assert units.Temperature.to_kelvin(beta_au) == pytest.approx(expected_temp)
+
+    @pytest.mark.parametrize("temp_k", [1.0, 77.0, 298.15, 300.0, 1000.0])
+    def test_roundtrip_kelvin_to_beta_to_kelvin(self, temp_k: float) -> None:
+        """
+        Ensures that T -> beta -> T returns the original temperature.
+        This is the most robust check.
+        """
+        # We do not use our manually calculated constant here.
+        # We test the class against itself.
+        beta = units.Temperature.to_beta(temp_k)
+        result_temp = units.Temperature.to_kelvin(beta)
+        
+        assert result_temp == pytest.approx(temp_k)
+
+    @pytest.mark.parametrize("beta_au", [100.0, 1052.79, 5000.0])
+    def test_roundtrip_beta_to_kelvin_to_beta(self, beta_au: float) -> None:
+        """
+        Ensures that beta -> T -> beta returns the original beta.
+        """
+        temp = units.Temperature.to_kelvin(beta_au)
+        result_beta = units.Temperature.to_beta(temp)
+        
+        assert result_beta == pytest.approx(beta_au)
+
+    @pytest.mark.parametrize("invalid_temp", [0.0, -100.0, -0.01])
+    def test_to_beta_raises_error_on_non_positive_temp(
+        self, invalid_temp: float
+    ) -> None:
+        """
+        Tests that T <= 0 raises a ValueError, as required
+        by the physical formula.
+        """
+        with pytest.raises(ValueError, match="Temperature must be positive"):
+            units.Temperature.to_beta(invalid_temp)
+
+    @pytest.mark.parametrize("invalid_beta", [0.0, -1000.0, -1e-10])
+    def test_to_kelvin_raises_error_on_non_positive_beta(
+        self, invalid_beta: float
+    ) -> None:
+        """
+        Tests that beta <= 0 raises a ValueError.
+        """
+        with pytest.raises(ValueError, match="Beta must be positive"):
+            units.Temperature.to_kelvin(invalid_beta)
