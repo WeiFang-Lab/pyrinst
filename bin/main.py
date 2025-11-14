@@ -11,6 +11,7 @@ import numpy as np
 from pyrinst.utils.formats import Formats
 from pyrinst.core import modes_registry, Minimum, TransitionState, Instanton, optimizers
 from pyrinst.utils.logging_config import setup_logging
+from pyrinst.utils.units import Temperature
 from pyrinst.io.xyz import load
 
 parser = argparse.ArgumentParser()
@@ -68,13 +69,13 @@ else:
 # temperature
 if args.Temp is not None:
     temp: float | None = args.Temp
-    beta: float | None = data.units.betaTemp(temp)
+    beta: float | None = Temperature.to_beta(temp)
 elif args.beta is not None:
     beta = args.beta
-    temp = data.units.betaTemp(beta)
+    temp = Temperature.to_kelvin(beta)
 elif isinstance(data, Instanton):
     beta = data.beta
-    temp = data.units.betaTemp(beta)
+    temp = Temperature.to_kelvin(beta)
 else:
     beta = temp = None
 
@@ -83,7 +84,6 @@ if args.mode == 'inst':
         data = data.spread(args.beads, beta, args.spread)
     if args.beads and args.beads != data.n:
         data.interpolate(args.beads)
-log.info(data.units)
 
 if args.link:
     match args.mode:
