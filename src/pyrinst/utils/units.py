@@ -15,7 +15,7 @@ Examples
 --------
 To perform a one-off conversion:
 
->>> from pyrinst.config.units import Energy, Length
+>>> from pyrinst.utils.units import Energy, Length
 >>>
 >>> # Convert 1.0 kcal/mol to Hartree
 >>> kcal_to_hartree = Energy(1.0, 'kcal/mol').get('Hartree')
