@@ -2,6 +2,8 @@ import numpy as np
 from numpy.typing import NDArray
 from pyrinst.core.pes.abc import PES, PESProxy
 
+hbar: float = 1
+
 
 class Beads(PESProxy):
     def potential(self, x: NDArray) -> NDArray:
@@ -26,8 +28,7 @@ class Springs(PES):
         self.n = n
         self.beta = beta
         self.mass = mass
-        self.hbar: float = self.units.hbar
-        self.omega_n: float = n / (self.beta * self.hbar)
+        self.omega_n: float = n / (self.beta * hbar)
 
     def potential(self, x: NDArray) -> float:
         return self.omega_n ** 2 * np.sum(self.mass * np.sum(np.diff(x, axis=0) ** 2, 0))

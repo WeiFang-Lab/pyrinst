@@ -14,9 +14,12 @@ from pyrinst.utils.formats import Formats, format_array
 from .rp import Beads, Springs
 from .pes.abc import PES, PESProxy
 from pyrinst.utils.coordinates import mass_weight
+from pyrinst.utils.units import Energy, Length, Time, Temperature
 
 log = logging.getLogger(__name__)
 logging.captureWarnings(True)
+
+hbar: float = 1
 
 
 class Data(PESProxy, ABC):
@@ -25,16 +28,36 @@ class Data(PESProxy, ABC):
     """
     order = None
 
-    def __init__(self, x: NDArray, pes: PES, n_zero: int = 0):
-        assert n_zero in (0, 3, 5, 6)
+    def __init__(self, x: NDArray, pes: PES, phase: str = 'solid'):
+        assert phase in ('solid', 'liquid', 'gas')
         super().__init__(pes)
         self.x: NDArray = x
-        self.hbar: float = self.units.hbar
-        self.n_zero = n_zero
+        self.phase: str = phase
+        self.n_zero: int = self.get_n_zero(phase)
         self.pot, self.grad, self.hess = self.all(x)
         self.freq: NDArray | None = None  # will be evaluated after optimization
         self.normal_modes: NDArray | None = None
         self.log_pf: dict[tuple[float, int | None], tuple[float, float, float]] = {}
+
+    def get_n_zero(self, phase: str) -> int:
+        match phase:
+            case 'solid':
+                return 0
+            case 'liquid':
+                return 3
+            case 'gas':
+                return 3 if len(self.atoms) == 1 else (5 if self.is_linear else 6)
+        raise ValueError(f'unknown phase: {phase}')
+
+    @property
+    def is_linear(self) -> bool:
+        if self.x.shape[0] < 3:
+            return True
+        x = self.x - self.x[0]
+        for i in range(2, x.shape[0]):
+            if not math.isclose(norm(np.cross(x[1], x[i])), 0):
+                return False
+        return True
 
     @property
     def dof(self) -> int:
@@ -78,10 +101,10 @@ class Data(PESProxy, ABC):
 
     def print_freq(self, raise_error: bool) -> None:
         freq_nonzero = self.freq[np.argpartition(np.abs(self.freq), self.n_zero)[self.n_zero:]]
-        zpe = 0.5 * self.hbar * np.sum(freq_nonzero, where=freq_nonzero > 0)
-        freq_cm: NDArray = self.units.Energy(self.freq).get("cm-1")
+        zpe = 0.5 * hbar * np.sum(freq_nonzero, where=freq_nonzero > 0)
+        freq_cm: NDArray = self.freq * hbar * Energy(1, 'au').get("cm-1")
         log.info(f'frequencies in cm-1:\n{format_array(freq_cm, fmt=Formats.FREQUENCY)}')
-        log.info(f'H.O. ZPE = {self.units.Energy(zpe).get("cm-1"):{Formats.FREQUENCY}} cm-1')
+        log.info(f'H.O. ZPE = {Energy(zpe, "au").get("cm-1"):{Formats.FREQUENCY}} cm-1')
         # check for negative eigenvalues
         if (n := sum(freq_nonzero < 0)) != self.order:
             msg: str = f'Wrong number of negative eigenvalues (expected {self.order}, got {n} instead)'
@@ -126,9 +149,9 @@ class Minimum(Data):
         if n is None:
             msg: str = '(exact harmonic)'
         else:
-            freq = 2 * n / (beta * self.hbar) * np.arcsinh(beta * self.hbar * freq / (2 * n))
+            freq = 2 * n / (beta * hbar) * np.arcsinh(beta * hbar * freq / (2 * n))
             msg = f'({n}-bead approx)'
-        res: float = - sum(np.log(2 * np.sinh(0.5 * beta * self.hbar * freq)))
+        res: float = - sum(np.log(2 * np.sinh(0.5 * beta * hbar * freq)))
         log.info(f'{msg} log(Z_vib) = {res:{Formats.LOG_PARTITION_FUNCTION}}')
         return res
 
@@ -145,17 +168,17 @@ class Minimum(Data):
 class TransitionState(Minimum):
     order = 1
 
-    def __init__(self, x: NDArray, pes: PES, n_zero: int = 0, rct: Minimum = None):
-        super().__init__(x, pes, n_zero)
+    def __init__(self, *args, rct: Minimum = None, rct2: Minimum = None, **kwargs):
+        super().__init__(*args, **kwargs)
         self.beta_c: float | None = None  # will be evaluated after optimization
         self.rct = rct  # todo: bimolecular
 
     def final_output(self, prefix: str) -> None:
         self.recalc_hess()
         self.print_freq(raise_error=False)
-        self.beta_c = 2 * np.pi / (self.hbar * (-self.freq[0]))
+        self.beta_c = 2 * np.pi / (hbar * (-self.freq[0]))
         fmt = Formats.TEMPERATURE
-        logging.info(f'such that beta_c = {self.beta_c:{fmt}}, T_c = {self.units.betaTemp(self.beta_c):{fmt}} K')
+        logging.info(f'such that beta_c = {self.beta_c:{fmt}}, T_c = {Temperature.to_kelvin(self.beta_c):{fmt}} K')
         self.save(prefix)
 
     @property
@@ -187,7 +210,7 @@ class TransitionState(Minimum):
             fmt: str = Formats.PARTITION_FUNCTION
             log.info(f'  trans {pf[0]:{fmt}}\n  rot   {pf[1]:{fmt}}\n  vib   {pf[2]:{fmt}}')
             # todo: symmetry factor
-            beta_hbar: float = beta * self.hbar
+            beta_hbar: float = beta * hbar
             k_eyring: float = 1 / (2 * np.pi * beta_hbar) * math.exp(sum(log_pf) - beta * barrier)
             k_eyring_si: float = k_eyring / self.units.time
             if beta < self.beta_c:  # exact tunneling correction for the parabolic barrier
@@ -211,7 +234,7 @@ class Instanton(Minimum):
 
     def __init__(
             self, x: NDArray, pes: PES, beta: float,
-            n_zero: int = 0, rct: Minimum = None, ts: TransitionState = None):
+            phase: str = 'solid', rct: Minimum = None, rct2: Minimum = None, ts: TransitionState = None):
         self.n = 2 * len(x)
         self.beta = beta
         self.beads = Beads(pes)
@@ -219,7 +242,7 @@ class Instanton(Minimum):
         self.pot_cl: NDArray | None = None
         self.grad_cl: NDArray | None = None
         self.hess_cl: NDArray | None = None
-        super().__init__(x, pes, n_zero)
+        super().__init__(x, pes, phase)
         # todo: check reactant
         self.ts = ts
         self.rct = rct or ts.rct
@@ -274,11 +297,13 @@ class Instanton(Minimum):
         bn_atom: NDArray = np.atleast_1d(self.path_sq_disp)
         bn: float = sum(bn_atom)
         n_bn: float = self.n * bn
-        log.info(f'mass-weighted BN: BN = {bn}, N*BN = {n_bn}, BN/(betaN*hbar) = {n_bn/(self.beta*self.hbar)}')
         # todo: molecule
+        bn_beta: float = n_bn / (self.beta * hbar)
+        fmt: str = Formats.BN
+        log.info(f'mass-weighted BN: BN = {bn:{fmt}}, N*BN = {n_bn:{fmt}}, BN/(betaN*hbar) = {bn_beta:{fmt}}')
         log.info('computing bead potentials, gradients and Hessians...')
         self.recalc_hess()
-        log.info(f'S/hbar = {self.action/self.hbar:{Formats.ACTION}}')
+        log.info(f'S/hbar = {self.action/hbar:{Formats.ACTION}}')
         self.save(prefix)
 
     def recalc_hess(self) -> None:
@@ -287,7 +312,7 @@ class Instanton(Minimum):
 
     @property
     def action(self) -> float:
-        return self.beta / self.n * self.hbar * self.pot
+        return self.beta / self.n * hbar * self.pot
 
     @property
     def energy(self) -> float:
@@ -309,16 +334,16 @@ class Instanton(Minimum):
         lam: NDArray = np.linalg.eigvalsh(mass_weight(self.hess_full, self.mass, dim=self.x[0].size))
         self.freq = np.sqrt(abs(lam)) * np.sign(lam)
         freq_nonzero: NDArray = self.freq[np.argpartition(abs(self.freq), self.n_zero+1)[self.n_zero+1:]]
-        freq_12_cm: NDArray = self.units.Energy(self.freq[:12]).get("cm-1")
+        freq_12_cm: NDArray = self.freq[:12] * hbar * Energy(1, 'au').get("cm-1")
         log.info(f'first 12 frequencies in cm-1:\n{format_array(freq_12_cm, fmt=Formats.FREQUENCY)}')
         order: int = sum(freq_nonzero < 0)
-        if order == 2 and self.units.Energy(freq_nonzero[1]).get("cm-1") < 100:
+        if order == 2 and Energy(freq_nonzero[1], 'au').get("cm-1") < 100:
             raise NotImplemented
         elif order != 1:
             raise RuntimeError(f'Wrong number of imaginary frequencies (expected 1, got {order} instead)')
         beta_n: float = beta / self.n
-        res = - sum(np.log(beta_n * self.hbar * abs(freq_nonzero))) + (self.n_zero + 1) * math.log(self.n)
-        res += 0.5 * (math.log(2 * np.pi * bn) - math.log(beta_n * self.hbar ** 2))
+        res = - sum(np.log(beta_n * hbar * abs(freq_nonzero))) + (self.n_zero + 1) * math.log(self.n)
+        res += 0.5 * (math.log(2 * np.pi * bn) - math.log(beta_n * hbar ** 2))
         log.info(f'log(Z_vib) = {res:{Formats.LOG_PARTITION_FUNCTION}}')
         return res
 
@@ -347,7 +372,7 @@ class Instanton(Minimum):
             pf: NDArray = np.exp(log_pf)
             log.info('Partition functions (instanton/TS):')
             log.info(f'  trans {pf[0]:{fmt}}\n  rot   {pf[1]:{fmt}}\n  vib   {pf[2]:{fmt}}')
-            action: float = self.action / self.hbar - beta * self.ts.pot
+            action: float = self.action / hbar - beta * self.ts.pot
             log.info(f'S/hbar - beta*V_TS = {action:{Formats.ACTION}}')
             log.info(f'kInst/kEyring = {math.exp(sum(log_pf) - action):{Formats.TUNNELING_FACTOR}}')
         if self.rct:
@@ -357,9 +382,9 @@ class Instanton(Minimum):
             pf: NDArray = np.exp(log_pf)
             log.info('Partition functions (instanton/reactant):')
             log.info(f'  trans {pf[0]:{fmt}}\n  rot   {pf[1]:{fmt}}\n  vib   {pf[2]:{fmt}}')
-            action: float = self.action / self.hbar - beta * self.rct.pot
-            log.info(f'S/hbar - beta*V_r = {action}')
-            k: float = 1 / (2 * np.pi * beta * self.hbar) * math.exp(sum(log_pf) - action)
             k_si: float = k / self.units.time
             log.info(f'kInst = {k} = {k_si} / s')
             log.info(f'log10(kInst / s^-1) = {math.log10(k_si)}')
+            action: float = self.action / hbar - beta * self.rct.pot
+            log.info(f'S/hbar - beta*V_r = {action:{Formats.ACTION}}')
+            k: float = 1 / (2 * np.pi * beta * hbar) * math.exp(sum(log_pf) - action)

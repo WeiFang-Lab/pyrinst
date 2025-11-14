@@ -1,6 +1,5 @@
 from numpy.typing import NDArray
 from abc import ABC, abstractmethod
-from pyrinst.config.units import UnitSystem, AtomicUnits
 
 
 class PES(ABC):
@@ -10,7 +9,7 @@ class PES(ABC):
     the separate routines.
     """
     mass: float | NDArray = 1.0
-    units: UnitSystem = AtomicUnits()
+    atoms: list[str] = []
     dx: float = 1e-4
 
     @abstractmethod
