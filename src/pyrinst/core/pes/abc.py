@@ -1,3 +1,4 @@
+import numpy as np
 from numpy.typing import NDArray
 from abc import ABC, abstractmethod
 
@@ -20,7 +21,16 @@ class PES(ABC):
         ...  # todo: implement finite difference
 
     def hessian(self, x: NDArray) -> NDArray:
-        ...  # todo: implement finite difference
+        dim = x.size
+        res = np.empty((dim, dim), float)
+        dx = np.zeros_like(x)
+        for i in range(dim):
+            dx.flat[i] = self.dx
+            f1 = self.gradient(x + dx).ravel()
+            f2 = self.gradient(x - dx).ravel()
+            res[i] = (f1 - f2) * 0.5 / self.dx
+            dx.flat[i] = 0
+        return 0.5 * (res + res.T)
 
     def force(self, x: NDArray) -> NDArray:
         return -self.gradient(x)

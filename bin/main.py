@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
 import logging
 import os
 import pickle
@@ -26,7 +27,7 @@ parser.add_argument(
     '--mode', choices=('min', 'ts', 'inst'), required=True,
     help='Optimize input to minimum, transition state or instanton.')
 parser.add_argument('--phase', choices=('gas', 'liquid', 'solid'), default='gas', help='Phase of the system')
-parser.add_argument('-l', '--link', nargs='?', help='Pass min/TS here when optimizing TS/instanton.')
+parser.add_argument('-l', '--link', nargs='*', default=[], help='Pass min/TS here when optimizing TS/instanton.')
 parser.add_argument('-P', '--PES', choices=('custom',), help='Potential energy surface')
 # todo: choices
 parser.add_argument(
@@ -42,7 +43,17 @@ parser.add_argument('-s', '--spread', default=0.1, type=float, help="Spread of i
 args = parser.parse_args()
 
 from custom_pes import CustomPES
-pes = CustomPES()
+if args.mainInputFile:
+    with open(args.mainInputFile, 'r') as f:
+        main_input = json.load(f)
+    if isinstance(main_input, dict):
+        pes = CustomPES(**main_input)
+    elif isinstance(main_input, list):
+        pes = CustomPES(*main_input)
+    else:
+        raise ValueError(f'Unknown input file format: {args.mainInputFile}')
+else:
+    pes = CustomPES()
 
 prefix, ext = os.path.splitext(args.output)
 if ext in {'.xyz', '.txt', '.pkl'}:
@@ -54,10 +65,10 @@ prefix, ext = os.path.splitext(args.input)
 # read input file
 if ext == '.xyz':
     x = load(args.input)
-    data = modes_registry[args.mode](x, pes)
+    data = modes_registry[args.mode](x, pes, args.phase)
 elif ext == '.txt':
     x = np.loadtxt(args.input)  # todo: 1d instanton
-    data = modes_registry[args.mode](x, pes)
+    data = modes_registry[args.mode](x, pes, args.phase)
 elif ext == '.pkl':
     with open(args.input, 'rb') as f:
         data = pickle.load(f)
@@ -85,16 +96,21 @@ if args.mode == 'inst':
     if args.beads and args.beads != data.n:
         data.interpolate(args.beads)
 
-if args.link:
-    match args.mode:
-        case 'ts':
-            data.rct = np.load(args.link, allow_pickle=True)
-        case 'inst':
-            link = np.load(args.link, allow_pickle=True)
-            if isinstance(link, TransitionState):
-                data.ts = link
-            elif isinstance(link, Minimum):
+for i, file in enumerate(args.link):
+    if args.mode == 'ts':
+        if i == 0:
+            data.rct = np.load(file, allow_pickle=True)
+        else:
+            data.rct2 = np.load(file, allow_pickle=True)
+    elif args.mode == 'inst':
+        link = np.load(file, allow_pickle=True)
+        if isinstance(link, TransitionState):
+            data.ts = link
+        elif isinstance(link, Minimum):
+            if i == 0:
                 data.rct = link
+            else:
+                data.rct2 = link
 
 opt = optimizers[args.opt](order=data.order, maxstep=args.maxstep, update=not args.no_update)
 opt.search(data, gtol=args.gtol, maxiter=args.maxiter, callback=partial(type(data).output, prefix=args.output))

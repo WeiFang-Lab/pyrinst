@@ -8,6 +8,7 @@ Main functions: save, load
 
 import logging
 import numpy as np
+from ..utils.units import Length
 
 # Configure a logger for the library.
 # The user of the library can then configure the root logger to see these messages.
@@ -67,7 +68,7 @@ def save(
     filepath : str
         The path to the file to be written.
     coords : np.ndarray
-        The atomic coordinates.
+        The atomic coordinates in a.u.
         - For a single frame: shape must be (N, D) where N is the number of
           atoms and D (dimensions) is 1, 2, or 3.
         - For multiple frames: shape must be (T, N, D) where T is the
@@ -89,7 +90,7 @@ def save(
         If the shapes of the coordinates and atom symbols are incompatible.
     """
     logger.debug(f"Attempting to save data to '{filepath}' with append={append}.")
-    coords = np.asarray(coords)
+    coords = np.asarray(coords) * Length(1, 'au').get('A')
     atom_symbols = np.asarray(atom_symbols)
     num_atoms = len(atom_symbols)
 
@@ -161,7 +162,7 @@ def load(filepath: str, return_symbols: bool = False, return_all: bool = False):
     Returns
     -------
     numpy.ndarray or tuple
-        - By default: returns the coordinate array `coords`.
+        - By default: returns the coordinate array `coords` in a.u.
           - Single-frame file: (N, 3)
           - Multi-frame file: (T, N, 3)
         - If `return_symbols` is True: returns `(coords, atom_symbols)`.
@@ -226,6 +227,7 @@ def load(filepath: str, return_symbols: bool = False, return_all: bool = False):
 
     # Squeeze dimension if only one frame is present
     final_coords = all_coords[0] if all_coords.shape[0] == 1 else all_coords
+    final_coords *= Length(1, 'A').get('au')
     logger.info(f"Successfully loaded {len(frames_data)} frame(s) from '{filepath}'.")
 
     if return_all:

@@ -10,11 +10,13 @@ from numpy.linalg import norm
 from numpy.typing import NDArray
 from scipy.interpolate import CubicSpline
 
-from pyrinst.utils.formats import Formats, format_array
 from .rp import Beads, Springs
 from .pes.abc import PES, PESProxy
-from pyrinst.utils.coordinates import mass_weight
-from pyrinst.utils.units import Energy, Length, Time, Temperature
+from ..io.xyz import save
+from ..utils.coordinates import mass_weight
+from ..utils.mechanics import inertia
+from ..utils.units import Energy, Length, Time, Temperature
+from ..utils.formats import Formats, format_array
 
 log = logging.getLogger(__name__)
 logging.captureWarnings(True)
@@ -79,9 +81,12 @@ class Data(PESProxy, ABC):
         return f'V = {self.pot:{Formats.ENERGY}}, |G| = {norm(self.grad):{Formats.GRAD_NORM}}'
 
     def output(self, prefix: str) -> None:
-        # todo: save traj, xyz
+        # todo: save traj
         comment = f'V = {self.pot:{Formats.ENERGY}}' if self.pot is not None else ''
-        np.savetxt(prefix+'.txt', self.x, fmt='%15.8f', header=comment)
+        if self._pes.atoms is None:
+            np.savetxt(prefix+'.txt', self.x, fmt='%15.8f', header=comment)
+        else:
+            save(prefix+'.xyz', self.x, self.atoms, comment)
 
     def final_output(self, prefix: str) -> None:
         self.recalc_hess()
@@ -96,11 +101,14 @@ class Data(PESProxy, ABC):
     def recalc_hess(self) -> None:
         self.hess = self.hessian(self.x)
         hess_mw = mass_weight(self.hess, self.mass, dim=self.dof//self.mass.size)
-        evals, self.normal_modes = np.linalg.eigh(hess_mw)  # todo: project
+        evals, self.normal_modes = np.linalg.eigh(hess_mw)
         self.freq = np.sqrt(abs(evals)) * np.sign(evals)
 
     def print_freq(self, raise_error: bool) -> None:
-        freq_nonzero = self.freq[np.argpartition(np.abs(self.freq), self.n_zero)[self.n_zero:]]
+        if len(self.freq) == self.n_zero:
+            freq_nonzero = np.array([])
+        else:
+            freq_nonzero = self.freq[np.argpartition(np.abs(self.freq), self.n_zero)[self.n_zero:]]
         zpe = 0.5 * hbar * np.sum(freq_nonzero, where=freq_nonzero > 0)
         freq_cm: NDArray = self.freq * hbar * Energy(1, 'au').get("cm-1")
         log.info(f'frequencies in cm-1:\n{format_array(freq_cm, fmt=Formats.FREQUENCY)}')
@@ -134,14 +142,23 @@ class Minimum(Data):
     order = 0
 
     def trans(self, beta: float) -> float:
-        res: float = 1
-        return math.log(res)  # todo
-
-    def rot(self, beta: float) -> float:
-        res: float = 1
-        return math.log(res)  # todo
+        res: float = (math.sqrt(sum(self.mass)/(2*np.pi*beta))/hbar)**3 if self.n_zero >= 3 else 1
         log.info(f'Z_trans = {res:{Formats.PARTITION_FUNCTION}} per volume')
+        return math.log(res)
+
+    def rot(self, beta: float, mass: float | NDArray = None) -> float:
+        mass = self.mass if mass is None else mass
+        if self.n_zero >= 5:
+            pmi: NDArray = np.linalg.eigvalsh(inertia(self.x, mass))  # principal moments of inertia
+            pmi = np.delete(pmi, np.isclose(pmi, 0))
+            rot_const: NDArray = hbar ** 2 / (2 * pmi)
+            log.info(f'Moments of Inertia = {format_array(pmi, Formats.MOMENTUM_OF_INERTIA)}')
+            log.info(f'Rotational Constants = {format_array(rot_const, Formats.ROTATIONAL_CONSTANT)}')
+            res = 1./(pmi[1]*beta) if self.n_zero == 5 else math.sqrt(np.pi/(math.prod(pmi)*beta**3))
+        else:
+            res: float = 1
         log.info(f'Z_rot = {res:{Formats.PARTITION_FUNCTION}}')
+        return math.log(res)
 
     def vib(self, beta: float, n: int | None = None) -> float:
         self.print_freq(raise_error=True)
@@ -171,7 +188,8 @@ class TransitionState(Minimum):
     def __init__(self, *args, rct: Minimum = None, rct2: Minimum = None, **kwargs):
         super().__init__(*args, **kwargs)
         self.beta_c: float | None = None  # will be evaluated after optimization
-        self.rct = rct  # todo: bimolecular
+        self.rct = rct
+        self.rct2 = rct2
 
     def final_output(self, prefix: str) -> None:
         self.recalc_hess()
@@ -190,12 +208,17 @@ class TransitionState(Minimum):
         if self.rct:
             self.rct.calc_rate(beta, n)
             log_pf_rct: NDArray = np.array(self.rct.log_pf[(beta, n)])
+            if self.rct2:
+                self.rct2.calc_rate(beta, n)
+                log_pf_rct *= np.array(self.rct2.log_pf[(beta, n)])
         else:
             log_pf_rct = np.zeros(3)
         log.info(f'\n{"-" * 18}\nTransition State\n{"-" * 18}')
         msg: str = f'TS V = {self.pot:{Formats.ENERGY}}'
         if self.rct:
             barrier: float | None = self.pot - self.rct.pot
+            if self.rct2:
+                barrier -= self.rct2.pot
             msg += f'; barrier = {barrier:{Formats.ENERGY}}'
         else:
             barrier = None
@@ -212,20 +235,30 @@ class TransitionState(Minimum):
             # todo: symmetry factor
             beta_hbar: float = beta * hbar
             k_eyring: float = 1 / (2 * np.pi * beta_hbar) * math.exp(sum(log_pf) - beta * barrier)
-            k_eyring_si: float = k_eyring / self.units.time
-            if beta < self.beta_c:  # exact tunneling correction for the parabolic barrier
-                k_pb = k_eyring * 0.5 * beta_hbar * (-self.freq[0]) / math.sin(0.5 * beta_hbar * (-self.freq[0]))
-                k_pb_si: float = k_pb / self.units.time
-            log.info(f'kEyring = {k_eyring:{Formats.RATE}} = {k_eyring_si:{Formats.RATE}} s-1')
-            log.info(f'log10(kEyring / s^-1) = {math.log10(k_eyring_si):{Formats.LOG_RATE}}')
-                log.info(f'kPB = {k_pb:{Formats.RATE}} = {k_pb_si:{Formats.RATE}} s-1')
-                log.info(f'log10(kPB / s^-1) = {math.log10(k_pb_si):{Formats.LOG_RATE}}')
+            k_pb = k_eyring * 0.5 * beta_hbar * (-self.freq[0]) / math.sin(0.5 * beta_hbar * (-self.freq[0]))
+            if self.rct2:  # bimolecular
+                unit: float = Length(1, 'au').get('cm') ** 3 / Time(1, 'au').get('s')
+                k_eyring_si: float = k_eyring * unit
+                log.info(f'kEyring = {k_eyring:{Formats.RATE}} = {k_eyring_si:{Formats.RATE}} cm^3 / s')
+                log.info(f'log10(kEyring / (cm^3 s^-1)) = {math.log10(k_eyring_si):{Formats.LOG_RATE}}')
+                if beta < self.beta_c:  # exact tunneling correction for the parabolic barrier
+                    k_pb_si: float = k_pb * unit
+                    log.info(f'kPB = {k_pb:{Formats.RATE}} = {k_pb_si:{Formats.RATE}} cm^3 / s')
+                    log.info(f'log10(kPB / (cm^3 s^-1)) = {math.log10(k_pb_si):{Formats.LOG_RATE}}')
+            else:  # unimolecular
+                k_eyring_si: float = k_eyring / Time(1, 'au').get('s')
+                log.info(f'kEyring = {k_eyring:{Formats.RATE}} = {k_eyring_si:{Formats.RATE}} s-1')
+                log.info(f'log10(kEyring / s^-1) = {math.log10(k_eyring_si):{Formats.LOG_RATE}}')
+                if beta < self.beta_c:  # exact tunneling correction for the parabolic barrier
+                    k_pb_si: float = k_pb / Time(1, 'au').get('s')
+                    log.info(f'kPB = {k_pb:{Formats.RATE}} = {k_pb_si:{Formats.RATE}} s-1')
+                    log.info(f'log10(kPB / s^-1) = {math.log10(k_pb_si):{Formats.LOG_RATE}}')
 
     def spread(self, n: int, beta: float, length: float = 0.1) -> 'Instanton':
         mode: NDArray = self.normal_modes[:, 0].reshape(self.x.shape) / np.sqrt(self.mass)  # un-mass-weighted mode
         mode /= norm(mode)  # renormalize
         x_inst: NDArray = self.x + length * mode[None] * np.cos(np.linspace(0, math.pi, n//2))[:, None]
-        return Instanton(x_inst, self._pes, beta, self.n_zero, ts=self)
+        return Instanton(x_inst, self._pes, beta, self.phase, ts=self)
 
 
 class Instanton(Minimum):
@@ -246,6 +279,7 @@ class Instanton(Minimum):
         # todo: check reactant
         self.ts = ts
         self.rct = rct or ts.rct
+        self.rct2 = rct2 or ts.rct2
 
     @property
     def dof(self) -> int:
@@ -297,10 +331,13 @@ class Instanton(Minimum):
         bn_atom: NDArray = np.atleast_1d(self.path_sq_disp)
         bn: float = sum(bn_atom)
         n_bn: float = self.n * bn
-        # todo: molecule
         bn_beta: float = n_bn / (self.beta * hbar)
         fmt: str = Formats.BN
         log.info(f'mass-weighted BN: BN = {bn:{fmt}}, N*BN = {n_bn:{fmt}}, BN/(betaN*hbar) = {bn_beta:{fmt}}')
+        if self.atoms is not None:
+            log.info('Contributions to BN (squared mass-weighted path length) from various atoms:')
+            for a, atom in enumerate(self.atoms):
+                log.info(f'atom {a} ({atom}): {np.sum(bn_atom[a])/bn:>5.1%}')
         log.info('computing bead potentials, gradients and Hessians...')
         self.recalc_hess()
         log.info(f'S/hbar = {self.action/hbar:{Formats.ACTION}}')
@@ -357,8 +394,15 @@ class Instanton(Minimum):
         else:
             if self.rct:
                 self.rct.calc_rate(beta, n)
+                if self.rct2:
+                    self.rct2.calc_rate(beta, n)
             log_pf_ts = np.zeros(3)
-        log_pf_rct: NDArray = np.array(self.rct.log_pf[(beta, n)]) if self.rct else np.zeros(3)
+        if self.rct:
+            log_pf_rct: NDArray = np.array(self.rct.log_pf[(beta, n)])
+            if self.rct2:
+                log_pf_rct *= self.rct2.log_pf[(beta, n)]
+        else:
+            log_pf_rct = np.zeros(3)
         log.info(f'\n{"-"*11}\nInstanton\n{"-"*11}')
         log.info(f'V_turn = ({self.pot_cl[0]:{Formats.ENERGY}}, {self.pot_cl[-1]:{Formats.ENERGY}})')
         log.info(f'E = {self.energy:{Formats.ENERGY}}')
@@ -377,14 +421,22 @@ class Instanton(Minimum):
             log.info(f'kInst/kEyring = {math.exp(sum(log_pf) - action):{Formats.TUNNELING_FACTOR}}')
         if self.rct:
             log_pf: NDArray = log_pf_inst - log_pf_rct
-            assert math.isclose(log_pf[0], 0), 'Ratio between Z_trans should be 1 for a unimolecular reaction'
+            if not self.rct2:
+                assert math.isclose(log_pf[0], 0), 'Ratio between Z_trans should be 1 for a unimolecular reaction'
             log.info('\nComputing thermal instanton rate from instanton and reactant minima...')
             pf: NDArray = np.exp(log_pf)
             log.info('Partition functions (instanton/reactant):')
             log.info(f'  trans {pf[0]:{fmt}}\n  rot   {pf[1]:{fmt}}\n  vib   {pf[2]:{fmt}}')
-            k_si: float = k / self.units.time
-            log.info(f'kInst = {k} = {k_si} / s')
-            log.info(f'log10(kInst / s^-1) = {math.log10(k_si)}')
             action: float = self.action / hbar - beta * self.rct.pot
+            if self.rct2:
+                action -= beta * self.rct2.pot
             log.info(f'S/hbar - beta*V_r = {action:{Formats.ACTION}}')
             k: float = 1 / (2 * np.pi * beta * hbar) * math.exp(sum(log_pf) - action)
+            if self.rct2:
+                k_si: float = k * Length(1, 'au').get('cm') ** 3 / Time(1, 'au').get('s')
+                log.info(f'kInst = {k:{Formats.RATE}} = {k_si:{Formats.RATE}} cm^3 / s')
+                log.info(f'log10(kInst / (cm^3 s^-1)) = {math.log10(k_si):{Formats.LOG_RATE}}')
+            else:
+                k_si: float = k / Time(1, 'au').get('s')
+                log.info(f'kInst = {k:{Formats.RATE}} = {k_si:{Formats.RATE}} / s')
+                log.info(f'log10(kInst / s^-1) = {math.log10(k_si):{Formats.LOG_RATE}}')

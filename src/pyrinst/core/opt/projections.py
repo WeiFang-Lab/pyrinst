@@ -9,11 +9,12 @@ __author__ = 'Jeremy O. Richardson'
 import math
 import numpy as np
 from numpy.linalg import norm
+from numpy.typing import NDArray
 from scipy import linalg
 from pyrinst.utils import mechanics
 
 
-def trans(x, mass=1):
+def trans(x, mass: float | NDArray = 1):
     """Returns translational modes. Use argument mass to get mass-weighted
     translational modes"""
     dim = x.shape[-1]
@@ -25,7 +26,7 @@ def trans(x, mass=1):
     return p
 
 
-def rot(x, mass=1):
+def rot(x, mass: float | NDArray = 1):
     """Returns rotational modes. Use argument mass to get mass-weighted
     rotational modes"""
     assert x.shape[-1] == 3
@@ -38,3 +39,33 @@ def rot(x, mass=1):
     for j in range(3):
         p[j] /= norm(p[j])
     return p
+
+
+def proj_eig(x: NDArray, hess: NDArray, n_zero: int, mass: float | NDArray = 1) -> tuple[NDArray, NDArray]:
+    match n_zero:
+        case 0:
+            p = np.zeros(x.size)
+        case 3:
+            p = trans(x, mass)
+        case 5:
+            p = np.concatenate((trans(x, mass), rot(x, mass)[1:]))
+        case 6:
+            p = np.concatenate((trans(x, mass), rot(x, mass)))
+        case _:
+            raise ValueError(f'n_zero must be 0, 3, 5, or 6, not {n_zero}')
+    p.shape = (-1, x.size)
+    p_mat = np.identity(x.size) - np.einsum('ij,ik->jk', p, p)
+    hess = p_mat @ hess @ p_mat
+    eig_vals, eig_vecs = linalg.eigh(hess)
+    idx = np.argpartition(abs(eig_vals), n_zero)[:n_zero]
+    return np.delete(eig_vals, idx), np.delete(eig_vecs, idx, axis=1)
+
+
+def main():
+    x = np.arange(3*3, dtype=float).reshape(3, 3)
+    print("3D trans:", trans(x))
+    print("3D rot:", rot(x))
+
+
+if __name__ == '__main__':
+    main()

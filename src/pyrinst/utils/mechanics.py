@@ -56,10 +56,10 @@ def center_of_mass(x, mass: float | NDArray = 1):
     array([0.        , 0.        , 0.00001664])
     """
     m = np.asarray(mass)
-    return np.sum(m[..., None] * x, axis=-2) / np.sum(m)
+    return np.mean(m[..., None] * x, axis=-2) / np.sum(m)
 
 
-def inertia(x, mass=1, com=True):
+def inertia(x: NDArray, mass=1, com=True):
     """Compute the moment of inertia tensor.
 
     This function calculates the 3x3 moment of inertia tensor for a system of
@@ -68,7 +68,7 @@ def inertia(x, mass=1, com=True):
 
     Parameters
     ----------
-    x : numpy.ndarray
+    x : NDArray
         An array of particle coordinates. The shape must be `(..., N, 3)`,
         where N is the number of particles (e.g., `(N, 3)` or `(B, N, 3)`).
     mass : float or numpy.ndarray, optional
@@ -122,5 +122,5 @@ def inertia(x, mass=1, com=True):
     if com:
         x = x - center_of_mass(x, m)  # avoid in-place modification
     diag = np.sum(m * np.sum(x**2, axis=-1))
-    outer = np.sum(m[..., None] * x * x[..., None, :], axis=np.arange(x.ndim - 1))
+    outer = np.sum((m[..., None] * x)[..., None] * x[..., None, :], axis=tuple(range(x.ndim - 1)))
     return np.eye(3) * diag - outer

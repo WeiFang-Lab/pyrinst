@@ -6,6 +6,7 @@ from numpy.typing import NDArray
 from scipy import linalg
 from pyrinst.core import Data
 from .hessian import bofill, bfgs, powell
+from .projections import proj_eig
 
 log = logging.getLogger(__name__)
 
@@ -14,7 +15,7 @@ class NewtonRaphson:
     """Base class of all quasi-newton optimizers.
     The standard Newton-Raphson ignores argument order and just optimizes to any nearby stationary point.
     """
-    def __init__(self, maxstep=None, project=None, update: bool = True):
+    def __init__(self, maxstep=None, project: bool = True, update: bool = True):
         """
         verbosity -- controls messages
         """
@@ -90,14 +91,16 @@ class ModeFollowing(NewtonRaphson):
         # compute attempted step
         hess = data.hess.copy()
 
-        # todo: project
-        n_zero = 0  # todo
-        b, eig_vecs = linalg.eigh(hess)  # todo: banded
-        n = sum(b[np.argpartition(abs(b), n_zero)[n_zero:]] < 0)  # number of negative eigenvalues
+        if self.project:
+            b, eig_vecs = proj_eig(data.x, data.hess, data.n_zero, mass=data.mass)
+            n = sum(b < 0)  # number of negative eigenvalues
+        else:
+            b, eig_vecs = linalg.eigh(hess)  # todo: banded
+            n = sum(b[np.argpartition(abs(b), data.n_zero)[data.n_zero:]] < 0)  # number of negative eigenvalues
 
         message = f'{n} -ve eigvals'
         if self.project:
-            message += f' ({n_zero} zeros projected out)'
+            message += f' ({data.n_zero} zeros projected out)'
         log.info(message)
 
         f = np.dot(data.grad.ravel(), eig_vecs)  # f[i] is component of gradient along eigenvector[:,i]
@@ -181,7 +184,7 @@ class LBFGS(NewtonRaphson):
         g_old = data.grad.copy()
 
         # Move to the new position
-        data.move(h, update=True)
+        data.move(h, update=self.update)
         log.info(f'step ={norm(h):.5e}')
 
         # 4. Store the new step (s) and gradient difference (y)
@@ -215,8 +218,8 @@ class LBFGS(NewtonRaphson):
         """
         # Initialize storage arrays
         # wss and wgd are in circular order controlled by a pointer
-        self.wss = np.zeros((self.m,) + data.x.shape)  # last m search steps
-        self.wgd = np.zeros((self.m,) + data.x.shape)  # last m gradient differences
+        self.wss = np.zeros((self.m, data.x.size))  # last m search steps
+        self.wgd = np.zeros((self.m, data.x.size))  # last m gradient differences
         self.rho = np.zeros(self.m)
         self.iter_num = 0
         super().search(data, gtol, maxiter, callback)
