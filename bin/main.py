@@ -10,7 +10,7 @@ from functools import partial
 import numpy as np
 
 from pyrinst.utils.formats import Formats
-from pyrinst.core import modes_registry, Minimum, TransitionState, Instanton, optimizers
+from pyrinst.core import modes_registry, Data, Minimum, TransitionState, Instanton, optimizers
 from pyrinst.utils.logging_config import setup_logging
 from pyrinst.utils.units import Temperature
 from pyrinst.io.xyz import load
@@ -90,27 +90,26 @@ elif isinstance(data, Instanton):
 else:
     beta = temp = None
 
+# analyze link
+kwargs: dict[str, Data] = {}
+for i, file in enumerate(args.link):
+    obj = np.load(file, allow_pickle=True)
+    if type(obj) is Minimum:
+        if 'rct' in kwargs:
+            kwargs['rct2'] = obj
+        else:
+            kwargs['rct'] = obj
+    elif type(obj) is TransitionState:
+        kwargs['ts'] = obj
+    else:
+        raise ValueError(f'Unknown link file format: {file}')
+data.update_link(**kwargs)
+
 if args.mode == 'inst':
     if isinstance(data, TransitionState):
         data = data.spread(args.beads, beta, args.spread)
     if args.beads and args.beads != data.n:
         data.interpolate(args.beads)
-
-for i, file in enumerate(args.link):
-    if args.mode == 'ts':
-        if i == 0:
-            data.rct = np.load(file, allow_pickle=True)
-        else:
-            data.rct2 = np.load(file, allow_pickle=True)
-    elif args.mode == 'inst':
-        link = np.load(file, allow_pickle=True)
-        if isinstance(link, TransitionState):
-            data.ts = link
-        elif isinstance(link, Minimum):
-            if i == 0:
-                data.rct = link
-            else:
-                data.rct2 = link
 
 opt = optimizers[args.opt](order=data.order, maxstep=args.maxstep, update=not args.no_update)
 opt.search(data, gtol=args.gtol, maxiter=args.maxiter, callback=partial(type(data).output, prefix=args.output))

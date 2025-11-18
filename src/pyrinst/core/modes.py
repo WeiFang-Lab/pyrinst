@@ -65,6 +65,10 @@ class Data(PESProxy, ABC):
     def dof(self) -> int:
         return self.x.size
 
+    @abstractmethod
+    def update_link(self, **kwargs) -> None:
+        """"""
+
     def recalc(self, x: NDArray, update: Callable | None = None) -> None:
         x_old, grad_old, self.x = self.x, self.grad, x
         if update:
@@ -141,6 +145,10 @@ class Data(PESProxy, ABC):
 class Minimum(Data):
     order = 0
 
+    def update_link(self, **kwargs) -> None:
+        if len(kwargs):
+            raise ValueError('Minimum does not have link')
+
     def trans(self, beta: float) -> float:
         res: float = (math.sqrt(sum(self.mass)/(2*np.pi*beta))/hbar)**3 if self.n_zero >= 3 else 1
         log.info(f'Z_trans = {res:{Formats.PARTITION_FUNCTION}} per volume')
@@ -188,8 +196,12 @@ class TransitionState(Minimum):
     def __init__(self, *args, rct: Minimum = None, rct2: Minimum = None, **kwargs):
         super().__init__(*args, **kwargs)
         self.beta_c: float | None = None  # will be evaluated after optimization
-        self.rct = rct
-        self.rct2 = rct2
+        self.rct = self.rct2 = None
+        self.update_link(rct=rct, rct2=rct2)
+
+    def update_link(self, **kwargs) -> None:
+        self.rct = kwargs.get('rct')
+        self.rct2 = kwargs.get('rct2')
 
     def final_output(self, prefix: str) -> None:
         self.recalc_hess()
@@ -276,14 +288,21 @@ class Instanton(Minimum):
         self.grad_cl: NDArray | None = None
         self.hess_cl: NDArray | None = None
         super().__init__(x, pes, phase)
-        # todo: check reactant
-        self.ts = ts
-        self.rct = rct or ts.rct
-        self.rct2 = rct2 or ts.rct2
+        self.rct = self.rct2 = self.ts = None
+        self.update_link(rct=rct, rct2=rct2, ts=ts)
 
     @property
     def dof(self) -> int:
         return self.x[0].size
+
+    def update_link(self, **kwargs) -> None:
+        if 'ts' in kwargs:
+            self.ts = kwargs['ts']
+            self.rct = self.ts.rct = kwargs.get('rct') or self.ts.rct
+            self.rct2 = self.ts.rct2 = kwargs.get('rct2') or self.ts.rct2
+        else:
+            self.rct = kwargs.get('rct')
+            self.rct2 = kwargs.get('rct2')
 
     def interpolate(self, n: int) -> None:
         indices_old, indices_new = np.linspace(0, 1, self.n//2), np.linspace(0, 1, n//2)
