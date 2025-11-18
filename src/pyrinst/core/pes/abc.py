@@ -10,7 +10,7 @@ class PES(ABC):
     the separate routines.
     """
     mass: float | NDArray = 1.0
-    atoms: list[str] = []
+    atoms: list[str] | None = None
     dx: float = 1e-4
 
     @abstractmethod

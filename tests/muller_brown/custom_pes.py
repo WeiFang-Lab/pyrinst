@@ -35,7 +35,6 @@ class CustomPES(PES):
 
         self.au2kcal = 627.509474063056
         self.mass = np.ones(2) * Mass(1.00748, 'amu').get('au')
-        self.atomlist = ['H', 'H']
 
     def potential(self, x: Sequence):
         dx = x - self.x0
