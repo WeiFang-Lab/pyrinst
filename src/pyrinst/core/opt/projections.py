@@ -4,8 +4,6 @@ For molecules, mass should have shape (N_atoms,1).
 Explicitly pass mass only when projecting out a mass-weighted hessian. todo: doc
 """
 
-__author__ = 'Jeremy O. Richardson'
-
 import math
 import numpy as np
 from numpy.linalg import norm
@@ -41,10 +39,12 @@ def rot(x, mass: float | NDArray = 1):
     return p
 
 
-def proj_eig(x: NDArray, hess: NDArray, n_zero: int, mass: float | NDArray = 1) -> tuple[NDArray, NDArray]:
+def proj_eig(
+        x: NDArray, hess: NDArray, n_zero: int, mass: float | NDArray = 1, constr_vecs: NDArray = None
+) -> tuple[NDArray, NDArray]:
     match n_zero:
         case 0:
-            p = np.zeros(x.size)
+            p = np.array([]).reshape(0, *x.shape)
         case 3:
             p = trans(x, mass)
         case 5:
@@ -54,9 +54,18 @@ def proj_eig(x: NDArray, hess: NDArray, n_zero: int, mass: float | NDArray = 1) 
         case _:
             raise ValueError(f'n_zero must be 0, 3, 5, or 6, not {n_zero}')
     p.shape = (-1, x.size)
+    if constr_vecs is not None:
+        constr_vecs = constr_vecs.reshape(-1, x.size)
+        constr_vecs /= np.linalg.norm(constr_vecs, axis=1, keepdims=True)
+        for i in range(len(constr_vecs)):
+            constr_vecs[i] -= p @ constr_vecs[i] @ p
+            constr_vecs[i] /= norm(constr_vecs[i])
+            p = np.concatenate((p, [constr_vecs[i]]))
     p_mat = np.identity(x.size) - np.einsum('ij,ik->jk', p, p)
     hess = p_mat @ hess @ p_mat
     eig_vals, eig_vecs = linalg.eigh(hess)
+    if n_zero == 0:
+        return eig_vals, eig_vecs
     idx = np.argpartition(abs(eig_vals), n_zero)[:n_zero]
     return np.delete(eig_vals, idx), np.delete(eig_vecs, idx, axis=1)
 
