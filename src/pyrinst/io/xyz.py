@@ -49,6 +49,85 @@ def _format_xyz_line(atom_symbol: str, coords: np.ndarray, fmt: str = "15.10f") 
     return line
 
 
+def lines(
+    atom_symbols: list[str] | np.ndarray,
+    coords: np.ndarray,
+    fmt: str = "15.10f"
+) -> str:
+    """
+    Generates xyz coordinate lines without the header.
+
+    This function formats atomic coordinates as a multi-line string in xyz format,
+    but without the atom count and comment lines that are typically present in
+    standard xyz files. This is useful for embedding xyz-formatted coordinates
+    into input files for ab initio programs.
+
+    Parameters
+    ----------
+    coords : np.ndarray
+        The atomic coordinates in a.u.
+        - Shape must be (N, D) where N is the number of atoms and
+          D (dimensions) is 1, 2, or 3.
+        - Coordinates will be automatically converted from a.u. to Angstroms.
+    atom_symbols : list[str] or np.ndarray
+        A list or array of atom symbols of length N.
+    fmt : str, optional
+        Format string for the coordinates (e.g., "15.10f" for width 15
+        with 10 decimal places). Defaults to "15.10f".
+
+    Returns
+    -------
+    str
+        A multi-line string containing the formatted xyz coordinate lines,
+        with each line in the format "SYMBOL  x  y  z".
+        The string does NOT end with a trailing newline.
+
+    Raises
+    ------
+    ValueError
+        If the shapes of the coordinates and atom symbols are incompatible,
+        or if coords is not a 2D array.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> coords = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
+    >>> symbols = ['H', 'H']
+    >>> print(lines(coords, symbols))
+    H    0.0000000000   0.0000000000   0.0000000000
+    H    1.0000000000   0.0000000000   0.0000000000
+    """
+    logger.debug("Formatting xyz lines without header.")
+    coords = np.asarray(coords) * Length(1, 'au').get('A')
+    atom_symbols = np.asarray(atom_symbols)
+    num_atoms = len(atom_symbols)
+
+    if coords.ndim != 2 or coords.shape[-1] not in [1, 2, 3]:
+        msg = (
+            f"Coordinates array `coords` must be 2D (N, D), "
+            f"where D is 1, 2, or 3. Received shape: {coords.shape}"
+        )
+        logger.error(msg)
+        raise ValueError(msg)
+
+    if coords.shape[0] != num_atoms:
+        msg = (
+            f"The number of atoms in coordinates ({coords.shape[0]}) does not "
+            f"match the number of atom symbols ({num_atoms})."
+        )
+        logger.error(msg)
+        raise ValueError(msg)
+
+    lines = []
+    for j in range(num_atoms):
+        line = _format_xyz_line(atom_symbols[j], coords[j], fmt=fmt)
+        lines.append(line)
+    
+    result = "\n".join(lines)
+    logger.debug(f"Successfully formatted {num_atoms} coordinate lines.")
+    return result
+
+
 def save(
     filepath: str,
     coords: np.ndarray,
