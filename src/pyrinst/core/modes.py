@@ -16,7 +16,7 @@ from ..io.xyz import save
 from ..utils.coordinates import mass_weight
 from ..utils.mechanics import inertia
 from ..utils.units import Energy, Length, Time, Temperature
-from ..utils.formats import Formats, format_array
+from ..io.formats import Formats, format_array
 
 log = logging.getLogger(__name__)
 logging.captureWarnings(True)

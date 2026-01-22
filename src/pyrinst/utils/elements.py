@@ -239,7 +239,7 @@ class ElementData:
 
         Examples
         --------
-        >>> from your_package_name.utils.elements import element_data
+        >>> from pyrinst.utils.elements import element_data
         >>> element_data.get_atomic_number('C')
         6
         >>> element_data.get_atomic_number('C13')
