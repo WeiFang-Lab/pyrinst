@@ -221,6 +221,86 @@ def test_get_base_symbol_raises_keyerror():
         element_data.get_base_symbol("Xyz")
 
 
+@pytest.mark.parametrize(
+    "atomic_number, expected_symbol",
+    [
+        (1, "H"),   # Hydrogen
+        (6, "C"),   # Carbon
+        (43, "Tc"), # Technetium
+    ],
+)
+def test_get_symbol_happy_paths(
+    mocked_element_data: None, atomic_number: int, expected_symbol: str
+) -> None:
+    """Tests successful retrieval of element symbols from atomic numbers.
+
+    This parameterized test verifies that the get_symbol method correctly
+    converts atomic numbers to their corresponding element symbols.
+
+    Parameters
+    ----------
+    mocked_element_data : None
+        This argument activates the fixture to load mock data.
+    atomic_number : int
+        The atomic number to be tested.
+    expected_symbol : str
+        The expected element symbol for the given atomic number.
+    """
+    actual_symbol = element_data.get_symbol(atomic_number)
+    assert actual_symbol == expected_symbol, (
+        f"Symbol for atomic number '{atomic_number}' did not match expected value."
+    )
+
+
+@pytest.mark.parametrize(
+    "invalid_atomic_number",
+    [
+        0,    # Invalid: atomic number must be positive
+        999,  # Invalid: not in database
+        -1,   # Invalid: negative atomic number
+    ],
+)
+def test_get_symbol_raises_keyerror_for_invalid_numbers(
+    mocked_element_data: None, invalid_atomic_number: int
+) -> None:
+    """Verifies that KeyError is raised for invalid atomic numbers.
+
+    This parameterized test ensures that the system is robust against
+    different types of incorrect atomic number input.
+
+    Parameters
+    ----------
+    mocked_element_data : None
+        This argument activates the fixture to load mock data.
+    invalid_atomic_number : int
+        The invalid atomic number that is expected to cause a KeyError.
+    """
+    with pytest.raises(KeyError):
+        element_data.get_symbol(invalid_atomic_number)
+
+
+def test_logging_for_invalid_atomic_number(
+    mocked_element_data: None, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Tests that an ERROR message is logged for an invalid atomic number.
+
+    This test demonstrates logging inspection for the get_symbol method.
+
+    Parameters
+    ----------
+    mocked_element_data : None
+        This argument activates the fixture to load mock data.
+    caplog : pytest.LogCaptureFixture
+        A built-in pytest fixture that captures logging output.
+    """
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(KeyError):
+            element_data.get_symbol(999)
+
+    # Assert that the specific error message we expect is present in the logs.
+    assert "not found in database" in caplog.text
+
+
 # --- TESTS FOR BATCH-PROCESSING METHODS ---
 
 def test_get_masses_batch():
@@ -256,8 +336,20 @@ def test_get_base_symbols_batch():
     assert np.array_equal(actual_symbols, expected_symbols)
 
 
+def test_get_symbols_batch():
+    """Tests the batch processing of get_symbols."""
+    atomic_numbers = [1, 1, 8, 6]
+    expected_symbols = np.array(['H', 'H', 'O', 'C'])
+    
+    actual_symbols = element_data.get_symbols(atomic_numbers)
+    
+    assert isinstance(actual_symbols, np.ndarray)
+    assert np.array_equal(actual_symbols, expected_symbols)
+
+
 def test_batch_functions_with_empty_list():
     """Tests that batch functions return empty arrays for empty input."""
     assert element_data.get_masses([]).shape == (0,)
     assert element_data.get_atomic_numbers([]).shape == (0,)
     assert element_data.get_base_symbols([]).shape == (0,)
+    assert element_data.get_symbols([]).shape == (0,)

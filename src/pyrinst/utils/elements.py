@@ -296,6 +296,46 @@ class ElementData:
         )
         return element
 
+    def get_symbol(self, atomic_number: int) -> str:
+        """Gets the element symbol for a given atomic number.
+
+        Parameters
+        ----------
+        atomic_number : int
+            The atomic number (Z) to look up.
+
+        Returns
+        -------
+        str
+            The corresponding element symbol (e.g., 'H', 'C', 'O').
+
+        Raises
+        ------
+        KeyError
+            If the atomic number is not found in the database.
+
+        Examples
+        --------
+        >>> from pyrinst.utils.elements import element_data
+        >>> element_data.get_symbol(1)
+        'H'
+        >>> element_data.get_symbol(6)
+        'C'
+        >>> element_data.get_symbol(8)
+        'O'
+        """
+        for symbol, data in self._elements.items():
+            if data['atomicNumber'] == atomic_number:
+                logger.debug(
+                    "Found symbol '%s' for atomic number %d",
+                    symbol,
+                    atomic_number,
+                )
+                return symbol
+        
+        logger.error("Atomic number %d not found in database.", atomic_number)
+        raise KeyError(f"Atomic number {atomic_number} not found in database.")
+
     def get_masses(self, symbols: Iterable[str]) -> np.ndarray:
         """Gets atomic masses for a list or array of symbols.
 
@@ -361,6 +401,35 @@ class ElementData:
         # string dtype like '<U2' (a 2-character unicode string).
         vectorized_func = np.vectorize(self.get_base_symbol, otypes=[object])
         return vectorized_func(symbols)
+
+    def get_symbols(self, atomic_numbers: Iterable[int]) -> np.ndarray:
+        """Gets element symbols for a list or array of atomic numbers.
+
+        This is a vectorized version of `get_symbol` for efficient batch
+        processing.
+
+        Parameters
+        ----------
+        atomic_numbers : Iterable[int]
+            An iterable (e.g., list, tuple, or np.ndarray) of atomic numbers.
+
+        Returns
+        -------
+        np.ndarray
+            A NumPy array of element symbols, with the same length as the input.
+
+        Examples
+        --------
+        >>> from pyrinst.utils.elements import element_data
+        >>> atomic_numbers = [1, 1, 8]
+        >>> element_data.get_symbols(atomic_numbers)
+        array(['H', 'H', 'O'], dtype=object)
+        >>> atomic_numbers = [6, 1, 1, 1, 1]
+        >>> element_data.get_symbols(atomic_numbers)
+        array(['C', 'H', 'H', 'H', 'H'], dtype=object)
+        """
+        vectorized_func = np.vectorize(self.get_symbol, otypes=[object])
+        return vectorized_func(atomic_numbers)
 
 # Create a single, shared instance of the class at the module level.
 # This will be executed only once when the module is first imported,
