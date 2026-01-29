@@ -109,3 +109,55 @@ def test_load_raises_ioerror_on_malformed_file(tmp_path):
 
     with pytest.raises(IOError, match="is malformed or truncated"):
         xyz.load(test_filepath)
+
+
+def test_lines():
+    """Tests that lines generates coordinate lines without headers.
+    
+    This test verifies that the function returns a properly formatted string
+    containing xyz coordinate lines without the atom count and comment lines.
+    """
+    # Action: Generate xyz lines for a simple water molecule
+    xyz_text = xyz.lines(SYMBOLS, COORDS_3D)
+    
+    # Verification: The result should be a string with lines (no header)
+    assert isinstance(xyz_text, str)
+    
+    # Split into lines and verify we have the correct number
+    lines = xyz_text.split('\n')
+    assert len(lines) == 3  # Three atoms
+    
+    # Verify that each line starts with the correct atom symbol
+    for i, line in enumerate(lines):
+        assert line.startswith(SYMBOLS[i])
+    
+    # Verify the string does not contain header lines
+    assert not xyz_text.startswith('3')  # No atom count
+    assert COMMENT_SINGLE not in xyz_text  # No comment line
+
+
+def test_lines_can_be_written_to_file(tmp_path):
+    """Tests that the output of lines can be written to a file.
+    
+    This test verifies that the function output is suitable for writing
+    directly to files, which is a common use case for ab initio programs.
+    
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        A temporary directory path provided by pytest.
+    """
+    test_filepath = tmp_path / "coords_only.txt"
+    
+    # Action: Generate xyz lines and write to file
+    xyz_text = xyz.lines(SYMBOLS, COORDS_3D)
+    with open(test_filepath, 'w') as f:
+        f.write(xyz_text)
+    
+    # Verification: Read back and verify content
+    content = test_filepath.read_text()
+    assert content == xyz_text
+    
+    # Verify the file has exactly 3 lines (no header)
+    lines = content.strip().split('\n')
+    assert len(lines) == 3

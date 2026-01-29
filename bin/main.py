@@ -9,9 +9,9 @@ from functools import partial
 
 import numpy as np
 
-from pyrinst.utils.formats import Formats
+from pyrinst.io.formats import Formats
 from pyrinst.core import modes_registry, Data, Minimum, TransitionState, Instanton, optimizers
-from pyrinst.utils.logging_config import setup_logging
+from pyrinst.io.logging_config import setup_logging
 from pyrinst.utils.units import Temperature
 from pyrinst.io.xyz import load
 
