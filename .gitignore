@@ -204,3 +204,7 @@ __marimo__/
 
 .history
 pytest*
+*.xyz
+*.model
+*.log
+*.txt
