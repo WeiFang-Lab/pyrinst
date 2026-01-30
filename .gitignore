@@ -212,3 +212,4 @@ pytest*
 *.xyz
 *.com
 *chk
+*.model
