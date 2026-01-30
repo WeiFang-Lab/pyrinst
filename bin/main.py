@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import json
 import logging
 import os
 import pickle
@@ -11,69 +10,89 @@ import numpy as np
 
 from pyrinst.io.formats import Formats
 from pyrinst.core import modes_registry, Data, Minimum, TransitionState, Instanton, optimizers
+from pyrinst.core.pes.factory import get_pes
 from pyrinst.io.logging_config import setup_logging
 from pyrinst.utils.units import Temperature
 from pyrinst.io.xyz import load
 
 parser = argparse.ArgumentParser()
-parser.add_argument('input', help='Initial guess for the optimization in xyz, txt, or pkl format.')
-parser.add_argument('-o', '--output', default='opt_geom', help='Final optimized geometry.')
-parser.add_argument('-v', '--verbose', type=bool, help='Verbosity level.')
+parser.add_argument("input", help="Initial guess for the optimization in xyz, txt, or pkl format.")
+parser.add_argument("-o", "--output", default="opt_geom", help="Final optimized geometry.")
+parser.add_argument("-v", "--verbose", type=bool, help="Verbosity level.")
 temp_group = parser.add_mutually_exclusive_group()
-temp_group.add_argument('-T', '--Temp', type=float, help="Temperature in K")
-temp_group.add_argument('-b', '--beta', type=float, help="Inverse temperature in whatever unit system you're using")
+temp_group.add_argument("-T", "--Temp", type=float, help="Temperature in K")
+temp_group.add_argument("-b", "--beta", type=float, help="Inverse temperature in whatever unit system you're using")
 # todo: case-insensitive
 parser.add_argument(
-    '--mode', choices=('min', 'ts', 'inst'), required=True,
-    help='Optimize input to minimum, transition state or instanton.')
-parser.add_argument('--phase', choices=('gas', 'liquid', 'solid'), default='gas', help='Phase of the system')
-parser.add_argument('-l', '--link', nargs='*', default=[], help='Pass min/TS here when optimizing TS/instanton.')
-parser.add_argument('-P', '--PES', choices=('custom',), help='Potential energy surface')
-# todo: choices
+    "--mode",
+    choices=("min", "ts", "inst"),
+    required=True,
+    help="Optimize input to minimum, transition state or instanton.",
+)
+parser.add_argument("--phase", choices=("gas", "liquid", "solid"), default="gas", help="Phase of the system")
+parser.add_argument("-l", "--link", nargs="*", default=[], help="Pass min/TS here when optimizing TS/instanton.")
 parser.add_argument(
-    '-F', '--mainInputFile', help='Main input file (for a SCF calculation): vasp: INCAR; gaussian/orca/molpro/cp2k: '
-    'full input file without the geometry. This is also used by CustomPes as the input in dictionary format.')
-parser.add_argument('--opt', choices=optimizers.keys(), default='EF', help='Optimization algorithm to use.')
-parser.add_argument('-g', '--gtol', default=1e-3, type=float, help='Tolerance in gradient for optimization.')
-parser.add_argument('--maxstep', default=0.3, type=float, help='Max-step in optimization.')
-parser.add_argument('--maxiter', default=10, type=int, help='Max-iters in optimization.')
-parser.add_argument('--no-update', action='store_true', help="Don't update but recompute Hessian at each step.")
-parser.add_argument('-N', '--beads', type=int, help='Number of ring-polymer beads (default chosen from input file).')
-parser.add_argument('-s', '--spread', default=0.1, type=float, help="Spread of initial guess.")
+    "-P",
+    "--PES",
+    required=True,
+    help="""Specify the backend PES. Options:
+      1. Built-in PES: 'gaussian';
+      2. Custom PES: 'path/to/file.py:ClassName'.""",
+)
+parser.add_argument(
+    "-F",
+    "--mainInputFile",
+    help="""Main input file (for a SCF calculation): 
+      1. vasp: INCAR; 
+      2. gaussian: single-point input file without the geometry;
+      3. custom: json file with parameters for initializing the PES class.
+    This is also used by custom pes as the input in the json format.""",
+)
+parser.add_argument(
+    "--runcmd",
+    help="Bash command for running the electronic structure code. If not specified, the program will guess this based on the"
+    " PES. You can specify with system the environment variable 'RUNCMD' instead.",
+)
+parser.add_argument("--working-dir", default=".", help="Working file directory to preserve the calculations.")
+parser.add_argument("--opt", choices=optimizers.keys(), default="EF", help="Optimization algorithm to use.")
+parser.add_argument("-g", "--gtol", default=1e-3, type=float, help="Tolerance in gradient for optimization.")
+parser.add_argument(
+    "-p",
+    "--project",
+    action="store_true",
+    help="Project out translational, rotational permutational modes to help optimization.",
+)
+parser.add_argument("--maxstep", default=0.3, type=float, help="Max-step in optimization.")
+parser.add_argument("--maxiter", default=10, type=int, help="Max-iters in optimization.")
+parser.add_argument("--no-update", action="store_true", help="Don't update but recompute Hessian at each step.")
+parser.add_argument("-N", "--beads", type=int, help="Number of ring-polymer beads (default chosen from input file).")
+parser.add_argument("-s", "--spread", default=0.1, type=float, help="Spread of initial guess.")
 args = parser.parse_args()
 
-from custom_pes import CustomPES
-if args.mainInputFile:
-    with open(args.mainInputFile, 'r') as f:
-        main_input = json.load(f)
-    if isinstance(main_input, dict):
-        pes = CustomPES(**main_input)
-    elif isinstance(main_input, list):
-        pes = CustomPES(*main_input)
-    else:
-        raise ValueError(f'Unknown input file format: {args.mainInputFile}')
-else:
-    pes = CustomPES()
-
 prefix, ext = os.path.splitext(args.output)
-if ext in {'.xyz', '.txt', '.pkl'}:
+if ext in {".xyz", ".txt", ".pkl"}:
     args.output = prefix
-setup_logging(verbose=args.verbose, log_file=f'{prefix}.log', result_file=f'{prefix}.out')
+setup_logging(verbose=args.verbose, log_file=f"{prefix}.log", result_file=f"{prefix}.out")
 log = logging.getLogger()
 prefix, ext = os.path.splitext(args.input)
 
 # read input file
-if ext == '.xyz':
-    x = load(args.input)
-    data = modes_registry[args.mode](x, pes, args.phase)
-elif ext == '.txt':
+if ext == ".xyz":
+    x, atoms = load(args.input, return_symbols=True)
+    pes = get_pes(args, atoms)
+    if x.ndim == 2 and args.mode == "inst":
+        data = TransitionState(x, pes, args.phase)
+    else:
+        data = modes_registry[args.mode](x, pes, args.phase)
+elif ext == ".txt":
     x = np.loadtxt(args.input)  # todo: 1d instanton
+    pes = get_pes(args)
     data = modes_registry[args.mode](x, pes, args.phase)
-elif ext == '.pkl':
-    with open(args.input, 'rb') as f:
+elif ext == ".pkl":
+    with open(args.input, "rb") as f:
         data = pickle.load(f)
 else:
-    msg = f'Unknown file format: {args.input}'
+    msg = f"Unknown file format: {args.input}"
     log.error(msg)
     raise ValueError(msg)
 
@@ -95,33 +114,34 @@ kwargs: dict[str, Data] = {}
 for i, file in enumerate(args.link):
     obj = np.load(file, allow_pickle=True)
     if type(obj) is Minimum:
-        if 'rct' in kwargs:
-            kwargs['rct2'] = obj
+        if "rct" in kwargs:
+            kwargs["rct2"] = obj
         else:
-            kwargs['rct'] = obj
+            kwargs["rct"] = obj
     elif type(obj) is TransitionState:
-        kwargs['ts'] = obj
+        kwargs["ts"] = obj
     else:
-        raise ValueError(f'Unknown link file format: {file}')
+        raise ValueError(f"Unknown link file format: {file}")
 data.update_link(**kwargs)
 
-if args.mode == 'inst':
+if args.mode == "inst":
     if isinstance(data, TransitionState):
         data = data.spread(args.beads, beta, args.spread)
+    data.set_beta(beta)
     if args.beads and args.beads != data.n:
         data.interpolate(args.beads)
 
-opt = optimizers[args.opt](order=data.order, maxstep=args.maxstep, update=not args.no_update)
+opt = optimizers[args.opt](order=data.order, maxstep=args.maxstep, project=args.project, update=not args.no_update)
 opt.search(data, gtol=args.gtol, maxiter=args.maxiter, callback=partial(type(data).output, prefix=args.output))
 
 data.final_output(args.output)
 
 if beta is None:
-    log.info('Temperature not specified. Program terminated.')
+    log.info("Temperature not specified. Program terminated.")
     exit()
 
-log.info('\nComputing rate...')
+log.info("\nComputing rate...")
 fmt: str = Formats.BETA
-log.info(f'T = {temp:{fmt}} K, 1000/T(K) = {1000/temp:{fmt}}; beta = {beta:{fmt}}')
+log.info(f"T = {temp:{fmt}} K, 1000/T(K) = {1000 / temp:{fmt}}; beta = {beta:{fmt}}")
 
 data.calc_rate(beta)

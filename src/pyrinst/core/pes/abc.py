@@ -9,6 +9,7 @@ class PES(ABC):
     By default, gradients and hessians are computed by finite differences and "both" and "all" functions simply call
     the separate routines.
     """
+
     mass: float | NDArray = 1.0
     atoms: list[str] | None = None
     dx: float = 1e-4
@@ -17,8 +18,7 @@ class PES(ABC):
     def potential(self, x: NDArray) -> float:  # this method should be overridden
         ...
 
-    def gradient(self, x: NDArray) -> NDArray:
-        ...  # todo: implement finite difference
+    def gradient(self, x: NDArray) -> NDArray: ...  # todo: implement finite difference
 
     def hessian(self, x: NDArray) -> NDArray:
         dim = x.size
@@ -60,12 +60,12 @@ class PESProxy(ABC):
     _pes : PES
         The internally encapsulated PES object.
     """
+
     def __init__(self, pes):
+        for name in dir(pes):
+            if not name.startswith("_"):
+                if name not in dir(self):
+                    setattr(self, name, getattr(pes, name))
+        self.mass = pes.mass
+        self.atoms = pes.atoms
         self._pes = pes
-
-    def __getattr__(self, name):
-        return getattr(self._pes, name)
-
-    def __setstate__(self, state):
-        """Although this method behaves exactly the same as the default, it is required for pickling."""
-        self.__dict__.update(state)

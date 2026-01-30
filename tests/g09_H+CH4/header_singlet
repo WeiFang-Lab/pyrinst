@@ -1,0 +1,7 @@
+%chk=example.chk
+%nprocs=4
+#p b3lyp/6-31G* nosymm
+
+Genius
+
+0 1

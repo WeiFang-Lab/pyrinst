@@ -1,0 +1,37 @@
+!    -*- f90 -*-
+! Note: the context of this file is case sensitive.
+
+function jacpot(x) ! in jacobi.f90
+    double precision dimension(2),intent(in) :: x
+    double precision :: jacpot
+end function jacpot
+subroutine jacboth(x,e,g) ! in jacobi.f90
+    double precision dimension(2),intent(in) :: x
+    double precision intent(out) :: e
+    double precision dimension(2),intent(out) :: g
+end subroutine jacboth
+function h2pot(r) ! in jacobi.f90
+    double precision intent(in) :: r
+    double precision :: h2pot
+end function h2pot
+function h2force(r) ! in jacobi.f90
+    double precision intent(in) :: r
+    double precision :: h2force
+end function h2force
+function h2hess(r) ! in jacobi.f90
+    double precision intent(in) :: r
+    double precision :: h2hess
+end function h2hess
+function cartpot(x) ! in cart.f90
+    double precision dimension(3,3),intent(in) :: x
+    double precision :: cartpot
+end function cartpot
+subroutine cartboth(x,e,g) ! in cart.f90
+    double precision dimension(3,3),intent(in) :: x
+    double precision intent(out) :: e
+    double precision dimension(3,3),intent(out) :: g
+end subroutine cartboth
+
+! This file was auto-generated with f2py (version:2.3.4).
+! See:
+! https://web.archive.org/web/20140822061353/http://cens.ioc.ee/projects/f2py2e

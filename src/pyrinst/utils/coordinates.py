@@ -23,6 +23,6 @@ def mass_weight(hess, mass=1, dim: int = 3):
         return hess / mass
     assert dim in (1, 2, 3)
     size = len(hess)
-    shape = (size//(len(mass)*dim), len(mass), dim)
-    sqrt_m = np.sqrt(mass)[None, :, None]
+    shape = (size // (len(mass) * dim), len(mass), dim)
+    sqrt_m = np.sqrt(mass)[None, ..., None]
     return (hess.reshape(2 * shape) / np.outer(sqrt_m, sqrt_m).reshape(2 * sqrt_m.shape)).reshape(size, size)

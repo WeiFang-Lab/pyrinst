@@ -15,6 +15,7 @@ class NewtonRaphson:
     """Base class of all quasi-newton optimizers.
     The standard Newton-Raphson ignores argument order and just optimizes to any nearby stationary point.
     """
+
     def __init__(self, maxstep=None, project: bool = True, update: bool = True):
         """
         verbosity -- controls messages
@@ -27,19 +28,19 @@ class NewtonRaphson:
         if self.maxstep is not None:
             step = norm(h)
             if step > self.maxstep:
-                h *= self.maxstep/step
+                h *= self.maxstep / step
         return h
 
     def iterate(self, data):
         """Take one iteration, including rescaling step"""
         # compute attempted step
         hess = data.hess.copy()
-        h = - linalg.solve(hess, data.grad.ravel()).reshape(data.x.shape)  # todo: banded
+        h = -linalg.solve(hess, data.grad.ravel()).reshape(data.x.shape)  # todo: banded
         # scale attempted step if it is too large
         h = self.scale(h)
         # take step
         data.move(h, self.update)
-        log.info(f'step ={norm(h):.5e}')
+        log.info(f"step ={norm(h):.5e}")
 
     def search(self, data, gtol=1e-5, maxiter=100, callback=None):
         """
@@ -52,11 +53,11 @@ class NewtonRaphson:
         n_digit = int(np.log10(maxiter)) + 1
 
         for i in range(maxiter):
-            log.info(f'iter {i:{n_digit}}: {data}')
+            log.info(f"iter {i:{n_digit}}: {data}")
 
             # check for convergence
             if norm(data.grad) < gtol:
-                log.info(f'converged after {i} steps')
+                log.info(f"converged after {i} steps")
                 break
             # update data by one iteration
             self.iterate(data)
@@ -64,27 +65,28 @@ class NewtonRaphson:
             if callback:
                 callback(data)
 
-            log.debug(f'new x = {data.x}')
-            log.debug(f'new G = {data.grad}')
-            log.debug(f'new H = {data.hess}')
+            log.debug(f"new x = {data.x}")
+            log.debug(f"new G = {data.grad}")
+            log.debug(f"new H = {data.hess}")
 
         else:
-            log.warning('WARNING: did not converge')
+            log.warning("WARNING: did not converge")
 
         data.xt = np.array(xt)
 
 
 class ModeFollowing(NewtonRaphson):
     """Following Wales, The Journal of Chemical Physics 101, 3750 (1994)"""
+
     def __init__(self, order=1, maxstep=None, project=None, update: bool = True):
         super().__init__(maxstep, project, update)
         self.order = order
 
     def step(self, f, b):
         """Return step in eigenmodes"""
-        sign = - np.ones_like(b)  # negative for minimization
-        sign[:self.order] = 1  # positive for maximization
-        return sign * 2 * f / (abs(b) * (1 + np.sqrt(1 + 4 * f ** 2 / b ** 2)))
+        sign = -np.ones_like(b)  # negative for minimization
+        sign[: self.order] = 1  # positive for maximization
+        return sign * 2 * f / (abs(b) * (1 + np.sqrt(1 + 4 * f**2 / b**2)))
 
     def iterate(self, data):
         """Take one iteration, including rescaling step"""
@@ -93,14 +95,16 @@ class ModeFollowing(NewtonRaphson):
 
         if self.project:
             b, eig_vecs = proj_eig(data.x, data.hess, data.n_zero, mass=data.mass)
-            n = sum(b < 0)  # number of negative eigenvalues
         else:
             b, eig_vecs = linalg.eigh(hess)  # todo: banded
-            n = sum(b[np.argpartition(abs(b), data.n_zero)[data.n_zero:]] < 0)  # number of negative eigenvalues
+            idx: NDArray = np.sort(np.argpartition(abs(b), data.n_zero)[data.n_zero :])
+            b = b[idx]
+            eig_vecs = eig_vecs[:, idx]
+        n = sum(b < 0)  # number of negative eigenvalues
 
-        message = f'{n} -ve eigvals'
+        message = f"{n} -ve eigvals"
         if self.project:
-            message += f' ({data.n_zero} zeros projected out)'
+            message += f" ({data.n_zero} zeros projected out)"
         log.info(message)
 
         f = np.dot(data.grad.ravel(), eig_vecs)  # f[i] is component of gradient along eigenvector[:,i]
@@ -110,13 +114,14 @@ class ModeFollowing(NewtonRaphson):
         h = np.dot(eig_vecs, h).reshape(data.x.shape)
         # take step
         data.move(h, self.update)
-        log.info(f'step ={norm(h):.5e}')
-        log.debug(f'eigvals: {b}')
+        log.info(f"step ={norm(h):.5e}")
+        log.debug(f"eigvals: {b}")
         return data
 
 
 class LBFGS(NewtonRaphson):
     """Limited-memory BFGS optimizer."""
+
     def __init__(self, maxstep: float = 0.3, **_):
         """Initializes the LBFGS optimizer.
 
@@ -128,7 +133,7 @@ class LBFGS(NewtonRaphson):
         super().__init__(maxstep=maxstep)
         self.m: int = 3  # The number of previous steps and gradients to store.
         if self.m <= 0:
-            raise ValueError('m must be a positive integer')
+            raise ValueError("m must be a positive integer")
         self.dguess: float = 1  # Initial guess for the diagonal of the inverse Hessian approximation.
         self.wss: NDArray = np.zeros(self.m)
         self.wgd: NDArray = np.zeros(self.m)
@@ -185,7 +190,7 @@ class LBFGS(NewtonRaphson):
 
         # Move to the new position
         data.move(h, update=self.update)
-        log.info(f'step ={norm(h):.5e}')
+        log.info(f"step ={norm(h):.5e}")
 
         # 4. Store the new step (s) and gradient difference (y)
         if norm(data.grad - g_old) > 1e-8:  # Avoid division by zero
@@ -231,6 +236,7 @@ class StreamBedWalk(ModeFollowing):
     Walks from x0 to a minimum (order=0), transition state (order=1) or other saddle point (order>1)
     of the potential energy surface.
     """
+
     def __init__(self, update: bool = True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.update = (bfgs if self.order == 0 else powell) if update else None
@@ -243,8 +249,8 @@ class StreamBedWalk(ModeFollowing):
 
         else:
             # invert sign in cases of order>1 only
-            b[1:self.order] *= -1
-            f[1:self.order] *= -1
+            b[1 : self.order] *= -1
+            f[1 : self.order] *= -1
             b0 = b[0]
             b1 = b[1]
 
@@ -268,4 +274,4 @@ class StreamBedWalk(ModeFollowing):
         return alpha * f / (lam - b)  # step in ev space
 
 
-optimizers: dict[str, type] = {'EF': ModeFollowing, 'lBFGS': LBFGS, 'SBW': StreamBedWalk}
+optimizers: dict[str, type] = {"EF": ModeFollowing, "lBFGS": LBFGS, "SBW": StreamBedWalk}
