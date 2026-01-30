@@ -87,3 +87,5 @@ dependencies = [
 [tool.setuptools.packages.find]
 # Automatically find all packages in the 'src' directory.
 where = ["src"]
+[tool.ruff]
+line-length = 120

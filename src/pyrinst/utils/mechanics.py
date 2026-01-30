@@ -11,7 +11,7 @@ moment of inertia tensor should be computed with respect to the center of mass.
 The `inertia` function handles this by default.
 """
 
-__author__ = 'Jeremy O. Richardson'
+__author__ = "Jeremy O. Richardson"
 
 import numpy as np
 from numpy.typing import NDArray
@@ -56,7 +56,10 @@ def center_of_mass(x, mass: float | NDArray = 1):
     array([0.        , 0.        , 0.00001664])
     """
     m = np.asarray(mass)
-    return np.mean(m[..., None] * x, axis=-2) / np.sum(m)
+    res: NDArray = np.average(x, weights=m, axis=-2)
+    if res.ndim == 2:
+        return np.mean(res, axis=0)
+    return res
 
 
 def inertia(x: NDArray, mass=1, com=True):
@@ -122,5 +125,5 @@ def inertia(x: NDArray, mass=1, com=True):
     if com:
         x = x - center_of_mass(x, m)  # avoid in-place modification
     diag = np.sum(m * np.sum(x**2, axis=-1))
-    outer = np.sum((m[..., None] * x)[..., None] * x[..., None, :], axis=tuple(range(x.ndim - 1)))
+    outer = np.sum(np.einsum("i,...ij,...ik->...jk", m, x, x), axis=tuple(range(x.ndim - 1)))
     return np.eye(3) * diag - outer
