@@ -6,16 +6,16 @@ screen output, logging, and file writing.
 """
 
 import numpy as np
-import math
+
 
 class Formats:
     """
     A namespace for string formatting constants.
     """
 
-    MOMENTUM_OF_INERTIA = ".4f"
+    MOMENT_OF_INERTIA = ".4f"
     ROTATIONAL_CONSTANT = ".4f"
-    
+
     ENERGY = ".8f"
     GRADIENT = ".8f"
     GRAD_NORM = ".4e"
@@ -30,13 +30,13 @@ class Formats:
     RATE = ".4e"
     LOG_RATE = ".4f"
 
-    BN = '.4f'
-    ACTION = '.8f'
-    TUNNELING_FACTOR = '.4e'
+    BN = ".4f"
+    ACTION = ".8f"
+    TUNNELING_FACTOR = ".4e"
 
     STEP_INDEX = "3d"  # Integer, 5 characters wide
 
-    ARRAY_SPACE = ' ' * 4
+    ARRAY_SPACE = " " * 4
 
 
 def format_array(
@@ -45,7 +45,7 @@ def format_array(
     sep: str = Formats.ARRAY_SPACE,
     edge_items: int = 6,
     linewidth: int | None = 88,
-    wrap_indent: str = ''
+    wrap_indent: str = "",
 ) -> str:
     """
     Formats a 1D array intelligently with guaranteed column alignment.
@@ -95,35 +95,32 @@ def format_array(
     # --- Step 1: Determine which elements to process ---
     max_items = edge_items * 2
     is_truncated = len(arr) > max_items
-    if is_truncated:
-        elements_to_process = np.concatenate([arr[:edge_items], arr[-edge_items:]])
-    else:
-        elements_to_process = arr
+    elements_to_process = np.concatenate([arr[:edge_items], arr[-edge_items:]]) if is_truncated else arr
 
     # --- Step 2 (Pass 1): Find the maximum width required ---
     max_elem_width = 0
-    
+
     for num in elements_to_process:
         try:
             formatted_num_str = f"{num:{fmt}}"
-        except ValueError:
+        except ValueError as e:
             # Re-raise with a more informative message
-            raise ValueError(f"Invalid format specifier '{fmt}' for value of type {type(num)}.")
-            
+            raise ValueError(f"Invalid format specifier '{fmt}' for value of type {type(num)}.") from e
+
         if len(formatted_num_str) > max_elem_width:
             max_elem_width = len(formatted_num_str)
-            
+
     if is_truncated:
-        ellipsis_width = len('...')
+        ellipsis_width = len("...")
         if ellipsis_width > max_elem_width:
             max_elem_width = ellipsis_width
 
     # --- Step 3: Generate the final list of equal-width string elements ---
-    align_fmt = f"{{:>{max_elem_width}}}" 
+    align_fmt = f"{{:>{max_elem_width}}}"
     ellipsis_fmt = f"{{:^{max_elem_width}}}"
 
     elements_to_render = []
-    
+
     def _format_and_align(num):
         return align_fmt.format(f"{num:{fmt}}")
 
@@ -131,10 +128,10 @@ def format_array(
         elements_to_render = [_format_and_align(num) for num in arr]
     else:
         head = [_format_and_align(num) for num in arr[:edge_items]]
-        ellipsis = ellipsis_fmt.format('...')
+        ellipsis = ellipsis_fmt.format("...")
         tail = [_format_and_align(num) for num in arr[-edge_items:]]
         elements_to_render = head + [ellipsis] + tail
-        
+
     # --- Step 4: Join and wrap the final string elements ---
     if linewidth is None:
         return sep.join(elements_to_render)
@@ -146,7 +143,7 @@ def format_array(
         sep_len = 0 if is_first_on_line else len(sep)
 
         if current_line_length + sep_len + len(elem_str) > linewidth:
-            output_parts.append('\n')
+            output_parts.append("\n")
             output_parts.append(wrap_indent)
             current_line_length = len(wrap_indent)
             is_first_on_line = True
@@ -155,7 +152,7 @@ def format_array(
         if not is_first_on_line:
             output_parts.append(sep)
             current_line_length += len(sep)
-        
+
         output_parts.append(elem_str)
         current_line_length += len(elem_str)
 

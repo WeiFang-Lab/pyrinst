@@ -87,5 +87,22 @@ dependencies = [
 [tool.setuptools.packages.find]
 # Automatically find all packages in the 'src' directory.
 where = ["src"]
+
+# ==============================================================================
+# Ruff configuration
+# ==============================================================================
 [tool.ruff]
 line-length = 120
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "B", "SIM", "NPY"]
+[tool.ruff.lint.pep8-naming]
+ignore-names = [
+    "N",  # Number of beads
+    "V",  # Potential
+    "G",  # Gradient
+    "H",  # Hessian
+    "E",  # Energy
+    "S",  # Action
+    "Z",  # Partition function
+    "BN", # sum(m * |x_{i+1} - x_i|^2)
+]

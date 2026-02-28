@@ -4,22 +4,30 @@ either for collinear collisions in Jacobi coordinates
 or in full space in Cartesian coordinates
 
 """
-import numpy as np
-from pyrinst.core.pes.abc import PES
-from pyrinst.utils.elements import element_data
-from pyrinst.utils.units import Length, Mass
+
 import bkmp
+import numpy as np
+
+from pyrinst.potentials import Potential, Task
+from pyrinst.utils.elements import element_data
+from pyrinst.utils.units import Mass
 
 
-class Full(PES):
+class Full(Potential):
     def __init__(self, *args: str):
-        assert all(atom in ('H', 'D') for atom in args)
+        assert all(atom in ("H", "D") for atom in args)
         self.atoms = list(args)
-        self.mass = element_data.get_masses(self.atoms) * Mass(1, 'amu').get('au')
+        self.mass = element_data.get_masses(self.atoms) * Mass(1, "amu").get("au")
         self._check()
 
     def _check(self):
         assert len(self.atoms) == 3
+
+    def __call__(self, x, task: Task = Task.GRAD):
+        energy = self.potential(x)
+        gradient = self.gradient(x) if task > Task.SP else None
+        hessian = self.hessian(x) if task > Task.GRAD else None
+        return energy, gradient, hessian
 
     def potential(self, x):
         return bkmp.cartpot(x.T)
@@ -30,6 +38,18 @@ class Full(PES):
 
     def gradient(self, x):
         return self.both(x)[1]
+
+    def hessian(self, x):
+        dim = x.size
+        res = np.empty((dim, dim), float)
+        dx = np.zeros_like(x)
+        for i in range(dim):
+            dx.flat[i] = self.dx
+            f1 = self.gradient(x + dx).ravel()
+            f2 = self.gradient(x - dx).ravel()
+            res[i] = (f1 - f2) * 0.5 / self.dx
+            dx.flat[i] = 0
+        return 0.5 * (res + res.T)
 
 
 class H(Full):
@@ -68,4 +88,4 @@ class CustomPES:
             case 3:
                 return Full(*args)
             case _:
-                raise ValueError(f'Unknown input format: {args}')
+                raise ValueError(f"Unknown input format: {args}")

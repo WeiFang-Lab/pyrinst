@@ -1,11 +1,15 @@
 import logging
 from collections.abc import Callable
+
 import numpy as np
 from numpy.linalg import norm
 from numpy.typing import NDArray
 from scipy import linalg
-from pyrinst.core import Data
-from .hessian import bofill, bfgs, powell
+
+from pyrinst.geometries import StationaryPoint
+from pyrinst.potentials import Potential, Task
+
+from .hessian import bfgs, bofill, powell
 from .projections import proj_eig
 
 log = logging.getLogger(__name__)
@@ -16,39 +20,50 @@ class NewtonRaphson:
     The standard Newton-Raphson ignores argument order and just optimizes to any nearby stationary point.
     """
 
-    def __init__(self, maxstep=None, project: bool = True, update: bool = True):
+    def __init__(self, potential: Potential, maxstep=None, project: bool = True, update: bool = True):
         """
         verbosity -- controls messages
         """
+        self.potential = potential
         self.maxstep = maxstep
-        self.project = project
-        self.update: Callable | None = bofill if update else None
+        self.project: bool = project
+        self.update_method: Callable | None = bofill if update else None
 
-    def scale(self, h):
+    def scale(self, h: NDArray) -> NDArray:
         if self.maxstep is not None:
             step = norm(h)
             if step > self.maxstep:
                 h *= self.maxstep / step
         return h
 
-    def iterate(self, data):
+    def move(self, data: StationaryPoint, h: NDArray) -> None:
+        x, G, H = data.x.copy(), data.G.copy(), data.H.copy()
+        data.x += h
+        if self.update_method:
+            self.potential.compute(data, task=Task.GRAD)
+            data.H = self.update_method(H, (data.x - x).ravel(), (data.G - G).ravel())
+        else:
+            self.potential.compute(data, task=Task.FREQ)
+
+    def iterate(self, data: StationaryPoint) -> None:
         """Take one iteration, including rescaling step"""
         # compute attempted step
-        hess = data.hess.copy()
-        h = -linalg.solve(hess, data.grad.ravel()).reshape(data.x.shape)  # todo: banded
+        hess = data.H.copy()
+        h = -linalg.solve(hess, data.G.ravel()).reshape(data.x.shape)  # todo: banded
         # scale attempted step if it is too large
         h = self.scale(h)
         # take step
-        data.move(h, self.update)
+        self.move(data, h)
         log.info(f"step ={norm(h):.5e}")
 
-    def search(self, data, gtol=1e-5, maxiter=100, callback=None):
+    def search(self, data: StationaryPoint, gtol=1e-5, maxiter=100, callback=None):
         """
         Return optimized coordinate from initial guess, data (an instance of Data)
         gtol    -- converged only if RMS gradient < gtol
         maxiter -- maximum number of overall iterations
         callback -- a user-supplied function called as callback(x,y) after each iteration
         """
+        self.potential.compute(data, task=Task.FREQ)
         xt = [data.x.copy()]
         n_digit = int(np.log10(maxiter)) + 1
 
@@ -56,7 +71,7 @@ class NewtonRaphson:
             log.info(f"iter {i:{n_digit}}: {data}")
 
             # check for convergence
-            if norm(data.grad) < gtol:
+            if norm(data.G) < gtol:
                 log.info(f"converged after {i} steps")
                 break
             # update data by one iteration
@@ -66,35 +81,36 @@ class NewtonRaphson:
                 callback(data)
 
             log.debug(f"new x = {data.x}")
-            log.debug(f"new G = {data.grad}")
-            log.debug(f"new H = {data.hess}")
+            log.debug(f"new G = {data.G}")
+            log.debug(f"new H = {data.H}")
 
         else:
             log.warning("WARNING: did not converge")
+        self.potential.compute(data, task=Task.FREQ)
 
-        data.xt = np.array(xt)
+        # data.xt = np.array(xt)
 
 
 class ModeFollowing(NewtonRaphson):
     """Following Wales, The Journal of Chemical Physics 101, 3750 (1994)"""
 
-    def __init__(self, order=1, maxstep=None, project=None, update: bool = True):
-        super().__init__(maxstep, project, update)
-        self.order = order
+    def __init__(self, order: int, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.order: int = order
 
-    def step(self, f, b):
+    def step(self, f: NDArray, b: NDArray) -> NDArray:
         """Return step in eigenmodes"""
         sign = -np.ones_like(b)  # negative for minimization
         sign[: self.order] = 1  # positive for maximization
         return sign * 2 * f / (abs(b) * (1 + np.sqrt(1 + 4 * f**2 / b**2)))
 
-    def iterate(self, data):
+    def iterate(self, data: StationaryPoint) -> None:
         """Take one iteration, including rescaling step"""
         # compute attempted step
-        hess = data.hess.copy()
+        hess = data.H.copy()
 
         if self.project:
-            b, eig_vecs = proj_eig(data.x, data.hess, data.n_zero, mass=data.mass)
+            b, eig_vecs = proj_eig(data.x, hess, data.n_zero, mass=data.m)
         else:
             b, eig_vecs = linalg.eigh(hess)  # todo: banded
             idx: NDArray = np.sort(np.argpartition(abs(b), data.n_zero)[data.n_zero :])
@@ -107,30 +123,31 @@ class ModeFollowing(NewtonRaphson):
             message += f" ({data.n_zero} zeros projected out)"
         log.info(message)
 
-        f = np.dot(data.grad.ravel(), eig_vecs)  # f[i] is component of gradient along eigenvector[:,i]
+        f = np.dot(data.G.ravel(), eig_vecs)  # f[i] is component of gradient along eigenvector[:,i]
         h = self.step(f, b)
         # scale attempted step if it is too large
         h = self.scale(h)
         h = np.dot(eig_vecs, h).reshape(data.x.shape)
         # take step
-        data.move(h, self.update)
+        self.move(data, h)
         log.info(f"step ={norm(h):.5e}")
         log.debug(f"eigvals: {b}")
-        return data
 
 
 class LBFGS(NewtonRaphson):
     """Limited-memory BFGS optimizer."""
 
-    def __init__(self, maxstep: float = 0.3, **_):
+    def __init__(self, potential: Potential, maxstep: float = 0.3, **_):
         """Initializes the LBFGS optimizer.
 
         Parameters
         ----------
+        potential : Potential
+            The potential-energy surface to optimize.
         maxstep : float, optional
             The maximum allowed step size for each iteration. Defaults to 0.3.
         """
-        super().__init__(maxstep=maxstep)
+        super().__init__(potential, maxstep=maxstep)
         self.m: int = 3  # The number of previous steps and gradients to store.
         if self.m <= 0:
             raise ValueError("m must be a positive integer")
@@ -140,7 +157,7 @@ class LBFGS(NewtonRaphson):
         self.rho: NDArray = np.zeros(self.m)
         self.iter_num: int = 0
 
-    def iterate(self, data: Data):
+    def iterate(self, data: StationaryPoint) -> None:
         """Performs a single L-BFGS iteration.
 
         This method computes the search direction using the L-BFGS two-loop
@@ -149,11 +166,11 @@ class LBFGS(NewtonRaphson):
 
         Parameters
         ----------
-        data : Data
-            A `Data` object containing the current optimization state. Its `x`
-            and `grad` attributes are used and updated.
+        data : StationaryPoint
+            A `StationaryPoint` object containing the current optimization state. Its `x`
+            and `G` attributes are used and updated.
         """
-        g = data.grad.ravel()
+        g = data.G.ravel()
 
         # 1. Compute the search direction q = -H_k * g_k
         q = -g
@@ -186,16 +203,16 @@ class LBFGS(NewtonRaphson):
         h = self.scale(q.reshape(data.x.shape))
 
         # Store current gradient for next iteration's difference calculation
-        g_old = data.grad.copy()
+        g_old = data.G.copy()
 
         # Move to the new position
-        data.move(h, update=self.update)
+        self.move(data, h)
         log.info(f"step ={norm(h):.5e}")
 
         # 4. Store the new step (s) and gradient difference (y)
-        if norm(data.grad - g_old) > 1e-8:  # Avoid division by zero
+        if norm(data.G - g_old) > 1e-8:  # Avoid division by zero
             s = h.ravel()
-            y = (data.grad - g_old).ravel()
+            y = (data.G - g_old).ravel()
 
             self.wss[self.iter_num % self.m] = s
             self.wgd[self.iter_num % self.m] = y
@@ -203,18 +220,18 @@ class LBFGS(NewtonRaphson):
 
         self.iter_num += 1
 
-    def search(self, data: Data, gtol=1e-5, maxiter=100, callback=None):
+    def search(self, data: StationaryPoint, gtol=1e-5, maxiter=100, callback=None):
         """Runs the L-BFGS optimization algorithm.
 
         Parameters
         ----------
-        data : Data
-            A `Data` object that provides the current state of the optimization,
-            including position `x` and gradient `grad`. It is updated
+        data : StationaryPoint
+            A `StationaryPoint` object that provides the current state of the optimization,
+            including position `x` and gradient `G`. It is updated
             in-place.
         gtol : float, optional
             The tolerance for the gradient norm. The optimization is considered
-            converged when `norm(data.grad) < gtol`. Defaults to 1e-5.
+            converged when `norm(data.G) < gtol`. Defaults to 1e-5.
         maxiter : int, optional
             The maximum number of iterations to perform. Defaults to 100.
         callback : callable, optional
@@ -232,14 +249,14 @@ class LBFGS(NewtonRaphson):
 
 class StreamBedWalk(ModeFollowing):
     """
-    J. Chem. Phys. 1990, 92 (1), 340–346.
+    J. Chem. Phys. 1990, 92 (1), 340-346.
     Walks from x0 to a minimum (order=0), transition state (order=1) or other saddle point (order>1)
     of the potential energy surface.
     """
 
     def __init__(self, update: bool = True, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.update = (bfgs if self.order == 0 else powell) if update else None
+        self.update_method = (bfgs if self.order == 0 else powell) if update else None
 
     def step(self, f, b):
         if self.order == 0:
