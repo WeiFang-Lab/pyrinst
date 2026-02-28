@@ -3,14 +3,14 @@
 import numpy as np
 
 
-def mass_weight(hess, mass=1, dim: int = 3):
+def mass_weight(hess, mass, dim: int = 3):
     """
     Parameters
     ----------
     hess : NDArray
-        Hessian at geometry x and has shape(x.size, x.size)
-    mass : float | NDArray
-        has shape x which broadcasts with x, e.g. (N_atom, 1)
+        Hessian at geometry x and has shape (x.size, x.size)
+    mass : NDArray
+        has shape (N_atom,)
     dim : int
         number of dimensions of each atom
 
@@ -19,9 +19,6 @@ def mass_weight(hess, mass=1, dim: int = 3):
     NDArray
         mass-weighted Hessian
     """
-    if np.isscalar(mass):
-        return hess / mass
-    assert dim in (1, 2, 3)
     size = len(hess)
     shape = (size // (len(mass) * dim), len(mass), dim)
     sqrt_m = np.sqrt(mass)[None, ..., None]

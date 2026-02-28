@@ -8,12 +8,14 @@ from functools import partial
 
 import numpy as np
 
+from pyrinst.core import optimizers
+from pyrinst.geometries import GEOMETRY_REGISTRY, Instanton, TransitionState
 from pyrinst.io.formats import Formats
-from pyrinst.core import modes_registry, Data, Minimum, TransitionState, Instanton, optimizers
-from pyrinst.core.pes.factory import get_pes
 from pyrinst.io.logging_config import setup_logging
-from pyrinst.utils.units import Temperature
 from pyrinst.io.xyz import load
+from pyrinst.potentials import get_pes
+from pyrinst.thermo import analyze
+from pyrinst.utils.units import Temperature
 
 parser = argparse.ArgumentParser()
 parser.add_argument("input", help="Initial guess for the optimization in xyz, txt, or pkl format.")
@@ -25,7 +27,7 @@ temp_group.add_argument("-b", "--beta", type=float, help="Inverse temperature in
 # todo: case-insensitive
 parser.add_argument(
     "--mode",
-    choices=("min", "ts", "inst"),
+    choices=GEOMETRY_REGISTRY.keys(),
     required=True,
     help="Optimize input to minimum, transition state or instanton.",
 )
@@ -42,16 +44,16 @@ parser.add_argument(
 parser.add_argument(
     "-F",
     "--mainInputFile",
-    help="""Main input file (for a SCF calculation): 
-      1. vasp: INCAR; 
+    help="""Main input file (for a SCF calculation):
+      1. vasp: INCAR;
       2. gaussian: single-point input file without the geometry;
       3. custom: json file with parameters for initializing the PES class.
     This is also used by custom pes as the input in the json format.""",
 )
 parser.add_argument(
     "--runcmd",
-    help="Bash command for running the electronic structure code. If not specified, the program will guess this based on the"
-    " PES. You can specify with system the environment variable 'RUNCMD' instead.",
+    help="Bash command for running the electronic structure code. If not specified, the program will guess this based"
+    " on the PES. You can specify with system the environment variable 'RUNCMD' instead.",
 )
 parser.add_argument("--working-dir", default=".", help="Working file directory to preserve the calculations.")
 parser.add_argument("--opt", choices=optimizers.keys(), default="EF", help="Optimization algorithm to use.")
@@ -66,7 +68,7 @@ parser.add_argument("--maxstep", default=0.3, type=float, help="Max-step in opti
 parser.add_argument("--maxiter", default=10, type=int, help="Max-iters in optimization.")
 parser.add_argument("--no-update", action="store_true", help="Don't update but recompute Hessian at each step.")
 parser.add_argument("-N", "--beads", type=int, help="Number of ring-polymer beads (default chosen from input file).")
-parser.add_argument("-s", "--spread", default=0.1, type=float, help="Spread of initial guess.")
+parser.add_argument("-s", "--spread", type=float, help="Spread of initial guess.")
 args = parser.parse_args()
 
 prefix, ext = os.path.splitext(args.output)
@@ -77,24 +79,38 @@ log = logging.getLogger()
 prefix, ext = os.path.splitext(args.input)
 
 # read input file
-if ext == ".xyz":
-    x, atoms = load(args.input, return_symbols=True)
-    pes = get_pes(args, atoms)
-    if x.ndim == 2 and args.mode == "inst":
-        data = TransitionState(x, pes, args.phase)
-    else:
-        data = modes_registry[args.mode](x, pes, args.phase)
-elif ext == ".txt":
-    x = np.loadtxt(args.input)  # todo: 1d instanton
-    pes = get_pes(args)
-    data = modes_registry[args.mode](x, pes, args.phase)
-elif ext == ".pkl":
+if ext == ".pkl":
     with open(args.input, "rb") as f:
         data = pickle.load(f)
+    symbols = data.symbols
 else:
-    msg = f"Unknown file format: {args.input}"
-    log.error(msg)
-    raise ValueError(msg)
+    if ext == ".xyz":
+        x, symbols = load(args.input, return_symbols=True)
+    elif ext == ".txt":
+        x = np.loadtxt(args.input)
+        symbols = None
+    else:
+        msg: str = f"Unknown file format: {args.input}"
+        raise ValueError(msg)
+pes = get_pes(args, symbols)
+if ext != ".pkl":
+    if ext == ".txt":
+        try:
+            m = next(getattr(pes, attr) for attr in ("masses", "mass", "m") if hasattr(pes, attr))
+        except StopIteration:
+            msg: str = "Custom PES is missing a mass attribute. Expected one of: 'masses', 'mass', or 'm'."
+            raise AttributeError(msg) from None
+        m = np.atleast_1d(m)
+    else:
+        m = None
+    if args.mode == "inst" and args.spread is None:
+        if m is not None:
+            x.shape = (len(x), len(m), -1)
+        data = TransitionState(x, symbols, phase=args.phase, masses=m)
+    else:
+        if m is not None:
+            x.shape = (len(m), -1)
+        data = GEOMETRY_REGISTRY[args.mode](x, symbols, phase=args.phase, masses=m)
 
 # temperature
 if args.Temp is not None:
@@ -109,30 +125,20 @@ elif isinstance(data, Instanton):
 else:
     beta = temp = None
 
-# analyze link
-kwargs: dict[str, Data] = {}
-for i, file in enumerate(args.link):
-    obj = np.load(file, allow_pickle=True)
-    if type(obj) is Minimum:
-        if "rct" in kwargs:
-            kwargs["rct2"] = obj
-        else:
-            kwargs["rct"] = obj
-    elif type(obj) is TransitionState:
-        kwargs["ts"] = obj
-    else:
-        raise ValueError(f"Unknown link file format: {file}")
-data.update_link(**kwargs)
+if len(args.link):
+    data.update_links(*[np.load(file, allow_pickle=True) for file in args.link])
 
 if args.mode == "inst":
-    if isinstance(data, TransitionState):
+    if type(data) is TransitionState:
         data = data.spread(args.beads, beta, args.spread)
     data.set_beta(beta)
-    if args.beads and args.beads != data.n:
+    if args.beads and args.beads != data.N:
         data.interpolate(args.beads)
 
-opt = optimizers[args.opt](order=data.order, maxstep=args.maxstep, project=args.project, update=not args.no_update)
-opt.search(data, gtol=args.gtol, maxiter=args.maxiter, callback=partial(type(data).output, prefix=args.output))
+opt = optimizers[args.opt](
+    order=data.order, potential=pes, maxstep=args.maxstep, project=args.project, update=not args.no_update
+)
+opt.search(data, gtol=args.gtol, maxiter=args.maxiter, callback=partial(type(data).output, filename=args.output))
 
 data.final_output(args.output)
 
@@ -144,4 +150,4 @@ log.info("\nComputing rate...")
 fmt: str = Formats.BETA
 log.info(f"T = {temp:{fmt}} K, 1000/T(K) = {1000 / temp:{fmt}}; beta = {beta:{fmt}}")
 
-data.calc_rate(beta)
+analyze(data, beta)
