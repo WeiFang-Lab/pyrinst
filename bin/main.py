@@ -8,11 +8,11 @@ from functools import partial
 
 import numpy as np
 
-from pyrinst.core import optimizers
 from pyrinst.geometries import GEOMETRY_REGISTRY, Instanton, PhaseType, TransitionState
 from pyrinst.io.formats import Formats
 from pyrinst.io.logging_config import setup_logging
 from pyrinst.io.xyz import load
+from pyrinst.opt import OPTIMIZER_REGISTRY
 from pyrinst.potentials import get_pes
 from pyrinst.thermo import analyze
 from pyrinst.utils.coordinates import is_linear
@@ -57,7 +57,7 @@ parser.add_argument(
     " on the PES. You can specify with system the environment variable 'RUNCMD' instead.",
 )
 parser.add_argument("--working-dir", default=".", help="Working file directory to preserve the calculations.")
-parser.add_argument("--opt", choices=optimizers.keys(), default="EF", help="Optimization algorithm to use.")
+parser.add_argument("--opt", choices=OPTIMIZER_REGISTRY.keys(), default="EF", help="Optimization algorithm to use.")
 parser.add_argument("-g", "--gtol", default=1e-3, type=float, help="Tolerance in gradient for optimization.")
 parser.add_argument(
     "-p",
@@ -143,7 +143,7 @@ if args.mode == "inst":
     if args.beads and args.beads != data.N:
         data.interpolate(args.beads)
 
-opt = optimizers[args.opt](
+opt = OPTIMIZER_REGISTRY[args.opt](
     order=data.order, potential=pes, maxstep=args.maxstep, project=args.project, update=not args.no_update
 )
 opt.search(data, gtol=args.gtol, maxiter=args.maxiter, callback=partial(type(data).output, filename=args.output))

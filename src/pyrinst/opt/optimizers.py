@@ -14,11 +14,15 @@ from .projections import proj_eig
 
 log = logging.getLogger(__name__)
 
+OPTIMIZER_REGISTRY: dict[str, type["NewtonRaphson"]] = {}
+
 
 class NewtonRaphson:
     """Base class of all quasi-newton optimizers.
     The standard Newton-Raphson ignores argument order and just optimizes to any nearby stationary point.
     """
+
+    type_alias: str = "NR"
 
     def __init__(self, potential: Potential, maxstep=None, project: bool = True, update: bool = True):
         """
@@ -28,6 +32,10 @@ class NewtonRaphson:
         self.maxstep = maxstep
         self.project: bool = project
         self.update_method: Callable | None = bofill if update else None
+
+    def __init_subclass__(cls):
+        if cls.type_alias is not None:
+            OPTIMIZER_REGISTRY[cls.type_alias] = cls
 
     def scale(self, h: NDArray) -> NDArray:
         if self.maxstep is not None:
@@ -94,6 +102,8 @@ class NewtonRaphson:
 class ModeFollowing(NewtonRaphson):
     """Following Wales, The Journal of Chemical Physics 101, 3750 (1994)"""
 
+    type_alias = "EF"
+
     def __init__(self, order: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.order: int = order
@@ -136,6 +146,8 @@ class ModeFollowing(NewtonRaphson):
 
 class LBFGS(NewtonRaphson):
     """Limited-memory BFGS optimizer."""
+
+    type_alias = "lBFGS"
 
     def __init__(self, potential: Potential, maxstep: float = 0.3, **_):
         """Initializes the LBFGS optimizer.
@@ -254,6 +266,8 @@ class StreamBedWalk(ModeFollowing):
     of the potential energy surface.
     """
 
+    type_alias = "SBW"
+
     def __init__(self, update: bool = True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.update_method = (bfgs if self.order == 0 else powell) if update else None
@@ -289,6 +303,3 @@ class StreamBedWalk(ModeFollowing):
                 alpha = 1
                 lam = 0.25 * (b0 + b1)
         return alpha * f / (lam - b)  # step in ev space
-
-
-optimizers: dict[str, type] = {"EF": ModeFollowing, "lBFGS": LBFGS, "SBW": StreamBedWalk}
