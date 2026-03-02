@@ -75,7 +75,8 @@ class Geometry:
         self.hess = value
 
 
-class Phase(StrEnum):
+class PhaseType(StrEnum):
+    MODEL = "model"
     SOLID = "solid"
     LIQUID = "liquid"
     GAS = "gas"
@@ -83,11 +84,10 @@ class Phase(StrEnum):
 
 @dataclass(slots=True)
 class StationaryPoint(Geometry, ABC):
-    phase: Phase = Phase.SOLID
+    n_zero: int = field(default=0)
     links: list["StationaryPoint"] = field(default_factory=list)
     masses: NDArray | None = field(default=None)
 
-    n_zero: int = field(default=0, init=False)
     freqs: NDArray | None = field(default=None, init=False)
     modes: NDArray | None = field(default=None, init=False)
 
@@ -96,29 +96,11 @@ class StationaryPoint(Geometry, ABC):
 
     def __post_init__(self):
         self.update_links(*self.links)
-        self.n_zero = self.get_n_zero()
         if self.masses is None:
             self.masses = element_data.get_masses(self.symbols) * Mass(1, "amu").get("au")
 
     @abstractmethod
     def __hash__(self) -> int: ...
-
-    def get_n_zero(self) -> int:
-        match self.phase:
-            case Phase.SOLID:
-                return 0
-            case Phase.LIQUID:
-                return 3
-            case Phase.GAS:
-                return 3 if len(self.symbols) == 1 else (5 if self.is_linear else 6)
-        raise ValueError(f"unknown phase: {self.phase}")
-
-    @property
-    def is_linear(self) -> bool:
-        if self.x.shape[0] < 3:
-            return True
-        dx = self.x - self.x[0]
-        return all(np.isclose(norm(np.cross(dx[1], dx[i])), 0) for i in range(2, dx.shape[0]))
 
     def update_links(self, *args) -> None:
         for arg in args:
@@ -254,7 +236,7 @@ class TransitionState(StationaryPoint):
         mode /= norm(mode)  # renormalize
         phase: NDArray = np.linspace(0, math.pi, N // 2)
         x_inst: NDArray = self.x + length * mode[None, ...] * np.cos(phase).reshape(-1, *(1,) * self.x.ndim)
-        return Instanton(x_inst, self.symbols, phase=self.phase, links=[self], masses=self.m, beta=beta)
+        return Instanton(x_inst, self.symbols, n_zero=self.n_zero, links=[self], masses=self.m, beta=beta)
 
 
 @dataclass(slots=True)
@@ -355,13 +337,6 @@ class Instanton(TransitionState):
         indices: NDArray = np.arange(len(res))
         res[indices, :, indices, :] += np.r_[self.hess, self.hess[::-1]]
         return res.reshape(self.N * self.dof, self.N * self.dof)
-
-    @property
-    def is_linear(self) -> bool:
-        if self.x.shape[1] < 3:
-            return True
-        dx = self.x[0] - self.x[0, 0]  # check the first bead only
-        return all(np.isclose(norm(np.cross(dx[1], dx[i])), 0) for i in range(2, dx.shape[0]))
 
     @property
     def dof(self) -> int:

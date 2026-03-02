@@ -9,12 +9,13 @@ from functools import partial
 import numpy as np
 
 from pyrinst.core import optimizers
-from pyrinst.geometries import GEOMETRY_REGISTRY, Instanton, TransitionState
+from pyrinst.geometries import GEOMETRY_REGISTRY, Instanton, PhaseType, TransitionState
 from pyrinst.io.formats import Formats
 from pyrinst.io.logging_config import setup_logging
 from pyrinst.io.xyz import load
 from pyrinst.potentials import get_pes
 from pyrinst.thermo import analyze
+from pyrinst.utils.coordinates import is_linear
 from pyrinst.utils.units import Temperature
 
 parser = argparse.ArgumentParser()
@@ -31,7 +32,7 @@ parser.add_argument(
     required=True,
     help="Optimize input to minimum, transition state or instanton.",
 )
-parser.add_argument("--phase", choices=("gas", "liquid", "solid"), default="gas", help="Phase of the system")
+parser.add_argument("--phase", choices=[p.value for p in PhaseType], default=PhaseType.GAS, help="Phase of the system")
 parser.add_argument("-l", "--link", nargs="*", default=[], help="Pass min/TS here when optimizing TS/instanton.")
 parser.add_argument(
     "-P",
@@ -94,6 +95,13 @@ else:
         raise ValueError(msg)
 pes = get_pes(args, symbols)
 if ext != ".pkl":
+    match args.phase:
+        case PhaseType.SOLID | PhaseType.MODEL:
+            n_zero = 0
+        case PhaseType.LIQUID:
+            n_zero = 3
+        case PhaseType.GAS:
+            n_zero = 3 if len(x) == 1 else (5 if is_linear(x) else 6)
     if ext == ".txt":
         try:
             m = next(getattr(pes, attr) for attr in ("masses", "mass", "m") if hasattr(pes, attr))
@@ -106,11 +114,11 @@ if ext != ".pkl":
     if args.mode == "inst" and args.spread is None:
         if m is not None:
             x.shape = (len(x), len(m), -1)
-        data = TransitionState(x, symbols, phase=args.phase, masses=m)
+        data = TransitionState(x, symbols, n_zero=n_zero, masses=m)
     else:
         if m is not None:
             x.shape = (len(m), -1)
-        data = GEOMETRY_REGISTRY[args.mode](x, symbols, phase=args.phase, masses=m)
+        data = GEOMETRY_REGISTRY[args.mode](x, symbols, n_zero=n_zero, masses=m)
 
 # temperature
 if args.Temp is not None:
