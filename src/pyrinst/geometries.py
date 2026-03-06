@@ -419,6 +419,7 @@ class Instanton(TransitionState):
 @dataclass(slots=True)
 class HarmRef(Geometry):
     T: float | None = field(init=False, default=None)
+    harm_energies: NDArray | None = field(init=False, default=None)
     ref: float = field(init=False)
 
     def norm_dimensionless_modes(self) -> None:

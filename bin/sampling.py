@@ -29,7 +29,7 @@ def main():
         inst = np.load(args.inst, allow_pickle=True)
         polymer = InstantonFEP(ref=None, inst=inst)
     else:
-        polymer = HarmFEP(input_geom, nbeads=args.n)
+        polymer = HarmFEP(input_geom, nbeads=args.nbeads)
 
     sampled_nm_pos = polymer.sample_normal_modes(temperature=args.T, n_samples=args.N)
     sampled_bead_pos = polymer.get_cart_pos(nm_pos=sampled_nm_pos, temperature=args.T)
@@ -45,8 +45,8 @@ def main():
         with open(args.input, "wb") as f:
             pickle.dump(input_geom, f)
 
-    for bead_idx in range(args.n):
-        filename = f"{args.o}_{str(bead_idx).zfill(len(str(args.n)))}.xyz"
+    for bead_idx in range(args.nbeads):
+        filename = f"{args.output}_{str(bead_idx).zfill(len(str(args.nbeads)))}.xyz"
         # Extract positions for this bead across all samples
         bead_positions = sampled_bead_pos[:, bead_idx, :]  # Shape: (N, natoms*3)
 
@@ -59,7 +59,7 @@ def main():
             x_list.append(pos_3d)  # Shape: (frames, natoms, 3)
 
         # Write file
-        save(filename, x_list, input_geom.atoms, comment=" ")
+        save(filename, x_list, input_geom.symbols, comment=" ")
 
 
 if __name__ == "__main__":
