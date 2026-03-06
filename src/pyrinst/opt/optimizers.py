@@ -1,16 +1,19 @@
 import logging
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.linalg import norm
 from numpy.typing import NDArray
 from scipy import linalg
 
-from pyrinst.geometries import StationaryPoint
 from pyrinst.potentials import Potential, Task
 
 from .hessian import bfgs, bofill, powell
 from .projections import proj_eig
+
+if TYPE_CHECKING:
+    from pyrinst.geometries import StationaryPoint
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +47,7 @@ class NewtonRaphson:
                 h *= self.maxstep / step
         return h
 
-    def move(self, data: StationaryPoint, h: NDArray) -> None:
+    def move(self, data: "StationaryPoint", h: NDArray) -> None:
         x, G, H = data.x.copy(), data.G.copy(), data.H.copy()
         data.x += h
         if self.update_method:
@@ -53,7 +56,7 @@ class NewtonRaphson:
         else:
             self.potential.compute(data, task=Task.FREQ)
 
-    def iterate(self, data: StationaryPoint) -> None:
+    def iterate(self, data: "StationaryPoint") -> None:
         """Take one iteration, including rescaling step"""
         # compute attempted step
         hess = data.H.copy()
@@ -64,7 +67,7 @@ class NewtonRaphson:
         self.move(data, h)
         log.info(f"step ={norm(h):.5e}")
 
-    def search(self, data: StationaryPoint, gtol=1e-5, maxiter=100, callback=None):
+    def search(self, data: "StationaryPoint", gtol=1e-5, maxiter=100, callback=None):
         """
         Return optimized coordinate from initial guess, data (an instance of Data)
         gtol    -- converged only if RMS gradient < gtol
@@ -114,7 +117,7 @@ class ModeFollowing(NewtonRaphson):
         sign[: self.order] = 1  # positive for maximization
         return sign * 2 * f / (abs(b) * (1 + np.sqrt(1 + 4 * f**2 / b**2)))
 
-    def iterate(self, data: StationaryPoint) -> None:
+    def iterate(self, data: "StationaryPoint") -> None:
         """Take one iteration, including rescaling step"""
         # compute attempted step
         hess = data.H.copy()
@@ -169,7 +172,7 @@ class LBFGS(NewtonRaphson):
         self.rho: NDArray = np.zeros(self.m)
         self.iter_num: int = 0
 
-    def iterate(self, data: StationaryPoint) -> None:
+    def iterate(self, data: "StationaryPoint") -> None:
         """Performs a single L-BFGS iteration.
 
         This method computes the search direction using the L-BFGS two-loop
@@ -232,7 +235,7 @@ class LBFGS(NewtonRaphson):
 
         self.iter_num += 1
 
-    def search(self, data: StationaryPoint, gtol=1e-5, maxiter=100, callback=None):
+    def search(self, data: "StationaryPoint", gtol=1e-5, maxiter=100, callback=None):
         """Runs the L-BFGS optimization algorithm.
 
         Parameters

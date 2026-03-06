@@ -83,10 +83,22 @@ class Geometry:
     def H(self, value: NDArray) -> None:
         self.hess = value
 
+    @property
+    def m(self) -> NDArray:
+        return self.masses
+
+    @property
+    def dof(self) -> int:
+        return self.x.size
+
     def calc_freq(self) -> None:
         hess_mw = mass_weight(self.hess, self.m, dim=self.x.shape[-1])
         eigs, self.modes = np.linalg.eigh(hess_mw)
         self.freqs = np.sqrt(abs(eigs)) * np.sign(eigs)
+
+    def save(self, filename: str) -> None:
+        with open(filename + ".pkl", "wb") as f:
+            pickle.dump(self, f)
 
 
 class PhaseType(StrEnum):
@@ -123,14 +135,6 @@ class StationaryPoint(Geometry, ABC):
             tmp.update(arg.links)
         self.links = sorted(tmp, key=hash)
 
-    @property
-    def m(self) -> NDArray:
-        return self.masses
-
-    @property
-    def dof(self) -> int:
-        return self.x.size
-
     def __str__(self):
         """used for optimization only"""
         return f"V = {self.V:{Formats.ENERGY}}, |G| = {norm(self.G):{Formats.GRAD_NORM}}"
@@ -164,8 +168,7 @@ class StationaryPoint(Geometry, ABC):
 
     def save(self, filename: str) -> None:
         self.output(filename)
-        with open(filename + ".pkl", "wb") as f:
-            pickle.dump(self, f)
+        Geometry.save(self, filename)
 
     def get_thermo_data(self, beta: float, N: int | None = None) -> ThermoData:
         data = ThermoData(beta, self.type_alias)
@@ -419,7 +422,7 @@ class HarmRef(Geometry):
     ref: float = field(init=False)
 
     def norm_dimensionless_modes(self) -> None:
-        modes_raw = self.modes.T.reshape(self.dof, len(self.mass), 3)  # shape (3N, N, 3)
+        modes_raw = self.modes.T.reshape(self.dof, len(self.m), 3)  # shape (3N, N, 3)
         mass_amu = self.m * Mass(1, "au").get("amu")
         mass_factor = mass_amu[np.newaxis, :, np.newaxis] ** -0.5  # shape (1, N, 1)
         self.modes = modes_raw * mass_factor
