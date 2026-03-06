@@ -5,7 +5,7 @@
 [build-system]
 requires = [
     "setuptools>=61.0",
-    "numpy>=2.0"  # NumPy (f2py) is needed. 
+    "numpy>=2.0",       # NumPy (f2py) is needed. 
 ]
 build-backend = "setuptools.build_meta"
 
@@ -21,9 +21,7 @@ name = "pyrinst"
 version = "0.1.0"
 
 # Your name and email.
-authors = [
-  { name="Wei Fang", email="wei_fang@fudan.edu.com" },
-]
+authors = [{ name = "Wei Fang", email = "wei_fang@fudan.edu.com" }]
 
 # A short, one-sentence description of your project.
 description = "A modern Python toolkit for instanton rate calculations. "
@@ -35,17 +33,22 @@ readme = "README.md"
 requires-python = ">=3.13"
 
 # The license for your project.
-license = { file="LICENSE" }
+license = { file = "LICENSE" }
 
 # Keywords to help others find your project on PyPI.
-keywords = ["quantum chemistry", "instanton", "reaction rate", "scientific computing"]
+keywords = [
+    "quantum chemistry",
+    "instanton",
+    "reaction rate",
+    "scientific computing",
+]
 
 # Trove classifiers to categorize your project on PyPI.
 # Full list: https://pypi.org/classifiers/
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License", # Or another license like "Apache Software License"
+    "License :: OSI Approved :: MIT License",       # Or another license like "Apache Software License"
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.13",
@@ -61,7 +64,7 @@ dependencies = [
     "numpy>=2.3",
     "scipy>=1.16",
     "matplotlib>=3.10",
-    "pyyaml>=6.0",  # For reading configuration files, e.g., input.yaml
+    "pyyaml>=6.0",      # For reading configuration files, e.g., input.yaml
 ]
 
 # ==============================================================================
@@ -95,6 +98,7 @@ where = ["src"]
 line-length = 120
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "N", "UP", "B", "SIM", "NPY"]
+extend-select = ["A"]
 [tool.ruff.lint.pep8-naming]
 ignore-names = [
     "N",  # Number of beads

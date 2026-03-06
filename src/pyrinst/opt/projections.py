@@ -5,10 +5,12 @@ Explicitly pass mass only when projecting out a mass-weighted hessian. todo: doc
 """
 
 import math
+
 import numpy as np
 from numpy.linalg import norm
 from numpy.typing import NDArray
 from scipy import linalg
+
 from pyrinst.utils import mechanics
 
 
@@ -39,8 +41,14 @@ def rot(x, mass: float | NDArray = 1):
     return p
 
 
+def centroid(x: NDArray, mass: float | NDArray = 1) -> NDArray:
+    p = np.tile(np.eye(np.prod(x.shape[1:], dtype=int)), (1, len(x))).reshape(-1, *x.shape) * np.sqrt(mass)
+    p /= np.linalg.norm(p[0].ravel())
+    return p
+
+
 def proj_eig(
-        x: NDArray, hess: NDArray, n_zero: int, mass: float | NDArray = 1, constr_vecs: NDArray = None
+    x: NDArray, hess: NDArray, n_zero: int, mass: float | NDArray = 1, constr_vecs: NDArray = None
 ) -> tuple[NDArray, NDArray]:
     match n_zero:
         case 0:
@@ -52,7 +60,7 @@ def proj_eig(
         case 6:
             p = np.concatenate((trans(x, mass), rot(x, mass)))
         case _:
-            raise ValueError(f'n_zero must be 0, 3, 5, or 6, not {n_zero}')
+            raise ValueError(f"n_zero must be 0, 3, 5, or 6, not {n_zero}")
     p.shape = (-1, x.size)
     if constr_vecs is not None:
         constr_vecs = constr_vecs.reshape(-1, x.size)
@@ -61,7 +69,7 @@ def proj_eig(
             constr_vecs[i] -= p @ constr_vecs[i] @ p
             constr_vecs[i] /= norm(constr_vecs[i])
             p = np.concatenate((p, [constr_vecs[i]]))
-    p_mat = np.identity(x.size) - np.einsum('ij,ik->jk', p, p)
+    p_mat = np.identity(x.size) - np.einsum("ij,ik->jk", p, p)
     hess = p_mat @ hess @ p_mat
     eig_vals, eig_vecs = linalg.eigh(hess)
     if n_zero == 0:
@@ -71,10 +79,10 @@ def proj_eig(
 
 
 def main():
-    x = np.arange(3*3, dtype=float).reshape(3, 3)
+    x = np.arange(3 * 3, dtype=float).reshape(3, 3)
     print("3D trans:", trans(x))
     print("3D rot:", rot(x))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

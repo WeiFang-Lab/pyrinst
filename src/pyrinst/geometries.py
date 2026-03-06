@@ -15,6 +15,7 @@ from scipy.interpolate import CubicSpline
 
 from pyrinst.io.formats import Formats, format_array
 from pyrinst.io.xyz import save
+from pyrinst.opt import centroid
 from pyrinst.thermo import ThermoData
 from pyrinst.utils.coordinates import mass_weight
 from pyrinst.utils.elements import element_data
@@ -35,12 +36,20 @@ class Geometry:
     energy: float | None = field(default=None, init=False)
     grad: NDArray | None = field(default=None, init=False)
     hess: NDArray | None = field(default=None, init=False)
+    masses: NDArray | None = field(default=None)
+
+    freqs: NDArray | None = field(default=None, init=False)
+    modes: NDArray | None = field(default=None, init=False)
 
     type_alias: ClassVar[str | None] = None
 
     def __init_subclass__(cls):
         if cls.type_alias is not None:
             GEOMETRY_REGISTRY[cls.type_alias] = cls
+
+    def __post_init__(self):
+        if self.masses is None:
+            self.masses = element_data.get_masses(self.symbols) * Mass(1, "amu").get("au")
 
     @property
     def x(self) -> NDArray:
@@ -74,6 +83,11 @@ class Geometry:
     def H(self, value: NDArray) -> None:
         self.hess = value
 
+    def calc_freq(self) -> None:
+        hess_mw = mass_weight(self.hess, self.m, dim=self.x.shape[-1])
+        eigs, self.modes = np.linalg.eigh(hess_mw)
+        self.freqs = np.sqrt(abs(eigs)) * np.sign(eigs)
+
 
 class PhaseType(StrEnum):
     MODEL = "model"
@@ -86,18 +100,13 @@ class PhaseType(StrEnum):
 class StationaryPoint(Geometry, ABC):
     n_zero: int = field(default=0)
     links: list["StationaryPoint"] = field(default_factory=list)
-    masses: NDArray | None = field(default=None)
-
-    freqs: NDArray | None = field(default=None, init=False)
-    modes: NDArray | None = field(default=None, init=False)
 
     order: ClassVar[int | None] = None
     type_alias: ClassVar[str | None] = None
 
     def __post_init__(self):
+        Geometry.__post_init__(self)
         self.update_links(*self.links)
-        if self.masses is None:
-            self.masses = element_data.get_masses(self.symbols) * Mass(1, "amu").get("au")
 
     @abstractmethod
     def __hash__(self) -> int: ...
@@ -138,11 +147,6 @@ class StationaryPoint(Geometry, ABC):
         self.calc_freq()
         self.print_freq()
         self.save(filename)
-
-    def calc_freq(self) -> None:
-        hess_mw = mass_weight(self.hess, self.m, dim=self.x.shape[-1])
-        eigs, self.modes = np.linalg.eigh(hess_mw)
-        self.freqs = np.sqrt(abs(eigs)) * np.sign(eigs)
 
     def print_freq(self) -> None:
         if len(self.freqs) == self.n_zero:
@@ -407,3 +411,42 @@ class Instanton(TransitionState):
         res += 0.5 * (math.log(2 * np.pi * BN) - math.log(beta_n * hbar**2))
         data.freqs = np.sort(freqs_nonzero)
         data.log_pf[2] = res
+
+
+@dataclass(slots=True)
+class HarmRef(Geometry):
+    T: float | None = field(init=False, default=None)
+    ref: float = field(init=False)
+
+    def norm_dimensionless_modes(self) -> None:
+        modes_raw = self.modes.T.reshape(self.dof, len(self.mass), 3)  # shape (3N, N, 3)
+        mass_amu = self.m * Mass(1, "au").get("amu")
+        mass_factor = mass_amu[np.newaxis, :, np.newaxis] ** -0.5  # shape (1, N, 1)
+        self.modes = modes_raw * mass_factor
+
+
+@dataclass(slots=True)
+class InstRef(Instanton):
+    ref: float = field(init=False)
+
+    order: ClassVar[int] = 0
+
+    @property
+    def G(self) -> NDArray:
+        res: NDArray = Instanton.G(self)
+        return res - np.mean(res, axis=0)
+
+    @property
+    def H(self) -> NDArray:
+        if self.hess.ndim == 3:
+            p = centroid(self.x, self.m).reshape(-1, self.x.size)
+            p_mat = np.identity(self.x.size) - np.einsum("ij,ik->jk", p, p)
+            return p_mat @ Instanton.H(self) @ p_mat
+        else:  # ndim == 2
+            return self.hess
+
+    def hessian_full(self) -> NDArray:
+        x: NDArray = np.concat((self.x, self.x[::-1]))
+        p = centroid(x, self.m).reshape(-1, x.size)
+        p_mat = np.identity(x.size) - np.einsum("ij,ik->jk", p, p)
+        return p_mat @ Instanton.hessian_full(self) @ p_mat
