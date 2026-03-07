@@ -10,7 +10,7 @@ from pyrinst.utils.elements import element_data
 from pyrinst.utils.units import Energy, Length, Mass
 
 
-class MACEPES(Potential):
+class MACE(Potential):
     """
     Wrap MACECalculator so that PES abc uses MACE energy/forces/hessian directly.
 

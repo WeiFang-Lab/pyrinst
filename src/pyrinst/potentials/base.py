@@ -1,3 +1,4 @@
+import inspect
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from enum import IntEnum
@@ -9,6 +10,8 @@ from numpy.typing import NDArray
 
 if TYPE_CHECKING:
     from pyrinst.geometries import Geometry
+
+POTENTIAL_REGISTRY: dict[str, type["Potential"]] = {}
 
 
 class Task(IntEnum):
@@ -23,7 +26,12 @@ class Potential(ABC):
     instantiation. By default, hessian is computed by finite differences.
     """
 
+    type_alias: str | None = None
     dx: float = 1e-4
+
+    def __init_subclass__(cls):
+        if not inspect.isabstract(cls):
+            POTENTIAL_REGISTRY[cls.type_alias or cls.__name__.lower()] = cls
 
     @abstractmethod
     def __call__(self, x: NDArray, task: Task = Task.GRAD) -> tuple[float, NDArray | None, NDArray | None]: ...

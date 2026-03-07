@@ -9,7 +9,7 @@ from pyrinst.potentials import Potential, Task
 from pyrinst.utils.units import Length, Mass
 
 
-class CustomPES(Potential):
+class MullerBrown(Potential):
     def __init__(self):
         """
         Müller-Brown potential.
@@ -75,5 +75,5 @@ class CustomPES(Potential):
 
 
 if __name__ == "__main__":
-    MB = CustomPES()
+    MB = MullerBrown()
     MB.plot()

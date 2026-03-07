@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
 import logging
 import os
 import pickle
+import runpy
 from functools import partial
 
 import numpy as np
@@ -13,7 +15,7 @@ from pyrinst.io.formats import Formats
 from pyrinst.io.logging_config import setup_logging
 from pyrinst.io.xyz import load
 from pyrinst.opt import OPTIMIZER_REGISTRY
-from pyrinst.potentials import get_pes
+from pyrinst.potentials import BUILTIN_POTENTIALS, POTENTIAL_REGISTRY
 from pyrinst.thermo import analyze
 from pyrinst.utils.coordinates import is_linear
 from pyrinst.utils.units import Temperature
@@ -34,14 +36,8 @@ parser.add_argument(
 )
 parser.add_argument("--phase", choices=[p.value for p in PhaseType], default=PhaseType.GAS, help="Phase of the system")
 parser.add_argument("-l", "--link", nargs="*", default=[], help="Pass min/TS here when optimizing TS/instanton.")
-parser.add_argument(
-    "-P",
-    "--PES",
-    required=True,
-    help="""Specify the backend PES. Options:
-      1. Built-in PES: 'gaussian';
-      2. Custom PES: 'path/to/file.py:ClassName'.""",
-)
+parser.add_argument("-P", "--Potential", type=str.lower, required=True, help="Specify the backend Potential.")
+parser.add_argument("--plugin", help="Custom potential module path.")
 parser.add_argument(
     "-F",
     "--mainInputFile",
@@ -72,6 +68,9 @@ parser.add_argument("-N", "--beads", type=int, help="Number of ring-polymer bead
 parser.add_argument("-s", "--spread", type=float, help="Spread of initial guess.")
 args = parser.parse_args()
 
+if args.plugin:
+    runpy.run_path(args.plugin)
+
 prefix, ext = os.path.splitext(args.output)
 if ext in {".xyz", ".txt", ".pkl"}:
     args.output = prefix
@@ -93,7 +92,25 @@ else:
     else:
         msg: str = f"Unknown file format: {args.input}"
         raise ValueError(msg)
-pes = get_pes(args, symbols)
+
+pot_cls = POTENTIAL_REGISTRY[key := args.Potential.lower()]
+if key in BUILTIN_POTENTIALS:
+    kwargs = vars(args)
+    kwargs["template_input"] = kwargs["mainInputFile"]
+    pes = pot_cls(symbols, **kwargs)
+else:
+    if args.mainInputFile:
+        with open(args.mainInputFile) as f:
+            main_input = json.load(f)
+        if isinstance(main_input, dict):
+            pes = pot_cls(**main_input)
+        elif isinstance(main_input, list):
+            pes = pot_cls(*main_input)
+        else:
+            raise ValueError(f"Unknown input file format: {args.mainInputFile}")
+    else:
+        pes = pot_cls()
+
 if ext != ".pkl":
     match args.phase:
         case PhaseType.SOLID | PhaseType.MODEL:
