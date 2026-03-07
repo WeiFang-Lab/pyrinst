@@ -22,13 +22,13 @@ def main():
         input_geom = pickle.load(f)
 
     # beads_energies = np.loadtxt('beads_energies.txt').T
-    beads_energies = extract_energy_from_xyz(prefix=args.prefix, nbeads=args.n, is_instanton=args.inst).T
+    beads_energies = extract_energy_from_xyz(prefix=args.prefix, nbeads=args.nbeads, is_instanton=False).T
 
     beads_energies = beads_energies[1:] - beads_energies[0]
     aes = np.average(beads_energies, axis=1)
     # bhs = np.loadtxt('harm_energies.txt').T
     bhs = input_geom.harm_energies.T
-    des = (aes - bhs) * Energy(1, "eV").get("Hartree")  # eV -> Hartree
+    des = aes * Energy(1, "eV").get("Hartree") - bhs  # eV -> Hartree
 
     beta = 1.0 / (input_geom.T * KB)  # 1/Hartree
 
