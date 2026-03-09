@@ -7,6 +7,7 @@ import numpy as np
 from pyrinst.geometries import HarmRef
 from pyrinst.io.xyz import load
 from pyrinst.potentials import MACE
+from pyrinst.utils.coordinates import is_linear
 from pyrinst.utils.units import Temperature
 
 HBAR: float = 1
@@ -35,7 +36,7 @@ def main():
             enable_cueq=args.enable_cueq,
         )
 
-    reference = HarmRef(x, mace_pes.atoms)
+    reference = HarmRef(x, mace_pes.atoms, n_zero=(5 if is_linear(x) else 6))
     mace_pes.compute(reference, task=2)
     reference.calc_freq()
     reference.norm_dimensionless_modes()

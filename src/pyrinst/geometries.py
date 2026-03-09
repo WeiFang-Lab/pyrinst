@@ -33,6 +33,7 @@ GEOMETRY_REGISTRY: dict[str, type["Geometry"]] = {}
 class Geometry:
     coords: NDArray
     symbols: Sequence[str] | None = None
+    n_zero: int = 0
     energy: float | None = field(default=None, init=False)
     grad: NDArray | None = field(default=None, init=False)
     hess: NDArray | None = field(default=None, init=False)
@@ -110,7 +111,6 @@ class PhaseType(StrEnum):
 
 @dataclass(slots=True)
 class StationaryPoint(Geometry, ABC):
-    n_zero: int = field(default=0)
     links: list["StationaryPoint"] = field(default_factory=list)
 
     order: ClassVar[int | None] = None
