@@ -2,9 +2,14 @@
 
 import argparse
 
-from pyrinst.core.pes.mace import MACEPES
+import numpy as np
+
 from pyrinst.geometries import HarmRef
 from pyrinst.io.xyz import load
+from pyrinst.potentials import MACE
+from pyrinst.utils.units import Temperature
+
+HBAR: float = 1
 
 
 def main():
@@ -22,7 +27,7 @@ def main():
 
     x = load(args.input)
     if args.PES == "MACE":
-        mace_pes = MACEPES(
+        mace_pes = MACE(
             args.input,
             model_paths=args.model_path,
             default_dtype=args.dtype,
@@ -34,7 +39,12 @@ def main():
     mace_pes.compute(reference, task=2)
     reference.calc_freq()
     reference.norm_dimensionless_modes()
-    print("max imaginary freq:", reference.freqs[0])
+    min_freq: float = min(reference.freqs[np.argpartition(abs(reference.freqs), reference.n_zero)[reference.n_zero :]])
+    if min_freq > 0:
+        print("All frequencies are real.")
+    else:
+        print("max imaginary freq:", reference.freqs[0])
+        print("crossover T:", Temperature.to_kelvin(2 * np.pi / (HBAR * -min_freq)))
     reference.save(args.output)
 
 
