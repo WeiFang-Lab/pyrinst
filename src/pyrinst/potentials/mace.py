@@ -1,13 +1,13 @@
+from collections.abc import Sequence
+
 import numpy as np
 from ase import Atoms
 from ase.vibrations.data import VibrationsData
 from mace.calculators import MACECalculator
 from numpy.typing import NDArray
 
-from pyrinst.io.xyz import load
 from pyrinst.potentials import Potential, Task
-from pyrinst.utils.elements import element_data
-from pyrinst.utils.units import Energy, Length, Mass
+from pyrinst.utils.units import Energy, Length
 
 
 class MACE(Potential):
@@ -19,36 +19,27 @@ class MACE(Potential):
       - XYZ file path (new method)
     """
 
-    def __init__(self, atoms: Atoms | str, calculator: MACECalculator | None = None, **calc_kwargs):
+    def __init__(self, symbols: Sequence[str], calculator: MACECalculator | None = None, **calc_kwargs):
         """
         Parameters
         ----------
-        atoms : Atoms | str
-            Either an ASE Atoms object OR a path to an XYZ file.
+        symbols : Sequence[str]
+            List of element symbols.
         calculator : MACECalculator | None
             Pre-initialized MACE calculator. If None, creates one using calc_kwargs.
         **calc_kwargs
             Arguments for MACECalculator if calculator is None.
         """
-        if isinstance(atoms, str):
-            coords, symbols = load(atoms, return_symbols=True)
-
-            if coords.ndim == 3:
-                coords = coords[0]
-
-            coords *= Length(1, "au").get("A")
-            atoms = Atoms(symbols=symbols.tolist(), positions=coords, calculator=calculator)
-        else:
-            atoms = atoms
+        symbols = symbols.tolist() if isinstance(symbols, NDArray) else list(symbols)
+        atoms = Atoms(symbols=symbols, positions=np.empty((len(symbols), 3)))
 
         if calculator is None:
+            calc_kwargs["model_paths"] = calc_kwargs["template_input"]
             self.calculator = MACECalculator(**calc_kwargs)
         else:
             self.calculator = calculator
 
         self._atoms_template = atoms.copy()
-        self.atoms = list(atoms.get_chemical_symbols())
-        self.mass = element_data.get_masses(self.atoms) * Mass(1, "amu").get("au")
 
     def __call__(self, x: NDArray, task: Task = Task.SP) -> tuple[float, None, NDArray | None]:
         return self.potential(x), None, self.hessian(x)

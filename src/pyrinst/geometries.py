@@ -434,6 +434,7 @@ class InstRef(Instanton):
     ref: float = field(init=False)
 
     order: ClassVar[int] = 0
+    type_alias: ClassVar[str] = "centroid"
 
     @property
     def G(self) -> NDArray:

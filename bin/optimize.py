@@ -10,7 +10,7 @@ from functools import partial
 
 import numpy as np
 
-from pyrinst.geometries import GEOMETRY_REGISTRY, Instanton, PhaseType, TransitionState
+from pyrinst.geometries import GEOMETRY_REGISTRY, Instanton, InstRef, PhaseType, TransitionState
 from pyrinst.io.formats import Formats
 from pyrinst.io.logging_config import setup_logging
 from pyrinst.io.xyz import load
@@ -166,6 +166,9 @@ opt = OPTIMIZER_REGISTRY[args.opt](
 opt.search(data, gtol=args.gtol, maxiter=args.maxiter, callback=partial(type(data).output, filename=args.output))
 
 data.final_output(args.output)
+
+if isinstance(data, InstRef):
+    exit()
 
 if beta is None:
     log.info("Temperature not specified. Program terminated.")
