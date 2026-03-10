@@ -2,13 +2,9 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.stats import qmc
 
-from pyrinst.config.constants import HBAR, KB
 from pyrinst.opt import proj_eig
 from pyrinst.utils.coordinates import mass_weight
-from pyrinst.utils.units import Energy, Mass
-
-### module for unpickle a inston pkl
-# from pyrinst.
+from pyrinst.utils.units import AMU, HBAR, KB, Energy
 
 
 def box_muller(U1, U2):
@@ -208,6 +204,7 @@ class nm_fft:  # ! TODO add (matrix-version) of the open path transformation her
 
 class HarmFEP:
     def __init__(self, ref, nbeads=24, lmd=None):
+        self.ref = ref
         self.natoms = len(ref.masses)
         self.nbeads = nbeads
         self.freqs, self.modes, self.masses = ref.freqs, ref.modes.reshape([ref.modes.shape[0], -1]), ref.masses
@@ -220,7 +217,6 @@ class HarmFEP:
         self.transform = nm_fft(nbeads=self.nbeads, natoms=self.natoms)
         self._nm_freq = None
 
-    # def resize(self, atoms, nbeads, lmd):
     def resize(self, x, masses, nbeads, lmd):
         """Initialize ring polymer positions and masses."""
         # Ring polymer position
@@ -244,12 +240,9 @@ class HarmFEP:
             self._nm_freq = 2 * np.array([np.sin(k * np.pi / self.nbeads) for k in range(self.nbeads)])
         return self._nm_freq
 
-    def calculate_variance(self, temperature, ret_freq=False):
+    def calculate_variance(self, ret_freq=False):
         """
         Calculate variance for normal mode coordinates.
-
-        Parameters:
-            temperature: Temperature in Kelvin
 
         Returns:
             sigma: Standard deviation array in Angstrom, shape (nbeads, natoms*3)
@@ -257,13 +250,14 @@ class HarmFEP:
         # Get dimensionless normal mode frequencies
         nm_freq_dimensionless = self.get_nm_freq()
 
-        # Calculate beta in units of 1/J
-        beta_H = 1.0 / (KB * temperature)  # 1/Hartree
+        # Calculate beta
+        temperature: float = self.ref.T
+        beta = 1.0 / (KB * temperature)  # 1/Hartree
 
         # Calculate the ring polymer frequency scale, omega_P = P / (beta*hbar)
-        omega_P = self.nbeads / (beta_H * HBAR)  # 1/au.time
+        omega_P = self.nbeads / (beta * HBAR)  # 1/au.time
 
-        # Calculate actual normal mode frequencies in units of 1/s
+        # Calculate actual normal mode frequencies
         nm_freq_with_units = omega_P * nm_freq_dimensionless  # 1/au.time
 
         # Hartree -> 1/ au.time
@@ -273,8 +267,6 @@ class HarmFEP:
         for i in range(len(imag_freq_with_units)):
             imag_freq_with_units[i] = -min(-imag_freq_with_units[i], nm_freq_with_units[1] * 0.8)  #
         self.freqs = imag_freq_with_units * HBAR + mode_freq_with_units
-
-        mass_au = Mass(1, "amu").get("au")  # m_e
 
         # Calculate variance combining normal modes and harmonic modes
         # Normal mode variance: sigma^2 = P / (m * beta * omega^2)
@@ -287,7 +279,7 @@ class HarmFEP:
                 # Pure harmonic variance with effective frequency squared
                 self.var0 = np.sqrt(
                     self.nbeads
-                    / (mass_au * beta_H)
+                    / (AMU * beta)
                     / (
                         (lambda s: np.array([1e-200 if abs(x) < 1e-20 else x for x in s]))(
                             mode_freq_with_units**2 - imag_freq_with_units**2
@@ -299,7 +291,7 @@ class HarmFEP:
             else:
                 omega_k = nm_freq_with_units[k]  # 1/au.time
                 variance[k, :] = np.sqrt(
-                    self.nbeads / (mass_au * beta_H) / (omega_k**2 + mode_freq_with_units**2 - imag_freq_with_units**2)
+                    self.nbeads / (AMU * beta) / (omega_k**2 + mode_freq_with_units**2 - imag_freq_with_units**2)
                 )  # au.length
 
         if ret_freq:
@@ -307,12 +299,11 @@ class HarmFEP:
         else:
             return variance
 
-    def sample_normal_modes(self, temperature, n_samples):
+    def sample_normal_modes(self, n_samples):
         """
         Sample normal mode coordinates using quasi-random numbers.
 
         Parameters:
-            temperature: Temperature in Kelvin
             n_samples: Number of samples (should be power of 2)
 
         Returns:
@@ -322,7 +313,7 @@ class HarmFEP:
         nm_pos = self.transform.b2nm(self.npos)  # Shape: (nbeads, natoms*3)
 
         # Calculate variance (standard deviation)
-        sigma = self.calculate_variance(temperature)  # Shape: (nbeads, natoms*3)
+        sigma = self.calculate_variance()  # Shape: (nbeads, natoms*3)
         self.sigma = sigma
 
         # Generate samples
@@ -348,83 +339,61 @@ class HarmFEP:
 
         return bead_coords
 
-    def get_cart_pos(self, nm_pos: NDArray, temperature: float) -> NDArray:
+    def get_cart_pos(self, nm_pos: NDArray) -> NDArray:
         # Transform back to bead coordinates of displacement
         sampled_bead_pos = self.nm_to_beads(nm_pos)
 
         # Calculate harmonic energies
         sampled_mean_square = np.average(sampled_bead_pos**2, axis=1)
         # Force constant: k = P*kB*T/sigma^2
-        temp = self.nbeads * KB * temperature / np.real(self.var0**2)  # Hartree / au.length
+        temp = self.nbeads * KB * self.ref.T / np.real(self.var0**2)  # Hartree / au.length
         self.harm_energies = np.sum(sampled_mean_square * temp, axis=1) / 2 * self.lmd**2  # Hartree
 
         # Real position with displacement plus centroid coordinates
         return np.einsum("nbi,ij->nbj", sampled_bead_pos, self.modes) + self.npos
 
 
-class InstantonFEP(HarmFEP):
+class InstFEP(HarmFEP):
     def __init__(self, inst, nbeads=24, lmd=None):
-        assert nbeads == inst.n
+        assert nbeads == inst.N
         super().__init__(inst, nbeads, lmd)
 
-        #
         self.npos: NDArray = np.concatenate((inst.x, inst.x[::-1]))
-        # hess_cl =  np.concatenate((inst.hess_cl, inst.hess_cl[::-1]))
 
-        # self.unit_sys = getattr(units2, inst['UNITS'])()
-        self.hbar: float = HBAR
         self.beta: float = inst.beta
 
-        # self.rp = cart(nbeads, None, mass=self.masses[:, None], hbar=self.hbar, beta=self.beta)
-        self.rp = inst
-
-        # hess: NDArray = self.rp.buildhess(self.npos, hess_cl)
         hess: NDArray = self.rp.hessian_full
 
         centroid_mode = np.tile(np.eye(np.prod(self.npos.shape[1:], dtype=int)), (1, nbeads))
         centroid_mode *= np.sqrt(self.nmass3.reshape(1, -1))
         centroid_mode /= np.linalg.norm(centroid_mode, axis=1, keepdims=True)
-        hess = mass_weight(hess, self.npos.shape, self.rp.mass)
+        hess = mass_weight(hess, self.npos.shape, self.masses)
 
-        # freq_rp: ring-polymer frequencies in cm-1
         # nm: Cartesian normal modes in columns with permutation mode removed
-        # freq_rp2, self.nm, _ = auto_project(self.npos, hess, 'vib', q=centroid_mode)
         freq_rp2, self.nm = proj_eig(
             x=self.npos, hess=hess, mass=self.masses, constr_vecs=centroid_mode
         )  # 1 / au.time **2
 
-        # slc = slice(None, None) if self.rp.BN(self.npos) else slice(1, None)
-        slc = slice(None, None) if self.rp.path_sq_disp else slice(1, None)
+        slc = slice(1, None) if np.isclose(self.ref.BN, 0) else slice(None, None)
 
-        # self.freq_rp = np.sqrt(freq_rp2[slc]) * self.hbar * self.unit_sys.energy * units2.Energy(1).get('cm-1')
-        self.freq_rp = np.sqrt(freq_rp2[slc]) * self.hbar  # Hartree
+        self.freq_rp = np.sqrt(freq_rp2[slc]) * HBAR  # Hartree
 
         self.nm = self.nm[:, slc] / np.sqrt(self.nmass3.reshape(-1, 1))
 
-    def calculate_variance(self, temperature, ret_freq=False):
+    def calculate_variance(self, ret_freq=False):
         """
         Calculate variance for normal mode coordinates.
-
-        Parameters:
-            temperature: Temperature in Kelvin
 
         Returns:
             sigma: Standard deviation array in Angstrom, shape (nbeads-1)*natoms*3-1
         """
-        # assert np.isclose(self.beta, self.unit_sys.betaTemp(temperature))
-        # beta_J: float = 1.0 / (kB * temperature) * units.J  # 1/J
-        beta_H = 1.0 / (KB * temperature)  # 1/Hartree
-
-        freq_rp_s: NDArray = self.freq_rp / HBAR  # 1 / au.time
-        # mass_kg = 1.0 / (units.mol * 1000)  # kg
-        mass_au = Mass(1, "amu").get("au")  # m_e
-        variance: NDArray = np.sqrt(self.nbeads / (mass_au * beta_H * freq_rp_s**2))  # au.length
+        variance: NDArray = np.sqrt(self.nbeads / (AMU * self.beta * self.freq_rp**2))  # au.length
         if ret_freq:
-            return variance, freq_rp_s
+            return variance, self.freq_rp
         else:
             return variance
 
-    def sample_normal_modes(self, temperature, n_samples):
+    def sample_normal_modes(self, n_samples):
         """
         Sample normal mode coordinates using quasi-random numbers.
 
@@ -435,7 +404,7 @@ class InstantonFEP(HarmFEP):
         Returns:
             sampled_nm_pos: Array of shape (n_samples, (nbeads-1)*natoms*3-1)
         """
-        self.sigma = self.calculate_variance(temperature)  # Shape: (nbeads-1)*natoms*3
+        self.sigma = self.calculate_variance()  # Shape: (nbeads-1)*natoms*3
         return sobol_gaussian_sample(loc=np.zeros_like(self.sigma), scale=self.sigma, M0=n_samples)
 
     def nm_to_cart(self, nm_coordinates):
@@ -450,15 +419,12 @@ class InstantonFEP(HarmFEP):
         """
         return (nm_coordinates @ self.nm.T).reshape(-1, self.nbeads, self.natoms, 3) + self.npos
 
-    def get_cart_pos(self, nm_pos: NDArray, temperature: float) -> NDArray:
-        # freq: NDArray = self.freq_rp * units2.Energy(1, 'cm-1').get('eV') / self.hbar
+    def get_cart_pos(self, nm_pos: NDArray) -> NDArray:
         freq: NDArray = self.freq_rp * Energy(1, "au").get("eV")
         cart_pos: NDArray = self.nm_to_cart(nm_pos)
         vhs: NDArray = 0.5 * np.sum((nm_pos * freq) ** 2, axis=1)
-        springs: float = self.rp.springs.potential(self.npos)  # inst.energy?
-        self.harm_energies = vhs
+        springs: float = self.ref.springs.potential(self.npos)
         for i in range(len(vhs)):
-            vhs[i] = (vhs[i] - self.rp.VRP(cart_pos[i]) + springs) / self.nbeads
-        print("Writing harmonic energies file 'harm_energies.txt'...")
-        np.savetxt("harm_energies.txt", vhs)
+            vhs[i] = (vhs[i] - self.ref.springs.potential(cart_pos[i]) + springs) / self.nbeads
+        self.harm_energies = vhs
         return cart_pos

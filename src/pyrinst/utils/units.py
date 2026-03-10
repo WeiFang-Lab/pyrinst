@@ -72,10 +72,7 @@ class Quantity:
         """
         self._registry = UNIT_REGISTRY[quantity_type]
         if unit.lower() not in self._registry:
-            raise ValueError(
-                f"Unit '{unit}' is not a recognized unit for the physical "
-                f"quantity '{quantity_type}'."
-            )
+            raise ValueError(f"Unit '{unit}' is not a recognized unit for the physical quantity '{quantity_type}'.")
         self.value = value
         self.unit = unit
         self.quantity_type = quantity_type
@@ -109,10 +106,7 @@ class Quantity:
         627.509...
         """
         if to_unit.lower() not in self._registry:
-            raise ValueError(
-                f"Cannot convert to '{to_unit}'; it is not a recognized unit "
-                f"for '{self.quantity_type}'."
-            )
+            raise ValueError(f"Cannot convert to '{to_unit}'; it is not a recognized unit for '{self.quantity_type}'.")
 
         # Convert value to SI, then from SI to target unit
         from_si_factor = self._registry[self.unit]
@@ -158,7 +152,8 @@ class Length(Quantity):
     """
     A `Quantity` subclass representing length.
     """
-    def __init__(self, value: float, unit: str = 'm'):
+
+    def __init__(self, value: float, unit: str = "m"):
         """
         Initializes the Length object.
 
@@ -169,14 +164,15 @@ class Length(Quantity):
         unit : str, optional
             The unit of length, by default 'm' (meters).
         """
-        super().__init__(value, unit, 'length')
+        super().__init__(value, unit, "length")
 
 
 class Energy(Quantity):
     """
     A `Quantity` subclass representing energy.
     """
-    def __init__(self, value: float, unit: str = 'J'):
+
+    def __init__(self, value: float, unit: str = "J"):
         """
         Initializes the Energy object.
 
@@ -187,14 +183,15 @@ class Energy(Quantity):
         unit : str, optional
             The unit of energy, by default 'J' (Joules).
         """
-        super().__init__(value, unit, 'energy')
+        super().__init__(value, unit, "energy")
 
 
 class Mass(Quantity):
     """
     A `Quantity` subclass representing mass.
     """
-    def __init__(self, value: float, unit: str = 'kg'):
+
+    def __init__(self, value: float, unit: str = "kg"):
         """
         Initializes the Mass object.
 
@@ -205,14 +202,15 @@ class Mass(Quantity):
         unit : str, optional
             The unit of mass, by default 'kg' (kilograms).
         """
-        super().__init__(value, unit, 'mass')
+        super().__init__(value, unit, "mass")
 
 
 class Time(Quantity):
     """
     A `Quantity` subclass representing time.
     """
-    def __init__(self, value: float, unit: str = 's'):
+
+    def __init__(self, value: float, unit: str = "s"):
         """
         Initializes the Time object.
 
@@ -223,7 +221,7 @@ class Time(Quantity):
         unit : str, optional
             The unit of time, by default 's' (seconds).
         """
-        super().__init__(value, unit, 'time')
+        super().__init__(value, unit, "time")
 
 
 class Temperature:
@@ -241,7 +239,7 @@ class Temperature:
     # We store kb_au as a class variable so it's only calculated once.
     # It relies on the Energy class already being defined.
     # This gets the Boltzmann constant in (Hartree / K)
-    _kb_au: float = Energy(1.0, 'K').get('Hartree')
+    _kb_au: float = Energy(1.0, "K").get("Hartree")
 
     @staticmethod
     def to_beta(temp_kelvin: float) -> float:
@@ -281,3 +279,9 @@ class Temperature:
             raise ValueError("Beta must be positive.")
         return 1.0 / (beta_au * Temperature._kb_au)
 
+
+HBAR: float = 1
+EV: float = Energy(1.0, "eV").get("Hartree")
+ANGSTROM: float = Length(1, "A").get("Bohr")
+AMU: float = Mass(1, "amu").get("au")
+KB: float = Energy(1.0, "K").get("Hartree")

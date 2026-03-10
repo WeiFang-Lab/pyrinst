@@ -20,7 +20,7 @@ from pyrinst.thermo import ThermoData
 from pyrinst.utils.coordinates import mass_weight
 from pyrinst.utils.elements import element_data
 from pyrinst.utils.mechanics import inertia
-from pyrinst.utils.units import Energy, Mass, Temperature
+from pyrinst.utils.units import KB, Energy, Mass, Temperature
 
 log = logging.getLogger(__name__)
 logging.captureWarnings(True)
@@ -450,6 +450,7 @@ class HarmRef(Geometry):
 
 @dataclass(slots=True)
 class InstRef(Instanton):
+    T: float | None = field(init=False, default=None)
     ref: float = field(init=False)
 
     order: ClassVar[int] = 0
@@ -488,3 +489,7 @@ class InstRef(Instanton):
         p = centroid(x, self.m).reshape(-1, x.size)
         p_mat = np.identity(x.size) - np.einsum("ij,ik->jk", p, p)
         return p_mat @ Instanton.hessian_full(self) @ p_mat
+
+    def set_beta(self, beta: float) -> None:
+        Instanton.set_beta(self, beta)
+        self.T = 1 / (KB * beta)
