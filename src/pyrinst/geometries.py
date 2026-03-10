@@ -218,7 +218,7 @@ class Minimum(StationaryPoint):
 
     def update_links(self, *args) -> None:
         if len(args):
-            raise ValueError("Minimum does not have link")
+            raise ValueError("Minimum does not have links")
 
 
 @dataclass(slots=True)
@@ -235,7 +235,7 @@ class TransitionState(StationaryPoint):
         fmt = Formats.TEMPERATURE
         log.info(f"such that beta_c = {beta_c:{fmt}}, T_c = {Temperature.to_kelvin(beta_c):{fmt}} K")
 
-    def spread(self, N: int, beta: float, length: float = 0.1) -> "Instanton":
+    def get_inst_guess(self, N: int, beta: float, length: float = 0.1) -> "Instanton":
         # un-mass-weighted mode
         if self.modes is None:
             self.calc_freq()
@@ -324,13 +324,16 @@ class Instanton(TransitionState):
     def G(self, value: NDArray) -> None:
         self.grad = value
 
+    def build_hess(self):
+        res: NDArray = self.springs.hessian(self.x).reshape(self.N // 2, self.dof, self.N // 2, self.dof)
+        indices: NDArray = np.arange(len(res))
+        res[indices, :, indices, :] += 2 * self.hess
+        return res.reshape(self.x.size, self.x.size)
+
     @property
     def H(self) -> NDArray:
         if self.hess.ndim == 3:
-            res: NDArray = self.springs.hessian(self.x).reshape(self.N // 2, self.dof, self.N // 2, self.dof)
-            indices: NDArray = np.arange(len(res))
-            res[indices, :, indices, :] += 2 * self.hess
-            return res.reshape(self.x.size, self.x.size)
+            return self.build_hess()
         else:  # ndim == 2
             return self.hess
 
@@ -422,11 +425,27 @@ class HarmRef(Geometry):
     harm_energies: NDArray | None = field(init=False, default=None)
     ref: float = field(init=False)
 
-    def norm_dimensionless_modes(self) -> None:
+    def update_links(self, *args) -> None:
+        if len(args):
+            raise ValueError("HarmRef does not have links")
+
+    def calc_freq(self) -> None:
+        Geometry.calc_freq(self)
+        self._norm_dimensionless_modes()
+
+    def _norm_dimensionless_modes(self) -> None:
         modes_raw = self.modes.T.reshape(self.dof, len(self.m), 3)  # shape (3N, N, 3)
         mass_amu = self.m * Mass(1, "au").get("amu")
         mass_factor = mass_amu[np.newaxis, :, np.newaxis] ** -0.5  # shape (1, N, 1)
         self.modes = modes_raw * mass_factor
+
+    def get_inst_guess(self, N: int, beta: float, length: float = 0.1) -> "InstRef":
+        if self.modes is None:
+            self.calc_freq()
+        mode = self.modes[0] / norm(self.modes[0])
+        phase: NDArray = np.linspace(0, math.pi, N // 2)
+        x_inst: NDArray = self.x + length * mode[None, ...] * np.cos(phase).reshape(-1, *(1,) * self.x.ndim)
+        return InstRef(x_inst, self.symbols, n_zero=self.n_zero, links=[self], masses=self.m, beta=beta)
 
 
 @dataclass(slots=True)
@@ -436,19 +455,33 @@ class InstRef(Instanton):
     order: ClassVar[int] = 0
     type_alias: ClassVar[str] = "centroid"
 
+    def update_links(self, *args) -> None:
+        if len(args) < 2:
+            self.links = list(args)
+        else:
+            raise ValueError("InstRef only accept one link")
+
     @property
     def G(self) -> NDArray:
-        res: NDArray = Instanton.G(self)
+        res: NDArray = 2 * self.grad + self.springs.gradient(self.x)
         return res - np.mean(res, axis=0)
+
+    @G.setter
+    def G(self, value: NDArray) -> None:
+        self.grad = value
 
     @property
     def H(self) -> NDArray:
         if self.hess.ndim == 3:
             p = centroid(self.x, self.m).reshape(-1, self.x.size)
             p_mat = np.identity(self.x.size) - np.einsum("ij,ik->jk", p, p)
-            return p_mat @ Instanton.H(self) @ p_mat
+            return p_mat @ Instanton.build_hess(self) @ p_mat
         else:  # ndim == 2
             return self.hess
+
+    @H.setter
+    def H(self, value: NDArray) -> None:
+        self.hess = value
 
     def hessian_full(self) -> NDArray:
         x: NDArray = np.concat((self.x, self.x[::-1]))

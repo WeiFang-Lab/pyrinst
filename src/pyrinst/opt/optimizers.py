@@ -77,7 +77,6 @@ class NewtonRaphson:
         self.potential.compute(data, task=Task.FREQ)
         xt = [data.x.copy()]
         n_digit = int(np.log10(maxiter)) + 1
-
         for i in range(maxiter):
             log.info(f"iter {i:{n_digit}}: {data}")
 

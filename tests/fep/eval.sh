@@ -1,3 +1,5 @@
+#!/bin/bash
+
 (
   export CUDA_VISIBLE_DEVICES=0
   for d in $(seq -f "%02g" 0 5); do

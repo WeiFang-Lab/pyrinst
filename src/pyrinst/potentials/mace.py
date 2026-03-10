@@ -19,7 +19,16 @@ class MACE(Potential):
       - XYZ file path (new method)
     """
 
-    def __init__(self, symbols: Sequence[str], calculator: MACECalculator | None = None, **calc_kwargs):
+    def __init__(
+        self,
+        symbols: Sequence[str],
+        model_paths: str,
+        default_dtype="float64",
+        device="cuda",
+        enable_cueq=False,
+        calculator: MACECalculator | None = None,
+        **_,
+    ):
         """
         Parameters
         ----------
@@ -27,59 +36,42 @@ class MACE(Potential):
             List of element symbols.
         calculator : MACECalculator | None
             Pre-initialized MACE calculator. If None, creates one using calc_kwargs.
-        **calc_kwargs
-            Arguments for MACECalculator if calculator is None.
         """
         symbols = symbols.tolist() if isinstance(symbols, np.ndarray) else list(symbols)
-        atoms = Atoms(symbols=symbols, positions=np.empty((len(symbols), 3)))
+        self.atoms = Atoms(symbols=symbols, positions=np.empty((len(symbols), 3)))
 
         if calculator is None:
-            if "model_paths" not in calc_kwargs:
-                calc_kwargs["model_paths"] = calc_kwargs["template_input"]
-            self.calculator = MACECalculator(**calc_kwargs)
-        else:
-            self.calculator = calculator
+            calculator = MACECalculator(
+                model_paths=model_paths, default_dtype=default_dtype, device=device, enable_cueq=enable_cueq
+            )
 
-        self._atoms_template = atoms.copy()
+        self.atoms.calc = calculator
         self.symbols = symbols
 
     def __call__(self, x: NDArray, task: Task = Task.SP) -> tuple[float, None, NDArray | None]:
-        return self.potential(x), None, self.hessian(x)
-
-    def _atoms_from_x(self, x: NDArray) -> Atoms:
         arr = np.asarray(x, dtype=float).reshape(-1, 3) * Length(1, "au").get("A")
-        atoms = self._atoms_template.copy()
-        atoms.set_positions(arr)
-        atoms.calc = self.calculator
-        return atoms
-
-    def potential(self, x: NDArray) -> float:
-        atoms = self._atoms_from_x(x)
-        return Energy(atoms.get_potential_energy(), "eV").get("Hartree")
-
-    def hessian(self, x: NDArray) -> NDArray:
-        atoms = self._atoms_from_x(x)
-        hess = self.calculator.get_hessian(atoms=atoms)
-
-        dof = x.size
-        hess = hess.reshape(dof, dof)
-
+        self.atoms.set_positions(arr)
         energy_conv = Energy(1.0, "eV").get("Hartree")
         length_conv = Length(1.0, "A").get("Bohr")
-        factor = energy_conv / (length_conv**2)
-        hess_au = hess * factor
-
-        hess_au = 0.5 * (hess_au + hess_au.T)
-        return hess_au
+        energy = self.atoms.get_potential_energy() * energy_conv
+        gradient = -self.atoms.get_forces() * energy_conv / length_conv if task > Task.SP else None
+        if task > Task.GRAD:
+            hessian = self.atoms.calc.get_hessian(atoms=self.atoms).reshape(x.size, x.size)
+            hessian *= energy_conv / (length_conv**2)
+            hessian = 0.5 * (hessian + hessian.T)
+        else:
+            hessian = None
+        return energy, gradient, hessian
 
     def freq_modes(self, x: NDArray) -> NDArray:
-        atoms = self._atoms_from_x(x)
+        arr = np.asarray(x, dtype=float).reshape(-1, 3) * Length(1, "au").get("A")
+        self.atoms.set_positions(arr)
 
-        hess = self.calculator.get_hessian(atoms=atoms)
-        hess_2d = hess.reshape(3 * len(atoms), 3 * len(atoms))
+        hess = self.calculator.get_hessian(atoms=self.atoms)
+        hess_2d = hess.reshape(3 * len(self.atoms), 3 * len(self.atoms))
 
-        indices = np.arange(len(atoms))
-        vib_data = VibrationsData.from_2d(atoms, hess_2d, indices=indices)
+        indices = np.arange(len(self.atoms))
+        vib_data = VibrationsData.from_2d(self.atoms, hess_2d, indices=indices)
 
         self.normal_modes = vib_data.get_modes(all_atoms=True)
         self.freq = vib_data.get_frequencies()

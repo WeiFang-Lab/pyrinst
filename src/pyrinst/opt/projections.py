@@ -42,7 +42,7 @@ def rot(x, mass: float | NDArray = 1):
 
 
 def centroid(x: NDArray, mass: float | NDArray = 1) -> NDArray:
-    p = np.tile(np.eye(np.prod(x.shape[1:], dtype=int)), (1, len(x))).reshape(-1, *x.shape) * np.sqrt(mass)
+    p = np.tile(np.eye(np.prod(x.shape[1:], dtype=int)), (1, len(x))).reshape(-1, *x.shape) * np.sqrt(mass[:, None])
     p /= np.linalg.norm(p[0].ravel())
     return p
 

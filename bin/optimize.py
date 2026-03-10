@@ -10,7 +10,7 @@ from functools import partial
 
 import numpy as np
 
-from pyrinst.geometries import GEOMETRY_REGISTRY, Instanton, InstRef, PhaseType, TransitionState
+from pyrinst.geometries import GEOMETRY_REGISTRY, HarmRef, Instanton, InstRef, PhaseType, TransitionState
 from pyrinst.io.formats import Formats
 from pyrinst.io.logging_config import setup_logging
 from pyrinst.io.xyz import load
@@ -97,6 +97,8 @@ pot_cls = POTENTIAL_REGISTRY[key := args.Potential.lower()]
 if key in BUILTIN_POTENTIALS:
     kwargs = vars(args)
     kwargs["template_input"] = kwargs["mainInputFile"]
+    if key == "mace":
+        kwargs["model_paths"] = kwargs["mainInputFile"]
     pes = pot_cls(symbols, **kwargs)
 else:
     if args.mainInputFile:
@@ -153,9 +155,9 @@ else:
 if len(args.link):
     data.update_links(*[np.load(file, allow_pickle=True) for file in args.link])
 
-if args.mode == "inst":
-    if type(data) is TransitionState:
-        data = data.spread(args.beads, beta, args.spread)
+if args.mode in (Instanton.type_alias, InstRef.type_alias):
+    if type(data) in (TransitionState, HarmRef):
+        data = data.get_inst_guess(args.beads, beta, args.spread)
     data.set_beta(beta)
     if args.beads and args.beads != data.N:
         data.interpolate(args.beads)

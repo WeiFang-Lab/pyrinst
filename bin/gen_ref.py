@@ -39,7 +39,6 @@ def main():
     reference = HarmRef(x, mace_pes.symbols, n_zero=(5 if is_linear(x) else 6))
     mace_pes.compute(reference, task=2)
     reference.calc_freq()
-    reference.norm_dimensionless_modes()
     min_freq: float = min(reference.freqs[np.argpartition(abs(reference.freqs), reference.n_zero)[reference.n_zero :]])
     if min_freq > 0:
         print("All frequencies are real.")
