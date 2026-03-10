@@ -30,16 +30,18 @@ class MACE(Potential):
         **calc_kwargs
             Arguments for MACECalculator if calculator is None.
         """
-        symbols = symbols.tolist() if isinstance(symbols, NDArray) else list(symbols)
+        symbols = symbols.tolist() if isinstance(symbols, np.ndarray) else list(symbols)
         atoms = Atoms(symbols=symbols, positions=np.empty((len(symbols), 3)))
 
         if calculator is None:
-            calc_kwargs["model_paths"] = calc_kwargs["template_input"]
+            if "model_paths" not in calc_kwargs:
+                calc_kwargs["model_paths"] = calc_kwargs["template_input"]
             self.calculator = MACECalculator(**calc_kwargs)
         else:
             self.calculator = calculator
 
         self._atoms_template = atoms.copy()
+        self.symbols = symbols
 
     def __call__(self, x: NDArray, task: Task = Task.SP) -> tuple[float, None, NDArray | None]:
         return self.potential(x), None, self.hessian(x)
@@ -56,7 +58,6 @@ class MACE(Potential):
         return Energy(atoms.get_potential_energy(), "eV").get("Hartree")
 
     def hessian(self, x: NDArray) -> NDArray:
-
         atoms = self._atoms_from_x(x)
         hess = self.calculator.get_hessian(atoms=atoms)
 
@@ -72,7 +73,6 @@ class MACE(Potential):
         return hess_au
 
     def freq_modes(self, x: NDArray) -> NDArray:
-
         atoms = self._atoms_from_x(x)
 
         hess = self.calculator.get_hessian(atoms=atoms)

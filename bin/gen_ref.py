@@ -26,17 +26,17 @@ def main():
 
     args = parser.parse_args()
 
-    x = load(args.input)
+    x, symbols = load(args.input, return_symbols=True)
     if args.PES == "MACE":
         mace_pes = MACE(
-            args.input,
+            symbols,
             model_paths=args.model_path,
             default_dtype=args.dtype,
             device=args.device,
             enable_cueq=args.enable_cueq,
         )
 
-    reference = HarmRef(x, mace_pes.atoms, n_zero=(5 if is_linear(x) else 6))
+    reference = HarmRef(x, mace_pes.symbols, n_zero=(5 if is_linear(x) else 6))
     mace_pes.compute(reference, task=2)
     reference.calc_freq()
     reference.norm_dimensionless_modes()
