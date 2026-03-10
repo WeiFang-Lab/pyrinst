@@ -72,6 +72,7 @@ def proj_eig(
     p_mat = np.identity(x.size) - np.einsum("ij,ik->jk", p, p)
     hess = p_mat @ hess @ p_mat
     eig_vals, eig_vecs = linalg.eigh(hess)
+    n_zero = len(p)
     if n_zero == 0:
         return eig_vals, eig_vecs
     idx = np.argpartition(abs(eig_vals), n_zero)[:n_zero]

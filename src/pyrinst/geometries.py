@@ -93,7 +93,7 @@ class Geometry:
         return self.x.size
 
     def calc_freq(self) -> None:
-        hess_mw = mass_weight(self.hess, self.m, dim=self.x.shape[-1])
+        hess_mw = mass_weight(self.H, self.m, dim=self.x.shape[-1])
         eigs, self.modes = np.linalg.eigh(hess_mw)
         self.freqs = np.sqrt(abs(eigs)) * np.sign(eigs)
 
@@ -341,7 +341,6 @@ class Instanton(TransitionState):
     def H(self, value: NDArray) -> None:
         self.hess = value
 
-    @property
     def hessian_full(self) -> NDArray:
         res: NDArray = self.springs.hessian_full(self.x).reshape(self.N, self.dof, self.N, self.dof)
         indices: NDArray = np.arange(len(res))
@@ -404,7 +403,7 @@ class Instanton(TransitionState):
         if np.isclose(self.N * BN, 0):
             raise RuntimeError("Your instanton beads are likely collapsed")
         # vibrations
-        lam: NDArray = np.linalg.eigvalsh(mass_weight(self.hessian_full, self.m, dim=self.x.shape[-1]))
+        lam: NDArray = np.linalg.eigvalsh(mass_weight(self.hessian_full(), self.m, dim=self.x.shape[-1]))
         self.freqs: NDArray = np.sqrt(abs(lam)) * np.sign(lam)
         freqs_nonzero: NDArray = self.freqs[np.argpartition(abs(self.freqs), self.n_zero + 1)[self.n_zero + 1 :]]
         order: int = sum(freqs_nonzero < 0)
@@ -451,6 +450,7 @@ class HarmRef(Geometry):
 @dataclass(slots=True)
 class InstRef(Instanton):
     T: float | None = field(init=False, default=None)
+    harm_energies: NDArray | None = field(init=False, default=None)
     ref: float = field(init=False)
 
     order: ClassVar[int] = 0
@@ -493,3 +493,9 @@ class InstRef(Instanton):
     def set_beta(self, beta: float) -> None:
         Instanton.set_beta(self, beta)
         self.T = 1 / (KB * beta)
+
+    def final_output(self, prefix: str) -> None:
+        hess_mw = mass_weight(self.hessian_full(), self.m, dim=self.x.shape[-1])
+        eigs, self.modes = np.linalg.eigh(hess_mw)
+        self.freqs = np.sqrt(abs(eigs)) * np.sign(eigs)
+        Instanton.final_output(self, prefix)

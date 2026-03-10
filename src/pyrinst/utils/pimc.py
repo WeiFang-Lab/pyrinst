@@ -362,17 +362,15 @@ class InstFEP(HarmFEP):
 
         self.beta: float = inst.beta
 
-        hess: NDArray = self.rp.hessian_full
+        hess: NDArray = self.ref.hessian_full()
 
         centroid_mode = np.tile(np.eye(np.prod(self.npos.shape[1:], dtype=int)), (1, nbeads))
         centroid_mode *= np.sqrt(self.nmass3.reshape(1, -1))
         centroid_mode /= np.linalg.norm(centroid_mode, axis=1, keepdims=True)
-        hess = mass_weight(hess, self.npos.shape, self.masses)
+        hess = mass_weight(hess, self.masses, self.npos.shape[-1])
 
         # nm: Cartesian normal modes in columns with permutation mode removed
-        freq_rp2, self.nm = proj_eig(
-            x=self.npos, hess=hess, mass=self.masses, constr_vecs=centroid_mode
-        )  # 1 / au.time **2
+        freq_rp2, self.nm = proj_eig(self.npos, hess, 0, mass=self.masses, constr_vecs=centroid_mode)  # 1 / au.time **2
 
         slc = slice(1, None) if np.isclose(self.ref.BN, 0) else slice(None, None)
 
