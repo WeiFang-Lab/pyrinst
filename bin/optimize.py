@@ -85,7 +85,7 @@ if ext == ".pkl":
     symbols = data.symbols
 else:
     if ext == ".xyz":
-        x, symbols = load(args.input, return_symbols=True)
+        symbols, x, _ = load(args.input, energy_pattern=False)
     elif ext == ".txt":
         x = np.loadtxt(args.input)
         symbols = None

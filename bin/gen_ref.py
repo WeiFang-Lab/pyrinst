@@ -26,7 +26,7 @@ def main():
 
     args = parser.parse_args()
 
-    x, symbols = load(args.input, return_symbols=True)
+    symbols, x, _ = load(args.input, energy_pattern=False)
     if args.PES == "MACE":
         mace_pes = MACE(
             symbols,

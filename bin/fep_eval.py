@@ -6,6 +6,7 @@ import pickle
 import numpy as np
 
 from pyrinst.config.constants import KB
+from pyrinst.io.xyz import load
 from pyrinst.utils.fep import *
 from pyrinst.utils.units import Energy
 
@@ -21,13 +22,14 @@ def main():
     with open(args.input, "rb") as f:
         input_geom = pickle.load(f)
 
-    # beads_energies = np.loadtxt('beads_energies.txt').T
-    beads_energies = extract_energy_from_xyz(prefix=args.prefix, nbeads=args.nbeads, is_instanton=False).T
+    filenames = [f"{args.prefix}_{str(bead_idx).zfill(len(str(args.nbeads)))}.xyz" for bead_idx in range(args.nbeads)]
+    _, _, beads_energies = load(
+        filenames, read_coords=False, energy_pattern=r"energy\s*=\s*['\"]?([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)['\"]?"
+    )
 
-    beads_energies = beads_energies[1:] - beads_energies[0]
-    aes = np.average(beads_energies, axis=1)
-    # bhs = np.loadtxt('harm_energies.txt').T
-    bhs = input_geom.harm_energies.T
+    beads_energies -= input_geom.energy
+    aes = np.average(beads_energies, axis=0)
+    bhs = input_geom.harm_energies
     des = aes * Energy(1, "eV").get("Hartree") - bhs  # eV -> Hartree
 
     beta = 1.0 / (input_geom.T * KB)  # 1/Hartree

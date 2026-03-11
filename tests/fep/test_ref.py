@@ -1,13 +1,13 @@
 import pickle
 
-from pyrinst.core.pes.mace import MACEPES
 from pyrinst.geometries import HarmRef
 from pyrinst.io.xyz import load
+from pyrinst.potentials import MACE
 from pyrinst.utils.units import Energy
 
-pes = MACEPES(atoms="C2H2.xyz", model_paths="MACE-OFF24_medium.model")
-x = load("C2H2.xyz")
-reference = HarmRef(x, pes.atoms)
+symbols, x, _ = load("C2H2.xyz", energy_pattern=False)
+pes = MACE(atoms=symbols, model_paths="MACE-OFF24_medium.model")
+reference = HarmRef(x, pes.symbols)
 pes.compute(reference, task=2)
 reference.calc_freq()
 reference.norm_dimensionless_modes()

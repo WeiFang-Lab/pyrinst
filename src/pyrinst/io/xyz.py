@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """
 Provides routines for reading from and writing to VMD-readable XYZ format files.
 Main functions: save, load
 """
 
 import logging
+import re
+from io import TextIOWrapper
+
 import numpy as np
-from ..utils.units import Length
+
+from pyrinst.utils.units import Length
 
 # Configure a logger for the library.
 # The user of the library can then configure the root logger to see these messages.
 logger = logging.getLogger(__name__)
+
 
 def _format_xyz_line(atom_symbol: str, coords: np.ndarray, fmt: str = "15.10f") -> str:
     """
@@ -49,11 +52,7 @@ def _format_xyz_line(atom_symbol: str, coords: np.ndarray, fmt: str = "15.10f") 
     return line
 
 
-def lines(
-    atom_symbols: list[str] | np.ndarray,
-    coords: np.ndarray,
-    fmt: str = "15.10f"
-) -> str:
+def lines(atom_symbols: list[str] | np.ndarray, coords: np.ndarray, fmt: str = "15.10f") -> str:
     """
     Generates xyz coordinate lines without the header.
 
@@ -98,15 +97,12 @@ def lines(
     H    1.0000000000   0.0000000000   0.0000000000
     """
     logger.debug("Formatting xyz lines without header.")
-    coords = np.asarray(coords) * Length(1, 'au').get('A')
+    coords = np.asarray(coords) * Length(1, "au").get("A")
     atom_symbols = np.asarray(atom_symbols)
     num_atoms = len(atom_symbols)
 
     if coords.ndim != 2 or coords.shape[-1] not in [1, 2, 3]:
-        msg = (
-            f"Coordinates array `coords` must be 2D (N, D), "
-            f"where D is 1, 2, or 3. Received shape: {coords.shape}"
-        )
+        msg = f"Coordinates array `coords` must be 2D (N, D), where D is 1, 2, or 3. Received shape: {coords.shape}"
         logger.error(msg)
         raise ValueError(msg)
 
@@ -122,7 +118,7 @@ def lines(
     for j in range(num_atoms):
         line = _format_xyz_line(atom_symbols[j], coords[j], fmt=fmt)
         lines.append(line)
-    
+
     result = "\n".join(lines)
     logger.debug(f"Successfully formatted {num_atoms} coordinate lines.")
     return result
@@ -133,7 +129,7 @@ def save(
     coords: np.ndarray,
     atom_symbols: list[str] | np.ndarray,
     comment: str | list[str] | None = None,
-    append: bool = False
+    append: bool = False,
 ) -> None:
     """
     Saves atomic coordinates to a file in the aligned XYZ format.
@@ -169,7 +165,7 @@ def save(
         If the shapes of the coordinates and atom symbols are incompatible.
     """
     logger.debug(f"Attempting to save data to '{filepath}' with append={append}.")
-    coords = np.asarray(coords) * Length(1, 'au').get('A')
+    coords = np.asarray(coords) * Length(1, "au").get("A")
     atom_symbols = np.asarray(atom_symbols)
     num_atoms = len(atom_symbols)
 
@@ -209,7 +205,7 @@ def save(
         logger.error(msg)
         raise ValueError(msg)
 
-    write_mode = 'a' if append else 'w'
+    write_mode = "a" if append else "w"
     with open(filepath, write_mode) as f:
         for i in range(num_frames):
             f.write(f"{num_atoms}\n")
@@ -217,130 +213,155 @@ def save(
             for j in range(num_atoms):
                 line = _format_xyz_line(atom_symbols[j], coords[i, j])
                 f.write(f"{line}\n")
-    
     logger.info(f"Successfully saved {num_frames} frame(s) to '{filepath}'.")
 
 
-def load(filepath: str, return_symbols: bool = False, return_all: bool = False):
+def _read_frame(
+    f: TextIOWrapper,
+    num_atoms: int,
+    read_coords: bool,
+    energy_pattern: str | None | bool,
+) -> tuple[list[str], list[list[float]], str | float | None]:
     """
-    Reads coordinates from an XYZ file.
-
-    This function can handle single-frame or multi-frame XYZ files. If the file
-    contains only one frame, the returned coordinate array is squeezed to 2D.
+    Helper function to read a single frame from an XYZ file iterator.
 
     Parameters
     ----------
-    filepath : str
-        The path of the XYZ file to read.
-    return_symbols : bool, optional
-        If True, also returns the list of atom symbols. Defaults to False.
-    return_all : bool, optional
-        If True, also returns atom symbols and comment lines. This option
-        overrides `return_symbols`. Defaults to False.
+    f : TextIOWrapper
+        Iterator over lines of the file.
+    num_atoms : int
+        Number of atoms in the frame.
+    read_coords : bool
+        Whether to parse and return coordinates.
+    energy_pattern : str, None, or bool
+        If True, reads comments. If a string, extracts energy via regex.
+        If False/None, skips comments.
 
     Returns
     -------
-    numpy.ndarray or tuple
-        - By default: returns the coordinate array `coords` in a.u.
-          - Single-frame file: (N, 3)
-          - Multi-frame file: (T, N, 3)
-        - If `return_symbols` is True: returns `(coords, atom_symbols)`.
-        - If `return_all` is True: returns `(coords, atom_symbols, comments)`.
+    tuple
+        (frame_symbols, [frame_coords], [comment_val])
+    """
+    comment_line = next(f).strip()
+
+    comment_val = None
+    if energy_pattern:
+        if isinstance(energy_pattern, str):
+            match = re.search(energy_pattern, comment_line)
+            if match:
+                comment_val = float(match.group(1))
+        else:
+            comment_val = comment_line
+
+    frame_coords = []
+    frame_symbols = []
+    for _ in range(num_atoms):
+        atom_line = next(f).split()
+
+        frame_symbols.append(atom_line[0])
+
+        if read_coords:
+            frame_coords.append([float(x) for x in atom_line[1:4]])
+
+    return frame_symbols, [frame_coords], [comment_val]
+
+
+def load(filepath: str | list[str], read_coords: bool = True, energy_pattern: str | None | bool = True):
+    """
+    Reads coordinates and optionally extracts energy from an XYZ file or a series of XYZ files.
+
+    This function can handle single-frame or multi-frame XYZ files, as well as
+    a list of such files. It reads frame by frame to save memory.
+
+    Parameters
+    ----------
+    filepath : str or list[str]
+        The path of the XYZ file(s) to read.
+    read_coords : bool, optional
+        If True, reads and returns the coordinate array. Defaults to True.
+    energy_pattern : str or bool or None, optional
+        If True, reads and returns the full comment lines.
+        If a string, extracts information from the comment lines using regex and returns it
+        as floats instead of returning the full comment strings.
+        If False/None, skips reading comments. Defaults to True.
+
+    Returns
+    -------
+    tuple
+        Always returns a tuple `(atom_symbols, coords, comments)`.
+        - `atom_symbols` is always returned as a 1D numpy array.
+        - `coords` is returned if `read_coords` is True, otherwise `None`.
+          - Single-file: squeezed if 1 frame (N, 3), else (T, N, 3)
+          - Multi-file: stacked array of shape (num_files, ...)
+        - `comments` is returned if `energy_pattern` is truthy, otherwise `None`.
+          - If `energy_pattern` is True: returns comments (string, list of strings, or list of lists).
+          - If `energy_pattern` is a string: returns energies as a numpy array.
+            - For single file: (T,) array
+            - For multi-file: (T, num_files) array
 
     Raises
     ------
-    IOError
+    OSError
         If the file format is incorrect, the file cannot be read, or the
         atom count is inconsistent with the file content.
     """
-    logger.debug(f"Attempting to load data from '{filepath}'.")
-    try:
-        with open(filepath, 'r') as f:
-            lines = f.readlines()
-    except FileNotFoundError:
-        logger.error(f"File not found at path: {filepath}")
-        raise
+    is_single_file = isinstance(filepath, str)
+    filepaths = [filepath] if is_single_file else filepath
 
-    # Clean trailing blank lines
-    while lines and not lines[-1].strip():
-        lines.pop()
+    atom_symbols = None
+    all_file_coords = []
+    all_file_comments = []
 
-    frames_data = []
-    i = 0
-    while i < len(lines):
-        try:
-            num_atoms = int(lines[i].strip())
-            frame_lines = lines[i : i + num_atoms + 2]
-            if len(frame_lines) < num_atoms + 2:
-                raise IndexError
-            frames_data.append(frame_lines)
-            i += num_atoms + 2
-        except (ValueError, IndexError):
-            msg = (
-                f"XYZ file '{filepath}' is malformed or truncated near line {i + 1}."
-            )
-            logger.error(msg)
-            raise IOError(msg)
+    for path in filepaths:
+        logger.debug(f"Attempting to load data from '{path}'.")
 
-    if not frames_data:
-        logger.warning(f"File '{filepath}' is empty or contains no valid frames.")
-        if return_all:
-             return np.array([]), np.array([]), []
-        elif return_symbols:
-             return np.array([]), np.array([])
-        else:
-             return np.array([])
+        file_coords = []
+        file_comments = []
 
-    num_atoms_first_frame = int(frames_data[0][0])
-    
-    # Parse atom symbols (from the first frame only)
-    atom_symbols = np.array([line.split()[0] for line in frames_data[0][2:]])
+        with open(path) as f:
+            for line in f:
+                num_atoms: int = int(line.strip())
 
-    # Parse coordinates and comments
-    all_coords = np.empty((len(frames_data), num_atoms_first_frame, 3))
-    comments = []
-    for frame_idx, frame in enumerate(frames_data):
-        comments.append(frame[1].strip())
-        coord_lines = [line.split()[1:4] for line in frame[2:]]
-        all_coords[frame_idx] = np.array(coord_lines, dtype=float)
+                try:
+                    atom_symbols, frame_coords, comment_val = _read_frame(f, num_atoms, read_coords, energy_pattern)
+                except Exception as e:
+                    raise OSError(f"Error reading frame {len(file_coords)} from '{path}'.") from e
 
-    # Squeeze dimension if only one frame is present
-    final_coords = all_coords[0] if all_coords.shape[0] == 1 else all_coords
-    final_coords *= Length(1, 'A').get('au')
-    logger.info(f"Successfully loaded {len(frames_data)} frame(s) from '{filepath}'.")
+                file_coords += frame_coords
+                file_comments += comment_val
 
-    if return_all:
-        final_comments = comments[0] if len(comments) == 1 else comments
-        return final_coords, atom_symbols, final_comments
-    if return_symbols:
-        return final_coords, atom_symbols
-    return final_coords
+        all_file_coords.append(file_coords)
+        all_file_comments.append(file_comments)
+
+        count = len(file_coords) if read_coords else (len(file_comments) if file_comments else "unknown")
+        print(f"Successfully loaded {count} frame(s) from '{path}'.")
+
+    ret_coords = np.atleast_2d(np.squeeze(np.array(all_file_coords)))
+    ret_comments = np.array(all_file_comments, dtype=float if isinstance(energy_pattern, str) else str)
+    if is_single_file and energy_pattern:
+        ret_comments = ret_comments[0]
+    if not read_coords:
+        ret_coords = None
+    if not energy_pattern:
+        ret_comments = None
+    return atom_symbols, ret_coords, ret_comments
 
 
-if __name__ == '__main__':
-
-    TEST_FILENAME = 'vmd_test_pep8.xyz'
+if __name__ == "__main__":
+    TEST_FILENAME = "vmd_test_pep8.xyz"
 
     # Define single-frame test data (3D and 2D)
-    symbols = ['O', 'H', 'H']
-    coords_3d = np.array([
-        [0.0000, 0.0000, 0.1173],
-        [0.0000, 0.7572, -0.4692],
-        [0.0000, -0.7572, -0.4692]
-    ])
-    coords_2d = np.array([
-        [0.0, 0.0],
-        [1.0, 0.0],
-        [0.5, 0.866]
-    ])
+    symbols = ["O", "H", "H"]
+    coords_3d = np.array([[0.0000, 0.0000, 0.1173], [0.0000, 0.7572, -0.4692], [0.0000, -0.7572, -0.4692]])
+    coords_2d = np.array([[0.0, 0.0], [1.0, 0.0], [0.5, 0.866]])
     comment_single = "Single water molecule"
 
     # --- 1. Test `save` function ---
     logger.info("--- Testing `save` function ---")
-    
+
     # Test saving 3D coordinates
     save(TEST_FILENAME, coords_3d, symbols, comment=comment_single)
-    
+
     # Test appending with 2D coordinates (will be padded with z=0.0)
     save(TEST_FILENAME, coords_2d, symbols, comment="A 2D triangle", append=True)
 
@@ -349,31 +370,31 @@ if __name__ == '__main__':
 
     try:
         # Test loading all contents
-        coords_loaded, symbols_loaded, comments_loaded = load(TEST_FILENAME, return_all=True)
-        
+        symbols_loaded, coords_loaded, comments_loaded = load(TEST_FILENAME)
+
         logger.info(f"Load successful! Shape of loaded coords: {coords_loaded.shape}")
         logger.info(f"Loaded atom symbols: {symbols_loaded}")
         logger.info(f"Loaded comments: {comments_loaded}")
-        
+
         # --- 3. Verification ---
         logger.info("\n--- Verifying data consistency ---")
         assert coords_loaded.shape == (2, 3, 3)
         assert np.all(symbols_loaded == symbols)
-        
+
         # Verify first frame (originally 3D)
         assert np.allclose(coords_loaded[0], coords_3d)
-        
+
         # Verify second frame (originally 2D, now padded)
         coords_2d_padded = np.hstack([coords_2d, np.zeros((3, 1))])
         assert np.allclose(coords_loaded[1], coords_2d_padded)
 
         logger.info("✅ Verification successful! Data was saved and loaded correctly.")
 
-    except (IOError, ValueError, AssertionError) as e:
+    except (OSError, ValueError, AssertionError) as e:
         logger.error(f"A test failed: {e}")
 
     # --- 4. Preview file content ---
     logger.info(f"\n--- Content of '{TEST_FILENAME}' ---")
-    with open(TEST_FILENAME, 'r') as f:
+    with open(TEST_FILENAME) as f:
         # Use print() here for direct output of file content for visual check
         print(f.read())

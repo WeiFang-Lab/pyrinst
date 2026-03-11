@@ -422,7 +422,6 @@ class Instanton(TransitionState):
 class HarmRef(Geometry):
     T: float | None = field(init=False, default=None)
     harm_energies: NDArray | None = field(init=False, default=None)
-    ref: float = field(init=False)
 
     def update_links(self, *args) -> None:
         if len(args):
@@ -451,7 +450,6 @@ class HarmRef(Geometry):
 class InstRef(Instanton):
     T: float | None = field(init=False, default=None)
     harm_energies: NDArray | None = field(init=False, default=None)
-    ref: float = field(init=False)
 
     order: ClassVar[int] = 0
     type_alias: ClassVar[str] = "centroid"
