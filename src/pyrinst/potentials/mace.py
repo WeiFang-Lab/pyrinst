@@ -48,7 +48,7 @@ class MACE(Potential):
         self.atoms.calc = calculator
         self.symbols = symbols
 
-    def __call__(self, x: NDArray, task: Task = Task.SP) -> tuple[float, None, NDArray | None]:
+    def __call__(self, x: NDArray, task: Task = Task.SP) -> tuple[float, NDArray | None, NDArray | None]:
         arr = np.asarray(x, dtype=float).reshape(-1, 3) * Length(1, "au").get("A")
         self.atoms.set_positions(arr)
         energy_conv = Energy(1.0, "eV").get("Hartree")

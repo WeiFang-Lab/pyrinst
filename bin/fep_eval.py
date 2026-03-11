@@ -8,7 +8,7 @@ import numpy as np
 from pyrinst.config.constants import KB
 from pyrinst.io.xyz import load
 from pyrinst.utils.fep import *
-from pyrinst.utils.units import Energy
+from pyrinst.utils.units import EV, Energy
 
 
 def main():
@@ -27,10 +27,10 @@ def main():
         filenames, read_coords=False, energy_pattern=r"energy\s*=\s*['\"]?([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)['\"]?"
     )
 
-    beads_energies -= input_geom.energy
+    beads_energies = beads_energies * EV - input_geom.energy
     aes = np.average(beads_energies, axis=0)
     bhs = input_geom.harm_energies
-    des = aes * Energy(1, "eV").get("Hartree") - bhs  # eV -> Hartree
+    des = aes - bhs
 
     beta = 1.0 / (input_geom.T * KB)  # 1/Hartree
 

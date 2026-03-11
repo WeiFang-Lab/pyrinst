@@ -10,7 +10,7 @@ from io import TextIOWrapper
 
 import numpy as np
 
-from pyrinst.utils.units import Length
+from pyrinst.utils.units import ANGSTROM, Length
 
 # Configure a logger for the library.
 # The user of the library can then configure the root logger to see these messages.
@@ -336,7 +336,7 @@ def load(filepath: str | list[str], read_coords: bool = True, energy_pattern: st
         count = len(file_coords) if read_coords else (len(file_comments) if file_comments else "unknown")
         print(f"Successfully loaded {count} frame(s) from '{path}'.")
 
-    ret_coords = np.atleast_2d(np.squeeze(np.array(all_file_coords)))
+    ret_coords = np.atleast_2d(np.squeeze(np.array(all_file_coords))) * ANGSTROM
     ret_comments = np.array(all_file_comments, dtype=float if isinstance(energy_pattern, str) else str)
     if is_single_file and energy_pattern:
         ret_comments = ret_comments[0]
