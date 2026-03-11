@@ -21,12 +21,12 @@ def main():
     )
     parser.add_argument("-l", "--lmd_val", type=float, default=1.0, help="The mass scaling factor.")
     parser.add_argument("--nprandom", action="store_true", help="Use numpy function to generate gaussian samples")
-    parser.add_argument("--inst", help="pkl file of fix-centroid instanton")
     args = parser.parse_args()
 
     input_geom = np.load(args.input, allow_pickle=True)
     if type(input_geom) is HarmRef:
         input_geom.T = args.T
+        input_geom.N = args.nbeads
         polymer = HarmFEP(input_geom, nbeads=args.nbeads)
     elif type(input_geom) is InstRef:
         if not np.isclose(input_geom.T, args.T):

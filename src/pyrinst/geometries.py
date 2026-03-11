@@ -20,12 +20,11 @@ from pyrinst.thermo import ThermoData
 from pyrinst.utils.coordinates import mass_weight
 from pyrinst.utils.elements import element_data
 from pyrinst.utils.mechanics import inertia
-from pyrinst.utils.units import KB, Energy, Mass, Temperature
+from pyrinst.utils.units import HBAR, KB, Energy, Mass, Temperature
 
 log = logging.getLogger(__name__)
 logging.captureWarnings(True)
 
-hbar: float = 1
 GEOMETRY_REGISTRY: dict[str, type["Geometry"]] = {}
 
 
@@ -157,8 +156,8 @@ class StationaryPoint(Geometry, ABC):
             freqs_nonzero = np.array([])
         else:
             freqs_nonzero = self.freqs[np.argpartition(np.abs(self.freqs), self.n_zero)[self.n_zero :]]
-        zpe = 0.5 * hbar * np.sum(freqs_nonzero, where=freqs_nonzero > 0)
-        freqs_cm: NDArray = self.freqs[:12] * hbar * Energy(1, "au").get("cm-1")
+        zpe = 0.5 * HBAR * np.sum(freqs_nonzero, where=freqs_nonzero > 0)
+        freqs_cm: NDArray = self.freqs[:12] * HBAR * Energy(1, "au").get("cm-1")
         log.info(f"frequencies in cm-1:\n{format_array(freqs_cm, fmt=Formats.FREQUENCY)}")
         log.info(f"H.O. ZPE = {Energy(zpe, 'au').get('cm-1'):{Formats.FREQUENCY}} cm-1")
         # check for negative eigenvalues
@@ -179,14 +178,14 @@ class StationaryPoint(Geometry, ABC):
         return data
 
     def trans(self, data: ThermoData, beta: float) -> None:
-        data.log_pf[0] = 3 * math.log(math.sqrt(sum(self.m) / (2 * np.pi * beta)) / hbar) if self.n_zero >= 3 else 0
+        data.log_pf[0] = 3 * math.log(math.sqrt(sum(self.m) / (2 * np.pi * beta)) / HBAR) if self.n_zero >= 3 else 0
 
     def rot(self, data: ThermoData, beta: float, masses: float | NDArray = None) -> None:
         masses = self.masses if masses is None else masses
         if self.n_zero >= 5:
             pmi: NDArray = np.linalg.eigvalsh(inertia(self.x, masses))  # principal moments of inertia
             pmi = np.delete(pmi, np.isclose(pmi, 0))
-            rot_const: NDArray = hbar**2 / (2 * pmi)
+            rot_const: NDArray = HBAR**2 / (2 * pmi)
             data.inertia = pmi
             data.rot_const = rot_const
             if self.n_zero == 5:
@@ -197,13 +196,13 @@ class StationaryPoint(Geometry, ABC):
     def vib(self, data: ThermoData, beta: float, N: int | None = None) -> None:
         freqs: NDArray = self.freqs[self.n_zero + self.order :]
         if N is not None:
-            freqs = 2 * N / (beta * hbar) * np.arcsinh(beta * hbar * freqs / (2 * N))
+            freqs = 2 * N / (beta * HBAR) * np.arcsinh(beta * HBAR * freqs / (2 * N))
         if self.freqs.size > self.n_zero:
             data.freqs = np.sort(self.freqs[np.argpartition(abs(self.freqs), self.n_zero)[self.n_zero :]])
         else:
             data.freqs = np.array([])
         data.N = N
-        data.log_pf[2] = -sum(np.log(2 * np.sinh(0.5 * beta * hbar * freqs)))
+        data.log_pf[2] = -sum(np.log(2 * np.sinh(0.5 * beta * HBAR * freqs)))
 
 
 @dataclass(slots=True)
@@ -231,7 +230,7 @@ class TransitionState(StationaryPoint):
 
     def final_output(self, filename: str) -> None:
         StationaryPoint.final_output(self, filename)  # must explicitly call parent method if @dataclass(slots=True)
-        beta_c = 2 * np.pi / (hbar * (-self.freqs[0]))
+        beta_c = 2 * np.pi / (HBAR * (-self.freqs[0]))
         fmt = Formats.TEMPERATURE
         log.info(f"such that beta_c = {beta_c:{fmt}}, T_c = {Temperature.to_kelvin(beta_c):{fmt}} K")
 
@@ -256,7 +255,7 @@ class Springs:
     omega_n: float = field(init=False)
 
     def __post_init__(self):
-        self.omega_n: float = self.N / (self.beta * hbar)
+        self.omega_n: float = self.N / (self.beta * HBAR)
 
     def potential(self, x: NDArray) -> float:
         dx: NDArray = np.diff(x, axis=0)
@@ -368,17 +367,17 @@ class Instanton(TransitionState):
         contrib: NDArray = self.m * 2 * np.sum(np.sum(np.diff(self.x, axis=0) ** 2, axis=0), axis=-1)
         BN: float = np.sum(contrib)
         fmt: str = Formats.BN
-        log.info(f"mass-weighted BN: BN = {BN:{fmt}}, BN/(betaN*hbar) = {self.N * BN / (self.beta * hbar):{fmt}}")
+        log.info(f"mass-weighted BN: BN = {BN:{fmt}}, BN/(betaN*hbar) = {self.N * BN / (self.beta * HBAR):{fmt}}")
         if self.symbols is not None:
             log.info("Contributions to BN (squared mass-weighted path length) from various atoms:")
             for a, atom in enumerate(self.symbols):
                 log.info(f"atom {a} ({atom}): {contrib[a] / BN:>5.1%}")
-        log.info(f"S/hbar = {self.S / hbar:{Formats.ACTION}}")
+        log.info(f"S/hbar = {self.S / HBAR:{Formats.ACTION}}")
         self.save(prefix)
 
     @property
     def S(self) -> float:
-        return self.beta / self.N * hbar * self.V
+        return self.beta / self.N * HBAR * self.V
 
     @property
     def E(self) -> float:
@@ -412,14 +411,15 @@ class Instanton(TransitionState):
         elif order != 1:
             raise RuntimeError(f"Wrong number of imaginary frequencies (expected 1, got {order} instead)")
         beta_n: float = beta / self.N
-        res = -sum(np.log(beta_n * hbar * abs(freqs_nonzero))) + (self.n_zero + 1) * math.log(self.N)
-        res += 0.5 * (math.log(2 * np.pi * BN) - math.log(beta_n * hbar**2))
+        res = -sum(np.log(beta_n * HBAR * abs(freqs_nonzero))) + (self.n_zero + 1) * math.log(self.N)
+        res += 0.5 * (math.log(2 * np.pi * BN) - math.log(beta_n * HBAR**2))
         data.freqs = np.sort(freqs_nonzero)
         data.log_pf[2] = res
 
 
 @dataclass(slots=True)
 class HarmRef(Geometry):
+    N: int | None = field(init=False, default=None)
     T: float | None = field(init=False, default=None)
     harm_energies: NDArray | None = field(init=False, default=None)
 
@@ -444,6 +444,12 @@ class HarmRef(Geometry):
         phase: NDArray = np.linspace(0, math.pi, N // 2)
         x_inst: NDArray = self.x + length * mode[None, ...] * np.cos(phase).reshape(-1, *(1,) * self.x.ndim)
         return InstRef(x_inst, self.symbols, n_zero=self.n_zero, links=[self], masses=self.m, beta=beta)
+
+    def delta_free_energy(self) -> float:
+        freqs_complex = np.where(self.freqs > 0, 1, -1j) * self.freqs
+        beta = 1.0 / (self.T * KB)
+        hbfs = 0.5 * beta * freqs_complex
+        return (np.sum(np.log(np.sinh(np.arcsinh(hbfs / self.N) * self.N)) - np.log(hbfs)) / beta).real
 
 
 @dataclass(slots=True)
@@ -497,3 +503,12 @@ class InstRef(Instanton):
         eigs, self.modes = np.linalg.eigh(hess_mw)
         self.freqs = np.sqrt(abs(eigs)) * np.sign(eigs)
         Instanton.final_output(self, prefix)
+
+    def delta_free_energy(self) -> float:
+        if np.isclose(BN := self.BN, 0):
+            df: float = self.x.size * np.log(self.N)
+        else:
+            df = (self.x.size + 1) * np.log(self.N) + 0.5 * np.log(BN * self.N / (2 * np.pi * self.beta * HBAR**2))
+        df = -(df - sum(np.log(self.beta / self.N * self.freqs))) / self.beta
+        df += np.mean(self.energy) + self.springs.potential(self.x) / self.N - self.links[0].energy
+        return df

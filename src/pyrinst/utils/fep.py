@@ -26,12 +26,16 @@ def autocorr(data, maxlag):
     return mean, tau, error
 
 
-def free_energy_perturbation(potential_energies, beta, maxlag):
+def free_energy_perturbation(potential_energies, beta, maxlag=None, weights=1):
     # Calculate the boltzmann factor
-    boltzmann_factors = np.exp(-beta * potential_energies)
+    boltzmann_factors = np.exp(-beta * potential_energies) * weights
 
     # Calculate autocorrelation and error for the Boltzmann factors
-    mean_exp, tau_exp, error_exp = autocorr(boltzmann_factors, maxlag)
+    if maxlag is not None:
+        mean_exp, _, error_exp = autocorr(boltzmann_factors, maxlag)
+    else:
+        mean_exp = np.mean(boltzmann_factors)
+        error_exp = np.std(boltzmann_factors) / np.sqrt(len(boltzmann_factors))
 
     # Convert to free energy
     deltaF = -1 / beta * np.log(mean_exp)
@@ -43,15 +47,15 @@ def free_energy_perturbation(potential_energies, beta, maxlag):
     return deltaF, deltaF_error
 
 
-def ana(x):
-    em2x = np.exp(-2 * x)
-    return x + np.log(1 - em2x) - np.log(2 * x)
-
-
-def dF0(ws, beta, N=24):
-    hbfs = beta * ws / 2
-    temp = np.arcsinh(hbfs / N) * N
-    return np.sum(ana(temp)) / beta
+# def ana(x):
+#     em2x = np.exp(-2 * x)
+#     return x + np.log(1 - em2x) - np.log(2 * x)
+#
+#
+# def dF0(ws, beta, N=24):
+#     hbfs = beta * ws / 2
+#     temp = np.arcsinh(hbfs / N) * N
+#     return np.sum(ana(temp)) / beta
 
 
 def dF(ws, beta, N=24):
