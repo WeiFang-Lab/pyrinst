@@ -139,7 +139,6 @@ class StationaryPoint(Geometry, ABC):
         return f"V = {self.V:{Formats.ENERGY}}, |G| = {norm(self.G):{Formats.GRAD_NORM}}"
 
     def output(self, filename: str) -> None:
-        # todo: save traj
         comment = f"V = {self.V:{Formats.ENERGY}}" if self.V is not None else ""
         if self.symbols is None:
             np.savetxt(filename + ".txt", np.squeeze(self.x), fmt="%15.8f", header=comment)
@@ -258,8 +257,14 @@ class Springs:
         self.omega_n: float = self.N / (self.beta * HBAR)
 
     def potential(self, x: NDArray) -> float:
-        dx: NDArray = np.diff(x, axis=0)
-        return self.omega_n**2 * np.einsum("j,ijk,ijk", self.masses, dx, dx)
+        if len(x) == self.N:
+            dx: NDArray = np.diff(x, axis=0, append=x[:1])
+            return 0.5 * self.omega_n**2 * np.einsum("j,ijk,ijk", self.masses, dx, dx)
+        elif len(x) * 2 == self.N:
+            dx: NDArray = np.diff(x, axis=0)
+            return self.omega_n**2 * np.einsum("j,ijk,ijk", self.masses, dx, dx)
+        else:
+            raise ValueError
 
     def gradient(self, x: NDArray) -> NDArray:
         res: NDArray = np.zeros_like(x)
@@ -363,6 +368,13 @@ class Instanton(TransitionState):
         self.beta = beta
         self.springs = Springs(self.N, self.beta, self.masses)
 
+    def output(self, filename: str) -> None:
+        comment = [f"V = {V:{Formats.ENERGY}}" for V in self.energy] if self.V is not None else None
+        if self.symbols is None:
+            np.savetxt(filename + ".txt", np.squeeze(self.x), fmt="%15.8f", header=comment)
+        else:
+            save(filename + ".xyz", self.x, self.symbols, comment)
+
     def final_output(self, prefix: str) -> None:
         contrib: NDArray = self.m * 2 * np.sum(np.sum(np.diff(self.x, axis=0) ** 2, axis=0), axis=-1)
         BN: float = np.sum(contrib)
@@ -460,6 +472,10 @@ class InstRef(Instanton):
     order: ClassVar[int] = 0
     type_alias: ClassVar[str] = "centroid"
 
+    def __post_init__(self):
+        Instanton.__post_init__(self)
+        self.n_zero = self.x[0].size
+
     def update_links(self, *args) -> None:
         if len(args) < 2:
             self.links = list(args)
@@ -478,7 +494,7 @@ class InstRef(Instanton):
     @property
     def H(self) -> NDArray:
         if self.hess.ndim == 3:
-            p = centroid(self.x, self.m).reshape(-1, self.x.size)
+            p = centroid(self.x).reshape(-1, self.x.size)
             p_mat = np.identity(self.x.size) - np.einsum("ij,ik->jk", p, p)
             return p_mat @ Instanton.build_hess(self) @ p_mat
         else:  # ndim == 2
@@ -490,7 +506,7 @@ class InstRef(Instanton):
 
     def hessian_full(self) -> NDArray:
         x: NDArray = np.concat((self.x, self.x[::-1]))
-        p = centroid(x, self.m).reshape(-1, x.size)
+        p = centroid(x).reshape(-1, x.size)
         p_mat = np.identity(x.size) - np.einsum("ij,ik->jk", p, p)
         return p_mat @ Instanton.hessian_full(self) @ p_mat
 
@@ -506,9 +522,9 @@ class InstRef(Instanton):
 
     def delta_free_energy(self) -> float:
         if np.isclose(BN := self.BN, 0):
-            df: float = self.x.size * np.log(self.N)
+            df: float = self.x[0].size * np.log(self.N)
         else:
-            df = (self.x.size + 1) * np.log(self.N) + 0.5 * np.log(BN * self.N / (2 * np.pi * self.beta * HBAR**2))
+            df = (self.x[0].size + 1) * np.log(self.N) + 0.5 * np.log(BN * self.N / (2 * np.pi * self.beta * HBAR**2))
         df = -(df - sum(np.log(self.beta / self.N * self.freqs))) / self.beta
         df += np.mean(self.energy) + self.springs.potential(self.x) / self.N - self.links[0].energy
         return df

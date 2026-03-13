@@ -39,8 +39,7 @@ def main():
     sampled_bead_pos = polymer.get_cart_pos(nm_pos=sampled_nm_pos)
 
     # refresh freqs and add harm_energies
-    if type(input_geom) is HarmRef:
-        input_geom.freqs = polymer.freqs
+    input_geom.freqs = polymer.freqs if type(input_geom) is HarmRef else polymer.freq_rp
     input_geom.harm_energies = polymer.harm_energies
     with open(args.input, "wb") as f:
         pickle.dump(input_geom, f)

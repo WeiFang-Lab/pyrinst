@@ -282,6 +282,7 @@ class Temperature:
 
 HBAR: float = 1
 EV: float = Energy(1.0, "eV").get("Hartree")
+CM_1: float = Energy(1.0, "cm-1").get("Hartree")
 ANGSTROM: float = Length(1, "A").get("Bohr")
 AMU: float = Mass(1, "amu").get("au")
 KB: float = Energy(1.0, "K").get("Hartree")

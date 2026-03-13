@@ -5,10 +5,11 @@ import argparse
 import numpy as np
 
 from pyrinst.geometries import HarmRef
+from pyrinst.io.formats import Formats
 from pyrinst.io.xyz import load
 from pyrinst.potentials import MACE
 from pyrinst.utils.coordinates import is_linear
-from pyrinst.utils.units import Temperature
+from pyrinst.utils.units import CM_1, KB
 
 HBAR: float = 1
 
@@ -43,8 +44,8 @@ def main():
     if min_freq > 0:
         print("All frequencies are real.")
     else:
-        print("max imaginary freq:", reference.freqs[0])
-        print("crossover T:", Temperature.to_kelvin(2 * np.pi / (HBAR * -min_freq)))
+        print(f"max imaginary freq: {reference.freqs[0] / CM_1:{Formats.FREQUENCY}} cm^-1")
+        print(f"crossover T: {1 / (KB * 2 * np.pi / (HBAR * -min_freq))} K")
     reference.save(args.output)
 
 

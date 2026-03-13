@@ -4,7 +4,7 @@ from scipy.stats import qmc
 
 from pyrinst.opt import proj_eig
 from pyrinst.utils.coordinates import mass_weight
-from pyrinst.utils.units import AMU, HBAR, KB, Energy
+from pyrinst.utils.units import AMU, HBAR, KB
 
 
 def box_muller(U1, U2):
@@ -41,7 +41,7 @@ def sobol_gaussian_sample(loc, scale, M0):
     M = int(np.log2(M0))
 
     # Generate Sobol sequences
-    sampler = qmc.Sobol(d=2 * d, scramble=True, seed=18)
+    sampler = qmc.Sobol(d=2 * d, scramble=True)
     samp = sampler.random_base2(M)
 
     # Apply Box-Muller transform
@@ -368,13 +368,13 @@ class InstFEP(HarmFEP):
         centroid_mode *= np.sqrt(self.nmass3.reshape(1, -1))
         centroid_mode /= np.linalg.norm(centroid_mode, axis=1, keepdims=True)
         hess = mass_weight(hess, self.masses, self.npos.shape[-1])
-
+        # freq_rp2, self.nm = np.linalg.eigh(hess)
         # nm: Cartesian normal modes in columns with permutation mode removed
-        freq_rp2, self.nm = proj_eig(self.npos, hess, 0, mass=self.masses, constr_vecs=centroid_mode)  # 1 / au.time **2
+        freq_rp2, self.nm = proj_eig(self.npos, hess, 0, constr_vecs=centroid_mode)  # 1 / au.time **2
 
-        slc = slice(1, None) if np.isclose(self.ref.BN, 0) else slice(None, None)
+        slc = slice(None) if np.isclose(self.ref.BN, 0) else slice(1, None)
 
-        self.freq_rp = np.sqrt(freq_rp2[slc]) * HBAR  # Hartree
+        self.freq_rp = np.sqrt(freq_rp2[slc])
 
         self.nm = self.nm[:, slc] / np.sqrt(self.nmass3.reshape(-1, 1))
 
@@ -385,7 +385,7 @@ class InstFEP(HarmFEP):
         Returns:
             sigma: Standard deviation array in Angstrom, shape (nbeads-1)*natoms*3-1
         """
-        variance: NDArray = np.sqrt(self.nbeads / (AMU * self.beta * self.freq_rp**2))  # au.length
+        variance: NDArray = np.sqrt(self.nbeads / (self.beta * self.freq_rp**2))  # au.length
         if ret_freq:
             return variance, self.freq_rp
         else:
@@ -418,9 +418,8 @@ class InstFEP(HarmFEP):
         return (nm_coordinates @ self.nm.T).reshape(-1, self.nbeads, self.natoms, 3) + self.npos
 
     def get_cart_pos(self, nm_pos: NDArray) -> NDArray:
-        freq: NDArray = self.freq_rp * Energy(1, "au").get("eV")
         cart_pos: NDArray = self.nm_to_cart(nm_pos)
-        vhs: NDArray = 0.5 * np.sum((nm_pos * freq) ** 2, axis=1)
+        vhs: NDArray = 0.5 * np.sum((nm_pos * self.freq_rp) ** 2, axis=1)
         springs: float = self.ref.springs.potential(self.npos)
         for i in range(len(vhs)):
             vhs[i] = (vhs[i] - self.ref.springs.potential(cart_pos[i]) + springs) / self.nbeads

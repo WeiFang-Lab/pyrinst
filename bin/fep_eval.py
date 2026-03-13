@@ -22,7 +22,6 @@ def main():
     # load beads energies and harm energies
     with open(args.input, "rb") as f:
         input_geom = pickle.load(f)
-    beta = 1.0 / (input_geom.T * KB)  # 1/Hartree
 
     df0 = input_geom.delta_free_energy()
 
@@ -34,17 +33,17 @@ def main():
         print("Harmonic FEP")
     elif type(input_geom) is InstRef:
         _, x, beads_energies = load(filenames, energy_pattern=energy_pattern)
+        x = x.transpose(1, 0, 2, 3)
         dx = np.diff(x, axis=1, append=x[:, 0][:, None, ...])
-        dx0 = np.diff(input_geom.x, axis=0, append=[input_geom.x[0]])
+        dx0 = np.diff(input_geom.x, axis=0)
+        dx0 = np.concat((dx0, np.zeros_like(dx0[:1]), -dx0[::-1], np.zeros_like(dx0[:1])))
         weights = np.maximum(np.einsum("ijkl,jkl,k->i", dx, dx0, input_geom.masses) / input_geom.BN, 0)
         print("Instanton FEP")
-
-    beads_energies = beads_energies * EV - input_geom.energy
+    beads_energies = beads_energies * EV - np.concat((input_geom.energy, input_geom.energy[::-1]))[:, None]
     aes = np.average(beads_energies, axis=0)
     bhs = input_geom.harm_energies
     des = aes - bhs
-
-    df1, var1 = free_energy_perturbation(des, beta, weights=weights)
+    df1, var1 = free_energy_perturbation(des, 1.0 / (input_geom.T * KB), weights=weights)
     print(f"reference: {df0 / EV:{Formats.ENERGY}} eV")
     print(f"correction: {df1 / EV:{Formats.ENERGY}} eV")
     print(f"Delta F({input_geom.T} K): {(df0 + df1) / EV:{Formats.ENERGY}} eV")
