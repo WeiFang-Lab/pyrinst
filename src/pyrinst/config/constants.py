@@ -25,14 +25,18 @@ These constants are calculated *once* using the `units.py` toolkit
 and should be imported by any module that performs I/O.
 """
 
+from warnings import warn
+
 # Use the unit conversion toolkit to calculate factors
 from pyrinst.utils.units import Energy, Length, Mass, Time
+
+warn("This module is deprecated. Please use `pyrinst.utils.units` instead.", DeprecationWarning, stacklevel=2)
 
 # --- 1. Internal Standard Base Units (AU) ---
 # These are the reference units for all internal calculations.
 HARTREE: float = 1.0
 BOHR: float = 1.0
-M_E: float = 1.0       # Electron mass ('au' in _unit_data.py)
+M_E: float = 1.0  # Electron mass ('au' in _unit_data.py)
 AU_TIME: float = 1.0
 HBAR: float = 1.0
 
@@ -41,18 +45,18 @@ HBAR: float = 1.0
 # Factors to convert common EXTERNAL units TO the INTERNAL AU standard.
 
 # Energy: External -> Hartree
-KCAL_MOL: float = Energy(1.0, 'kcal/mol').get('Hartree')
-EV: float = Energy(1.0, 'eV').get('Hartree')
-KELVIN: float = Energy(1.0, 'K').get('Hartree')
+KCAL_MOL: float = Energy(1.0, "kcal/mol").get("Hartree")
+EV: float = Energy(1.0, "eV").get("Hartree")
+KELVIN: float = Energy(1.0, "K").get("Hartree")
 
 # Length: External -> Bohr
-ANGSTROM: float = Length(1.0, 'A').get('Bohr')
+ANGSTROM: float = Length(1.0, "A").get("Bohr")
 
 # Mass: External -> m_e (electron mass)
-AMU: float = Mass(1.0, 'amu').get('au')  # 'au' is m_e
+AMU: float = Mass(1.0, "amu").get("au")  # 'au' is m_e
 
 # Time: External -> au_time
-FEMTOSECOND: float = Time(1.0, 'fs').get('au')
+FEMTOSECOND: float = Time(1.0, "fs").get("au")
 
 
 # --- 3. Derived Physical Constants (in Internal AU) ---

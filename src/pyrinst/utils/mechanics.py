@@ -11,8 +11,6 @@ moment of inertia tensor should be computed with respect to the center of mass.
 The `inertia` function handles this by default.
 """
 
-__author__ = "Jeremy O. Richardson"
-
 import numpy as np
 from numpy.typing import NDArray
 
