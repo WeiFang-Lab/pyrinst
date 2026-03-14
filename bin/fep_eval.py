@@ -29,17 +29,19 @@ def main():
     energy_pattern: str = r"energy\s*=\s*['\"]?([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)['\"]?"
     if type(input_geom) is HarmRef:
         _, _, beads_energies = load(filenames, read_coords=False, energy_pattern=energy_pattern)
+        ref_energy = input_geom.energy
         weights = 1
         print("Harmonic FEP")
     elif type(input_geom) is InstRef:
         _, x, beads_energies = load(filenames, energy_pattern=energy_pattern)
+        ref_energy = np.r_[(input_geom.energy, input_geom.energy[::-1])][:, None]
         x = x.transpose(1, 0, 2, 3)
         dx = np.diff(x, axis=1, append=x[:, 0][:, None, ...])
         dx0 = np.diff(input_geom.x, axis=0)
         dx0 = np.concat((dx0, np.zeros_like(dx0[:1]), -dx0[::-1], np.zeros_like(dx0[:1])))
         weights = np.maximum(np.einsum("ijkl,jkl,k->i", dx, dx0, input_geom.masses) / input_geom.BN, 0)
         print("Instanton FEP")
-    beads_energies = beads_energies * EV - np.concat((input_geom.energy, input_geom.energy[::-1]))[:, None]
+    beads_energies = beads_energies * EV - ref_energy
     aes = np.average(beads_energies, axis=0)
     bhs = input_geom.harm_energies
     des = aes - bhs

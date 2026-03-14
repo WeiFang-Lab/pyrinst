@@ -60,14 +60,14 @@ def free_energy_perturbation(potential_energies, beta, maxlag=None, weights=1):
 #     return np.sum(ana(temp)) / beta
 
 
-@deprecated(details="Use `Geometry` instead.")
+@deprecated("Use `Geometry` instead.")
 def dF(ws, beta, N=24):
     hbfs = beta * ws / 2
     temp = np.arcsinh(hbfs / N) * N
     return np.sum(np.log(np.sinh(temp)) - np.log(hbfs)) / beta
 
 
-@deprecated(details="Use `Geometry` instead.")
+@deprecated("Use `Geometry` instead.")
 def to_complex(freqs):
     """ """
     real = np.where(freqs > 0, freqs, 0.0)
