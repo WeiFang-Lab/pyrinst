@@ -369,10 +369,11 @@ class Instanton(TransitionState):
         self.springs = Springs(self.N, self.beta, self.masses)
 
     def output(self, filename: str) -> None:
-        comment = [f"V = {V:{Formats.ENERGY}}" for V in self.energy] if self.V is not None else None
         if self.symbols is None:
+            comment = f"V = {format_array(self.energy, fmt=Formats.ENERGY)}"
             np.savetxt(filename + ".txt", np.squeeze(self.x), fmt="%15.8f", header=comment)
         else:
+            comment = [f"V = {V:{Formats.ENERGY}}" for V in self.energy] if self.V is not None else None
             save(filename + ".xyz", self.x, self.symbols, comment)
 
     def final_output(self, prefix: str) -> None:
