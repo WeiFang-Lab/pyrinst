@@ -1,5 +1,7 @@
 #!/bin/bash
 
+BATCH_SIZE=2048
+
 (
   export CUDA_VISIBLE_DEVICES=0
   for d in $(seq -f "%02g" 0 5); do
@@ -10,7 +12,7 @@
       --device='cuda' \
       --enable_cueq \
       --no_forces \
-      --batch_size=8193
+      --batch_size=$BATCH_SIZE
   done
 ) &
 
@@ -24,7 +26,7 @@
       --device='cuda' \
       --enable_cueq \
       --no_forces \
-      --batch_size=8193
+      --batch_size=$BATCH_SIZE
   done
 ) &
 
@@ -38,7 +40,7 @@
       --device='cuda' \
       --enable_cueq \
       --no_forces \
-      --batch_size=8193
+      --batch_size=$BATCH_SIZE
   done
 ) &
 
@@ -52,7 +54,7 @@
       --device='cuda' \
       --enable_cueq \
       --no_forces \
-      --batch_size=8193
+      --batch_size=$BATCH_SIZE
   done
 ) &
 
