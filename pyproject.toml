@@ -96,6 +96,18 @@ pyrinst-sampling = "bin.sampling:main"
 [tool.setuptools.packages.find]
 # Automatically find all packages in the 'src' directory.
 where = ["src"]
+[tool.setuptools.package-data]
+"pyrinst" = [
+    "**/*.json",
+    "**/*.pyf",
+    "**/*.f",
+    "**/*.f90",
+    "**/.xyz",
+    "**/makefile",
+    "**/*.sh",
+    "**/*.txt",
+    "**/*.md",
+]
 
 # ==============================================================================
 # Ruff configuration
