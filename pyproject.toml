@@ -21,7 +21,11 @@ name = "pyrinst"
 version = "0.1.0"
 
 # Your name and email.
-authors = [{ name = "Wei Fang", email = "wei_fang@fudan.edu.com" }]
+authors = [
+    { name = "Wei Fang", email = "wei_fang@fudan.edu.cn" },
+    { name = "Ziyan Ye", email = "zyye22@m.fudan.edu.cn" },
+    { name = "Wenbin Fan", email = "wbfan21@m.fudan.edu.cn" },
+]
 
 # A short, one-sentence description of your project.
 description = "A modern Python toolkit for instanton rate calculations. "
@@ -72,17 +76,19 @@ dependencies = [
 # ==============================================================================
 # Links to your project's homepage, repository, etc.
 [project.urls]
-# "Homepage" = "https://github.com/your-username/easy-instanton"
-# "Bug Tracker" = "https://github.com/your-username/easy-instanton/issues"
+# Not ready yet
+# "Homepage" = "..."
+# "Bug Tracker" = "..."
 
 # ==============================================================================
 # Entry points (command-line scripts)
 # ==============================================================================
 # This section creates the command-line tools for your users.
 [project.scripts]
-# easy-instanton = "easy_instanton.cli:main"
-# easy-instanton-plot = "easy_instanton.tools.plot:main"
-# easy-instanton-convert = "easy_instanton.tools.convert:main"
+pyrinst-fep-eval = "bin.fep_eval:main"
+pyrinst-gen-ref = "bin.gen_ref:main"
+pyrinst-optimize = "bin.optimize:main"
+pyrinst-sampling = "bin.sampling:main"
 
 # ==============================================================================
 # Tool-specific configurations
