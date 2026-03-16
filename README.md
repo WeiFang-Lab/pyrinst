@@ -2,6 +2,21 @@
 
 ## 安装指南
 
+### 内测版本的临时安装指南
+
+请用户在程序根目录下运行：
+
+```bash
+pip install .
+```
+
+来安装记录在`pyproject.toml`中的依赖，并手动将`bin`目录添加到环境变量`PATH`中，并将`src`目录添加到`PYTHONPATH`中。
+
+```bash
+export PATH="/path/to/pyrinst/bin:$PATH"
+export PYTHONPATH="/path/to/pyrinst/src:$PYTHONPATH"
+```
+
 ### 推荐环境配置 (针对 MACE )
 下面是一个验证过的环境配置步骤，用于支持 MACE 势能面计算：
 
