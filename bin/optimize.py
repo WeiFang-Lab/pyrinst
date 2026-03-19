@@ -99,7 +99,6 @@ def main():
         else:
             msg: str = f"Unknown file format: {args.input}"
             raise ValueError(msg)
-
     pot_cls = POTENTIAL_REGISTRY[key := args.Potential.lower()]
     if key in BUILTIN_POTENTIALS:
         kwargs = vars(args)
