@@ -5,9 +5,10 @@ import re
 import numpy as np
 from numpy.typing import NDArray
 
-from .abc import OnTheFlyDriver, SingleFileResult
 from pyrinst.io.xyz import lines
 from pyrinst.utils.elements import element_data
+
+from .base import OnTheFlyDriver, SingleFileResult
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class Gaussian(OnTheFlyDriver):  # todo: not fully tested
         self._tail: list[str] = [""]
         self._charge_mult: str = ""
         flag: int = 1  # 1: header, 2: title, 3: charge/mult, 4: tail
-        with open(self._template_input, "r") as f:
+        with open(self._template_input) as f:
             for line in f.readlines():
                 if line.strip() == "":
                     flag += 1
@@ -89,7 +90,7 @@ class GaussianResult(SingleFileResult):
         """
         # read atomic numbers
         atom_num = []
-        for i in range(math.ceil(int(line.split()[-1]) / 6.0)):
+        for _ in range(math.ceil(int(line.split()[-1]) / 6.0)):
             atom_num += f.readline().split()
         self.atoms = element_data.get_symbols(np.array(atom_num, dtype=int))
         # read coordinates
@@ -97,7 +98,7 @@ class GaussianResult(SingleFileResult):
             if "Current cartesian coordinates" in line:
                 break
         coord = []
-        for i in range(math.ceil(int(line.split()[-1]) / 5.0)):
+        for _ in range(math.ceil(int(line.split()[-1]) / 5.0)):
             coord += f.readline().split()
         self.coord = np.array(coord, dtype=float).reshape((-1, 3))
         # read masses
@@ -105,7 +106,7 @@ class GaussianResult(SingleFileResult):
             if "Real atomic weights" in line:
                 break
         mass = []
-        for i in range(math.ceil(int(line.split()[-1]) / 5.0)):
+        for _ in range(math.ceil(int(line.split()[-1]) / 5.0)):
             mass += f.readline().split()
         self.mass = np.array(mass, dtype=float)
 

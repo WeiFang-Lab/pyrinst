@@ -1,4 +1,7 @@
 import inspect
+import os
+import shutil
+import subprocess
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from enum import IntEnum
@@ -7,6 +10,9 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
+
+from pyrinst.utils.elements import element_data
+from pyrinst.utils.units import Mass
 
 if TYPE_CHECKING:
     from pyrinst.geometries import Geometry
@@ -60,19 +66,183 @@ class Potential(ABC):
         geom.H = res[2]
 
 
-#    def compute_hess_from_grad(self, geom: "Geometry") -> None:
-#        dim = geom.x.size
-#        geom_tmp = Geometry(geom.x, geom.symbols)
-#        res = np.empty((dim, dim), float)
-#        dx = np.zeros_like(geom.x)
-#        for i in range(dim):
-#            dx.flat[i] = self.dx
-#            geom_tmp.x = geom.x + dx
-#            self.compute(geom_tmp)
-#            f1 = geom_tmp.G.ravel()
-#            geom_tmp.x = geom.x - dx
-#            self.compute(geom_tmp)
-#            f2 = geom_tmp.G.ravel()
-#            res[i] = (f1 - f2) * 0.5 / self.dx
-#            dx.flat[i] = 0
-#        geom.H = 0.5 * (res + res.T)
+# assumes that we are using some electronic structure program
+# which we call through an executable with some input that files we generate
+# and that gives back some output files which we parse
+
+
+class OnTheFlyDriver(Potential, ABC):
+    _runcmd: str = None
+    _args: str = ""
+
+    def __init__(self, atoms: list[str], template_input: str, runcmd: str = None, working_dir: str = ".", **_):
+        self.atoms = element_data.get_base_symbols(atoms)
+        self._template_input = template_input
+        self._runcmd: str = runcmd or os.environ.get("RUNCMD") or self._runcmd
+        self._sys_name: str = self.__class__.__name__.lower()
+        self._working_dir = os.path.abspath(working_dir)
+        self._max_tracker: int | None = None
+        self._folder: str = ""
+        if self._working_dir != os.getcwd():
+            shutil.rmtree(self._working_dir, ignore_errors=True)
+        os.makedirs(self._working_dir, exist_ok=True)
+        self._tracker: int = 0
+        self._super_tracker: int = 0
+
+    def __call__(self, x: NDArray, task: Task = Task.GRAD) -> tuple[float, NDArray | None, NDArray | None]:
+        self._update_tracker()
+        self.generate_input(x, task)
+        runcmd: str = f"cd {self._folder}; {self._runcmd} {self._args}"
+        subprocess.run(runcmd, capture_output=True, check=True, shell=True)
+        return self.parse_output()
+
+    def compute(self, geom: "Geometry", task: Task = Task.GRAD):
+        if geom.x.ndim == 3:
+            self._max_tracker = len(geom.x)
+        super().compute(geom, task)
+
+    def _update_tracker(self):
+        if self._max_tracker is None:
+            self._folder = f"{self._working_dir}/{self._tracker}"
+        else:
+            if self._tracker >= self._max_tracker:
+                self._super_tracker += 1
+                self._tracker = 0
+            self._folder = f"{self._working_dir}/{self._super_tracker}/{self._tracker}"
+        self._tracker += 1
+        os.makedirs(self._folder)
+
+    @abstractmethod
+    def generate_input(self, x: NDArray, task: Task = Task.GRAD):
+        """Generate input files for the electronic structure calculation."""
+
+    @abstractmethod
+    def parse_output(self):
+        """Parse the output of the electronic structure calculation."""
+
+
+class OnTheFlyResult(ABC):
+    """
+    Abstract class that reads the results from the output file(s).
+
+    Parameters
+    ----------
+    prefix : str
+        The prefix of the output file(s).
+    """
+
+    length_scale: float = 1.0
+    energy_scale: float = 1.0
+
+    def __init__(self, prefix):
+        self.coord = None
+        self.energy = None
+        self.grad = None
+        self.hess = None
+        self.atoms = None
+        self.mass = None
+        self.read(prefix)
+        self.convert_units()
+
+    @abstractmethod
+    def read(self, prefix):
+        """
+        Read all the attributes if found from the output file(s).
+
+        Parameters
+        ----------
+        prefix : str
+            The prefix of the output file(s).
+        """
+
+    def convert_units(self):
+        """
+        Convert the units of the attributes to the new units.
+        """
+        self.coord *= self.length_scale
+        self.energy *= self.energy_scale
+        if self.mass is not None:
+            self.mass *= Mass(1, "amu").get("au")
+        if self.grad is not None:
+            self.grad *= self.energy_scale / self.length_scale
+        if self.hess is not None:
+            self.hess *= self.energy_scale / self.length_scale**2
+
+
+class SingleFileResult(OnTheFlyResult):
+    """Abstract class that reads results from a single file, like Gaussian."""
+
+    ext = ".out"  # file extension
+    _patterns = (  # override it to match the output file
+        "coordinates",
+        "energy",
+        "gradient",
+        "hessian",
+    )
+
+    def __init__(self, prefix):
+        self._readers: tuple[Callable, ...] = (self._read_coord, self._read_energy, self._read_grad, self._read_hess)
+        super().__init__(prefix)
+
+    def read(self, prefix):
+        with open(prefix + self.ext) as f:
+            self._read_preamble(f)
+            for line in f:
+                for i, pattern in enumerate(self._patterns):
+                    if pattern in line:
+                        self._readers[i](f, line)
+                        break
+
+    def _read_preamble(self, f):
+        """
+        Read information from the preamble if needed.
+
+        Parameters
+        ----------
+        f : TextIOWrapper
+            File object that is reading the output file.
+        """
+
+    @abstractmethod
+    def _read_coord(self, f, line):
+        """
+        Parameters
+        ----------
+        f : TextIOWrapper
+            File object that is reading the output file.
+        line : str
+            The last line has been read.
+        """
+
+    @abstractmethod
+    def _read_energy(self, f, line):
+        """
+        Parameters
+        ----------
+        f : TextIOWrapper
+            File object that is reading the output file.
+        line : str
+            The last line has been read.
+        """
+
+    @abstractmethod
+    def _read_grad(self, f, line):
+        """
+        Parameters
+        ----------
+        f : TextIOWrapper
+            File object that is reading the output file.
+        line : str
+            The last line has been read.
+        """
+
+    @abstractmethod
+    def _read_hess(self, f, line):
+        """
+        Parameters
+        ----------
+        f : TextIOWrapper
+            File object that is reading the output file.
+        line : str
+            The last line has been read.
+        """
