@@ -88,13 +88,24 @@ class OnTheFlyDriver(Potential, ABC):
         os.makedirs(self._working_dir, exist_ok=True)
         self._tracker: int = 0
         self._super_tracker: int = 0
+        self._cached: [dict] = [{}, {}, {}]
 
     def __call__(self, x: NDArray, task: Task = Task.GRAD) -> tuple[float, NDArray | None, NDArray | None]:
+        hash_x = hash(x.tobytes())
+        if hash_x in self._cached[task]:
+            ans = [None] * 3
+            for i in range(task + 1):
+                ans[i] = self._cached[i][hash_x]
+            return tuple(ans)
         self._update_tracker()
         self.generate_input(x, task)
         runcmd: str = f"cd {self._folder}; {self._runcmd} {self._args}"
         subprocess.run(runcmd, capture_output=True, check=True, shell=True)
-        return self.parse_output()
+        res = self.parse_output()
+        self._cached[0][hash_x] = res.energy
+        self._cached[1][hash_x] = res.grad
+        self._cached[2][hash_x] = res.hess
+        return res.energy, res.grad, res.hess
 
     def compute(self, geom: "Geometry", task: Task = Task.GRAD):
         if geom.x.ndim == 3:

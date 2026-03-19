@@ -72,8 +72,7 @@ class Gaussian(OnTheFlyDriver):  # todo: not fully tested
 
     def parse_output(self):
         prefix: str = f"{self._folder}/{self._sys_name}"
-        res = GaussianResult(prefix)
-        return res.energy, res.grad, res.hess
+        return GaussianResult(prefix)
 
 
 class GaussianResult(SingleFileResult):
