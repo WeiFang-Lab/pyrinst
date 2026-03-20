@@ -112,16 +112,25 @@ def inertia(x: NDArray, mass=1, com=True):
     >>> # The principal moments of inertia are the eigenvalues of this tensor.
     >>> p_moments = np.linalg.eigvalsh(I)
     >>> print(np.round(I, 4))
-    [[ 1.0253  0.      0.    ]
-     [ 0.      0.0019  0.    ]
-     [ 0.      0.      1.0272]]
+    [[ 1.7717  0.      0.    ]
+     [ 0.      0.6159  0.    ]
+     [ 0.      0.      1.1559]]
     >>> print(np.round(p_moments, 4))
-    [0.0019 1.0253 1.0272]
+    [0.6159 1.1559 1.7717]
     """
     m = np.asarray(mass)  # convert to numpy arrays
     assert x.ndim == 2 or x.ndim == 3 and x.shape[-1] == 3
     if com:
         x = x - center_of_mass(x, m)  # avoid in-place modification
-    diag = np.sum(m * np.sum(x**2, axis=-1))
-    outer = np.sum(np.einsum("i,...ij,...ik->...jk", m, x, x), axis=tuple(range(x.ndim - 1)))
+    diag = np.einsum("i,...ij->", m, x**2)
+    outer = np.einsum("i,...ij,...ik->jk", m, x, x)
     return np.eye(3) * diag - outer
+
+
+if __name__ == "__main__":
+    coords = np.array([[0.0000, 0.0000, 0.1173], [0.0000, 0.7572, -0.4692], [0.0000, -0.7572, -0.4692]])
+    masses = np.array([15.999, 1.008, 1.008])
+    print(inertia(coords, masses))
+    # array([[ 1.77174176, -0.        , -0.        ],
+    #        [-0.        ,  0.61586445, -0.        ],
+    #        [-0.        , -0.        ,  1.15587731]])
