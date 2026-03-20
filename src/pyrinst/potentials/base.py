@@ -75,8 +75,8 @@ class OnTheFlyDriver(Potential, ABC):
     _runcmd: str = None
     _args: str = ""
 
-    def __init__(self, atoms: list[str], template_input: str, runcmd: str = None, working_dir: str = ".", **_):
-        self.atoms = element_data.get_base_symbols(atoms)
+    def __init__(self, symbols: list[str], template_input: str, runcmd: str = None, working_dir: str = ".", **_):
+        self.symbols = element_data.get_base_symbols(symbols)
         self._template_input = template_input
         self._runcmd: str = runcmd or os.environ.get("RUNCMD") or self._runcmd
         self._sys_name: str = self.__class__.__name__.lower()
@@ -150,7 +150,7 @@ class OnTheFlyResult(ABC):
         self.energy = None
         self.grad = None
         self.hess = None
-        self.atoms = None
+        self.symbols = None
         self.mass = None
         self.read(prefix)
         self.convert_units()

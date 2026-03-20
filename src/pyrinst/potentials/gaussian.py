@@ -26,7 +26,7 @@ class Gaussian(OnTheFlyDriver):  # todo: not fully tested
         self._charge_mult: str = ""
         flag: int = 1  # 1: header, 2: title, 3: charge/mult, 4: tail
         with open(self._template_input) as f:
-            for line in f.readlines():
+            for line in f:
                 if line.strip() == "":
                     flag += 1
                     continue
@@ -59,7 +59,7 @@ class Gaussian(OnTheFlyDriver):  # todo: not fully tested
 
     def generate_input(self, x: NDArray, task: Task = Task.GRAD):
         input_file: str = f"{self._folder}/{self._input}"
-        assert len(x) == len(self.atoms)
+        assert len(x) == len(self.symbols)
         with open(input_file, "w") as f:
             for i in range(self._link):
                 f.write(self._header[i])
@@ -68,7 +68,7 @@ class Gaussian(OnTheFlyDriver):  # todo: not fully tested
                         f.write(f"{self._hess_cmd}\n")
                     elif task == Task.GRAD:
                         f.write(f"{self._grad_cmd}\n")
-                f.write(f"\n{self._title}\n{self._charge_mult}{lines(self.atoms, x)}\n\n{self._tail[i]}\n")
+                f.write(f"\n{self._title}\n{self._charge_mult}{lines(self.symbols, x)}\n\n{self._tail[i]}\n")
 
     def parse_output(self):
         prefix: str = f"{self._folder}/{self._sys_name}"
@@ -92,7 +92,7 @@ class GaussianResult(SingleFileResult):
         atom_num = []
         for _ in range(math.ceil(int(line.split()[-1]) / 6.0)):
             atom_num += f.readline().split()
-        self.atoms = element_data.get_symbols(np.array(atom_num, dtype=int))
+        self.symbols = element_data.get_symbols(np.array(atom_num, dtype=int))
         # read coordinates
         for line in f:
             if "Current cartesian coordinates" in line:
