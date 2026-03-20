@@ -92,7 +92,7 @@ class OnTheFlyDriver(Potential, ABC):
 
     def __call__(self, x: NDArray, task: Task = Task.GRAD) -> tuple[float, NDArray | None, NDArray | None]:
         hash_x = hash(x.tobytes())
-        if hash_x in self._cached[task]:
+        if self._cached[task].get(hash_x, None) is not None:
             ans = [None] * 3
             for i in range(task + 1):
                 ans[i] = self._cached[i][hash_x]
