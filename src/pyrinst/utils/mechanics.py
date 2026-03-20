@@ -122,8 +122,10 @@ def inertia(x: NDArray, mass=1, com=True):
     assert x.ndim == 2 or x.ndim == 3 and x.shape[-1] == 3
     if com:
         x = x - center_of_mass(x, m)  # avoid in-place modification
-    diag = np.einsum("i,...ij->", m, x**2)
-    outer = np.einsum("i,...ij,...ik->jk", m, x, x)
+    if x.ndim == 2:
+        x = x[None, ...]
+    diag = np.sum(m[:, None] * x**2)
+    outer = np.einsum("i,bij,bik->jk", m, x, x)
     return np.eye(3) * diag - outer
 
 
