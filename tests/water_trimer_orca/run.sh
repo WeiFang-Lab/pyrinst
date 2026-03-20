@@ -7,6 +7,7 @@
 
 set -e
 
+module load orca/6.1.1
 ORCA=$(which orca)
 
 T=300
@@ -14,10 +15,9 @@ N=32
 
 export PYTHONBUFFERED=1
 
-
-optimize.py -P orca -F header.txt --workingdir beads -g 3e-4 --maxstep 0.1 --mode min min_guess.xyz -o min_opt.xyz --runcmd ${ORCA} > min_opt.out
-optimize.py -P orca -F header.txt --workingdir beads -g 3e-4 --maxstep 0.1 --mode ts ts_guess.xyz -o ts_opt.xyz --runcmd ${ORCA} -l min_opt.pkl > ts_opt.out
-optimize.py -P orca -F header.txt --workingdir beads -g 3e-4 --maxstep 0.1 --mode inst TSopt.pkl -T $T -N $N -o inst_$N.xyz -s 0.2 -F header --runcmd ${ORCA} > inst_$N.out
+optimize.py -P orca -F header.txt --working-dir beads -g 3e-4 --maxstep 0.1 -p --mode min min_guess.xyz -o min_opt.xyz --runcmd ${ORCA} > min_opt.out
+optimize.py -P orca -F header.txt --working-dir beads -g 3e-4 --maxstep 0.1 -p --mode ts ts_guess.xyz -o ts_opt.xyz --runcmd ${ORCA} -l min_opt.pkl > ts_opt.out
+optimize.py -P orca -F header.txt --working-dir beads -g 3e-4 --maxstep 0.1 -p --mode inst ts_opt.pkl -T $T -N $N -o inst_$N.xyz -s 0.2 -F header.txt --runcmd ${ORCA} > inst_$N.out
 
 echo "Instanton calculation completed! "
 echo ""
