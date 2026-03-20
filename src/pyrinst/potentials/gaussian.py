@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 from pyrinst.io.xyz import lines
 from pyrinst.utils.elements import element_data
 
-from .base import OnTheFlyDriver, SingleFileResult
+from .base import OnTheFlyDriver, SingleFileResult, Task
 
 log = logging.getLogger(__name__)
 
@@ -57,16 +57,16 @@ class Gaussian(OnTheFlyDriver):  # todo: not fully tested
         self._output: str = f"{self._sys_name}.log"
         self._args: str = f"< {self._input} > {self._output} ; formchk {self._sys_name}.chk"
 
-    def generate_input(self, x: NDArray, calc_grad: bool = True, calc_hess: bool = True):
+    def generate_input(self, x: NDArray, task: Task = Task.GRAD):
         input_file: str = f"{self._folder}/{self._input}"
         assert len(x) == len(self.atoms)
         with open(input_file, "w") as f:
             for i in range(self._link):
                 f.write(self._header[i])
                 if i == self._link - 1:
-                    if calc_hess:
+                    if task == Task.FREQ:
                         f.write(f"{self._hess_cmd}\n")
-                    elif calc_grad:
+                    elif task == Task.GRAD:
                         f.write(f"{self._grad_cmd}\n")
                 f.write(f"\n{self._title}\n{self._charge_mult}{lines(self.atoms, x)}\n\n{self._tail[i]}\n")
 
