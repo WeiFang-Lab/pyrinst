@@ -15,7 +15,7 @@ from pyrinst.io.formats import Formats
 from pyrinst.io.logging_config import setup_logging
 from pyrinst.io.xyz import load
 from pyrinst.opt import OPTIMIZER_REGISTRY
-from pyrinst.potentials import BUILTIN_POTENTIALS, POTENTIAL_REGISTRY
+from pyrinst.potentials import BUILTIN_POTENTIALS, POTENTIAL_REGISTRY, FixAtom
 from pyrinst.thermo import analyze
 from pyrinst.utils.coordinates import is_linear
 from pyrinst.utils.units import Temperature
@@ -40,6 +40,15 @@ def main():
         "--phase", choices=[p.value for p in PhaseType], default=PhaseType.GAS, help="Phase of the system"
     )
     parser.add_argument("-l", "--link", nargs="*", default=[], help="Pass min/TS here when optimizing TS/instanton.")
+    parser.add_argument(
+        "--cell",
+        nargs="+",
+        type=float,
+        help="Unit cell for systems with periodic boundy condidtions, specified either with 3 numbers (cubic cell), "
+        "or 9 numbers (abc vectors). Used only by VASP wrapper currently.",
+    )
+    parser.add_argument("--fix", help="xyz file containing the atoms whose positions are fixed.")
+    parser.add_argument("--dx", default=(None, 0.01), help="Finite difference step size for fixed atoms.")
     parser.add_argument("-P", "--Potential", type=str.lower, required=True, help="Specify the backend Potential.")
     parser.add_argument("--plugin", help="Custom potential module path.")
     parser.add_argument(
@@ -47,9 +56,18 @@ def main():
         "--mainInputFile",
         help="""Main input file (for a SCF calculation):
       1. vasp: INCAR;
-      2. gaussian: single-point input file without the geometry;
+      2. gaussian/orca: single-point input file without the geometry;
       3. custom: json file with parameters for initializing the PES class.
     This is also used by custom pes as the input in the json format.""",
+    )
+    parser.add_argument(
+        "-A",
+        "--additionalFiles",
+        nargs="+",
+        help="""Additional files needed for the electronic structure calculation.
+    These files will be copied to every directory where the electronic structure calculation is running.
+    Currently implemented for:
+      1. vasp: POTCAR (one can set up the VASP_PP_PATH system variable instead), KPOINTS, vdw_kernel.bindat.""",
     )
     parser.add_argument(
         "--runcmd",
@@ -103,6 +121,7 @@ def main():
     if key in BUILTIN_POTENTIALS:
         kwargs = vars(args)
         kwargs["template_input"] = kwargs["mainInputFile"]
+        kwargs["add_files"] = kwargs["additionalFiles"]
         if key == "mace":
             kwargs["model_paths"] = kwargs["mainInputFile"]
         pes = pot_cls(symbols, **kwargs)
@@ -118,6 +137,9 @@ def main():
                 raise ValueError(f"Unknown input file format: {args.mainInputFile}")
         else:
             pes = pot_cls()
+    if args.fix:
+        _, x_fix, _ = load(args.fix, energy_pattern=False)
+        pes = FixAtom(pes, x_fix, dx=args.dx)
 
     if ext != ".pkl":
         match args.phase:
