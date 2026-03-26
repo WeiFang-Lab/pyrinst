@@ -48,7 +48,9 @@ def main():
         "or 9 numbers (abc vectors). Used only by VASP wrapper currently.",
     )
     parser.add_argument("--fix", help="xyz file containing the atoms whose positions are fixed.")
-    parser.add_argument("--dx", default=(None, 0.01), help="Finite difference step size for fixed atoms.")
+    parser.add_argument(
+        "--dx", nargs=2, default=[-1, 0.01], type=float, help="Finite difference step size for fixed atoms."
+    )
     parser.add_argument("-P", "--Potential", type=str.lower, required=True, help="Specify the backend Potential.")
     parser.add_argument("--plugin", help="Custom potential module path.")
     parser.add_argument(
@@ -139,6 +141,8 @@ def main():
             pes = pot_cls()
     if args.fix:
         _, x_fix, _ = load(args.fix, energy_pattern=False)
+        args.dx[0] = None if args.dx[0] < 0 else args.dx[0]
+        args.dx[1] = None if args.dx[1] < 0 else args.dx[1]
         pes = FixAtom(pes, x_fix, dx=args.dx)
 
     if ext != ".pkl":

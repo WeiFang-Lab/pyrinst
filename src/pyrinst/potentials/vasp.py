@@ -12,9 +12,14 @@ from .base import OnTheFlyDriver, OnTheFlyResult, Task
 
 
 class Vasp(OnTheFlyDriver):
-    def __init__(self, cell, add_files: Sequence[str], *args, **kwargs):
+    def __init__(self, *args, cell, add_files: Sequence[str], **kwargs):
         super().__init__(*args, **kwargs)
-        self._cell = cell
+        if len(cell) == 3:
+            self._cell = np.diag(cell)
+        elif len(cell) == 9:
+            self._cell = np.array(cell).reshape(3, 3)
+        else:
+            raise ValueError("Invalid unit cell input")
         self._hess_cmd: str = "IBRION=5; POTIM=0.01; NFREE=2\n"
 
         # Process additional input options
@@ -33,6 +38,7 @@ class Vasp(OnTheFlyDriver):
         if "KPOINTS" not in self._add_files:
             raise RuntimeError("KPOINTS file not provided")
         self.cwd = os.getcwd()
+        self._output: str = f"{self._sys_name}.out"
         self._args = f" > {self._output}"
 
     def compute(self, geom, task: Task = Task.GRAD):
@@ -53,7 +59,7 @@ class Vasp(OnTheFlyDriver):
         with open("INCAR", "w") as f:
             if task == Task.FREQ:
                 f.write("\n" + self._hess_command)
-            f.write(self.INCAR)
+            f.write(self.incar)
         self._gen_poscar(x)
 
         for file, content in self._add_files.items():
