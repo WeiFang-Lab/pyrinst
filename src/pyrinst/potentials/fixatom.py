@@ -24,7 +24,7 @@ class FixAtom(Potential):
             else:
                 res = list(self.potential(x, task - 2))
                 res[1] = grad_from_energy(x, lambda y: self.potential(y, task - 2)[0], self.grad_dx)
-                res[2] = hess_from_energy(x, lambda y: self.potential(y, task - 2)[1], self.hess_dx)
+                res[2] = hess_from_energy(x, lambda y: self.potential(y, task - 2)[0], self.hess_dx)
             res[1] = res[1][: -self.n_fix]
             res[2] = res[2][: -self.n_fix * 3, : -self.n_fix * 3]
         elif task == Task.GRAD:

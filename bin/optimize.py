@@ -140,9 +140,10 @@ def main():
         else:
             pes = pot_cls()
     if args.fix:
-        _, x_fix, _ = load(args.fix, energy_pattern=False)
+        symbols_fix, x_fix, _ = load(args.fix, energy_pattern=False)
         args.dx[0] = None if args.dx[0] < 0 else args.dx[0]
         args.dx[1] = None if args.dx[1] < 0 else args.dx[1]
+        pes.symbols = np.concat((pes.symbols, symbols_fix))
         pes = FixAtom(pes, x_fix, dx=args.dx)
 
     if ext != ".pkl":
