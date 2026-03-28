@@ -5,6 +5,7 @@ variables:
   CONDA_ENV_NAME: "/home/zyye/.conda/envs/pyrinst"
 
 before_script:
+  - module available 2>&1
   - module load miniconda3
   - conda activate $CONDA_ENV_NAME
   - echo "Current Conda Environment:"
