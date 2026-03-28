@@ -1,0 +1,23 @@
+stages:
+  - test
+
+variables:
+  CONDA_ENV_NAME: "/home/zyye/.conda/envs/pyrinst"
+
+before_script:
+  - module load miniconda3
+  - conda activate $CONDA_ENV_NAME
+  - echo "Current Conda Environment:"
+  - conda info --envs | grep '*'
+  - python --version
+  - pip install -e .
+
+unit_test:
+  stage: test
+  script:
+    - pytest tests/unittest
+
+# examples_test:
+#   stage: test
+#   script:
+#     - pytest examples/

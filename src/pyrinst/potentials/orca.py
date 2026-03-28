@@ -64,7 +64,7 @@ class OrcaResult(OnTheFlyResult):
     def _read_hess(self, f, line):
         dof: int = int(next(f).strip())
         self.hess = np.zeros((dof, dof))
-        for i in range(dof // 5):
+        for i in range((dof + 4) // 5):
             next(f)
             for j in range(dof):
                 self.hess[j, i * 5 : min((i + 1) * 5, dof)] = [float(d) for d in next(f).split()[1:]]

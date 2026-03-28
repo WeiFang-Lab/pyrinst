@@ -67,7 +67,7 @@ class MACE(Potential):
         arr = np.asarray(x, dtype=float).reshape(-1, 3) * Length(1, "au").get("A")
         self.atoms.set_positions(arr)
 
-        hess = self.calculator.get_hessian(atoms=self.atoms)
+        hess = self.atoms.calc.get_hessian(atoms=self.atoms)
         hess_2d = hess.reshape(3 * len(self.atoms), 3 * len(self.atoms))
 
         indices = np.arange(len(self.atoms))
