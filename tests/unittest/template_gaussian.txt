@@ -1,0 +1,8 @@
+%Chk=test.chk
+%Mem=2000MW
+%NProc=8
+# B3LYP/6-311++G** EmpiricalDispersion=GD3BJ Freq
+
+Freq
+
+0 1

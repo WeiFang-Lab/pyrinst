@@ -1,9 +1,18 @@
+import shutil
+from pathlib import Path
 import numpy as np
 import pytest
-from unittest.mock import patch, mock_open
-
+from unittest.mock import patch
 from pyrinst.potentials.base import Task
 from pyrinst.potentials.orca import Orca, OrcaResult
+
+
+@pytest.fixture
+def tmp_path():
+    p = Path.cwd() / "tmp_test"
+    p.mkdir(exist_ok=True, parents=True)
+    yield p
+    shutil.rmtree(p)
 
 
 @pytest.fixture
@@ -62,7 +71,7 @@ def test_orca_result(tmp_path, mock_engrad_content, mock_hess_content):
 
     res = OrcaResult(str(prefix))
 
-    assert res.symbols == ["O", "H"]
+    assert (res.symbols == ["O", "H"]).all()
     assert res.energy == -76.0
 
     expected_coord = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
@@ -75,24 +84,20 @@ def test_orca_result(tmp_path, mock_engrad_content, mock_hess_content):
     assert res.hess[0, 0] == 1.0
     assert res.hess[0, 5] == 6.0
 
-    expected_mass = np.array([15.999, 1.008]) * 1822.888486209 # amu to au approximately
-    # the units conversion scales mass by Mass(1, "amu").get("au")
-    # we just check shape and nonzero
+    # Verify mass shape and positivity
     assert res.mass.shape == (2,)
-    assert res.mass[0] > 0
-    assert res.mass[1] > 0
+    assert (res.mass > 0).all()
 
 
 @pytest.fixture
-def mock_orca_template(tmp_path):
-    template = tmp_path / "template.inp"
-    template.write_text("! UKS B3LYP Def2-SVP\n%maxcore 2000\n* xyz 0 1\n")
-    return str(template)
+def mock_orca_template():
+    return str(Path(__file__).parent / "template_orca.inp")
 
 
 def test_orca_generate_input(tmp_path, mock_orca_template):
     drv = Orca(symbols=["H", "H"], template_input=mock_orca_template, working_dir=str(tmp_path))
     drv._sys_name = "test"
+    drv._input = "test.inp"
     drv._folder = str(tmp_path)
 
     x = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.74]])

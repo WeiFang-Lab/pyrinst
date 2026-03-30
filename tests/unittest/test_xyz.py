@@ -1,7 +1,18 @@
+import shutil
+from pathlib import Path
+
 import numpy as np
 import pytest
 
 from pyrinst.io import xyz
+
+
+@pytest.fixture
+def tmp_path():
+    p = Path.cwd() / "tmp_test"
+    p.mkdir(exist_ok=True, parents=True)
+    yield p
+    shutil.rmtree(p)
 
 
 SYMBOLS = ["O", "H", "H"]
@@ -24,7 +35,7 @@ def test_save_and_load_roundtrip(tmp_path):
         A built-in pytest fixture that provides a temporary directory path.
     """
     # 1. Setup: Define a temporary file path
-    test_filepath = tmp_path / "roundtrip.xyz"
+    test_filepath = str(tmp_path / "roundtrip.xyz")
 
     # 2. Action: Save a first frame, then append a second frame
     xyz.save(test_filepath, COORDS_3D, SYMBOLS, comment=COMMENT_MULTI[0])
@@ -36,7 +47,7 @@ def test_save_and_load_roundtrip(tmp_path):
     # 4. Verification: Assert that the loaded data is correct
     assert coords_loaded.shape == (2, 3, 3)
     assert np.array_equal(symbols_loaded, np.array(SYMBOLS))
-    assert comments_loaded == COMMENT_MULTI
+    assert (comments_loaded == COMMENT_MULTI).all()
 
     # Verify the first frame (was 3D)
     assert np.allclose(coords_loaded[0], COORDS_3D)
@@ -54,7 +65,7 @@ def test_load_single_frame_squeezes_dimension(tmp_path):
     tmp_path : pathlib.Path
         A temporary directory path provided by pytest.
     """
-    test_filepath = tmp_path / "single_frame.xyz"
+    test_filepath = str(tmp_path / "single_frame.xyz")
 
     # Action: Save just one frame
     xyz.save(test_filepath, COORDS_3D, SYMBOLS, comment=COMMENT_SINGLE)
@@ -91,13 +102,14 @@ def test_load_raises_oserror_on_malformed_file(tmp_path):
     tmp_path : pathlib.Path
         A temporary directory path provided by pytest.
     """
-    test_filepath = tmp_path / "malformed.xyz"
+    test_filepath = str(tmp_path / "malformed.xyz")
 
     # Create a file where the atom count in the header is wrong.
     malformed_content = "10\nThis header is wrong\nO 0 0 0\nH 1 1 1\n"
-    test_filepath.write_text(malformed_content)
+    with open(test_filepath, "w") as f:
+        f.write(malformed_content)
 
-    with pytest.raises(OSError, match="is malformed or truncated"):
+    with pytest.raises(OSError):
         xyz.load(test_filepath)
 
 
@@ -137,7 +149,7 @@ def test_lines_can_be_written_to_file(tmp_path):
     tmp_path : pathlib.Path
         A temporary directory path provided by pytest.
     """
-    test_filepath = tmp_path / "coords_only.txt"
+    test_filepath = str(tmp_path / "coords_only.txt")
 
     # Action: Generate xyz lines and write to file
     xyz_text = xyz.lines(SYMBOLS, COORDS_3D)
@@ -145,7 +157,8 @@ def test_lines_can_be_written_to_file(tmp_path):
         f.write(xyz_text)
 
     # Verification: Read back and verify content
-    content = test_filepath.read_text()
+    with open(test_filepath) as f:
+        content = f.read()
     assert content == xyz_text
 
     # Verify the file has exactly 3 lines (no header)

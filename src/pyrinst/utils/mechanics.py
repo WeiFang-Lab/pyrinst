@@ -51,10 +51,10 @@ def center_of_mass(x, mass: float | NDArray = 1):
     >>> # Masses in atomic mass units (amu)
     >>> masses = np.array([15.999, 1.008, 1.008])
     >>> center_of_mass(coords, masses)
-    array([0.        , 0.        , 0.00001664])
+    array([0.        , 0.        , 0.05166669])
     """
     m = np.asarray(mass)
-    res: NDArray = np.average(x, weights=m, axis=-2)
+    res: NDArray = np.average(x, axis=-2) if np.isscalar(mass) else np.average(x, weights=m, axis=-2)
     if res.ndim == 2:
         return np.mean(res, axis=0)
     return res
@@ -118,7 +118,7 @@ def inertia(x: NDArray, mass=1, com=True):
     >>> print(np.round(p_moments, 4))
     [0.6159 1.1559 1.7717]
     """
-    m = np.asarray(mass)  # convert to numpy arrays
+    m = np.atleast_1d(mass)  # convert to numpy arrays
     assert x.ndim == 2 or x.ndim == 3 and x.shape[-1] == 3
     if com:
         x = x - center_of_mass(x, m)  # avoid in-place modification

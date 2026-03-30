@@ -18,7 +18,7 @@ def test_center_of_mass_water_docstring_example():
     coords = np.array([[0.0000, 0.0000, 0.1173], [0.0000, 0.7572, -0.4692], [0.0000, -0.7572, -0.4692]])
     # Masses in atomic mass units (amu)
     masses = np.array([15.999, 1.008, 1.008])
-    expected_com = np.array([0.0, 0.0, 0.00001664])
+    expected_com = np.array([0.0, 0.0, 0.05166669])
     com = center_of_mass(coords, masses)
     np.testing.assert_allclose(com, expected_com, atol=1e-7)
 
@@ -60,4 +60,3 @@ def test_inertia_com_false():
     # I = 2*eye - outer_sum = [[2, 0, 0], [0, 0, 0], [0, 0, 2]]
     expected_I = np.array([[2.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 2.0]])
     np.testing.assert_allclose(I, expected_I)
-
