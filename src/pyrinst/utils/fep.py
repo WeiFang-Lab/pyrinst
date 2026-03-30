@@ -1,5 +1,3 @@
-from warnings import deprecated
-
 import numpy as np
 from scipy import signal
 
@@ -47,29 +45,3 @@ def free_energy_perturbation(potential_energies, beta, maxlag=None, weights=1):
     deltaF_error = error_exp / (beta * mean_exp)
 
     return deltaF, deltaF_error
-
-
-# def ana(x):
-#     em2x = np.exp(-2 * x)
-#     return x + np.log(1 - em2x) - np.log(2 * x)
-#
-#
-# def dF0(ws, beta, N=24):
-#     hbfs = beta * ws / 2
-#     temp = np.arcsinh(hbfs / N) * N
-#     return np.sum(ana(temp)) / beta
-
-
-@deprecated("Use `Geometry` instead.")
-def dF(ws, beta, N=24):
-    hbfs = beta * ws / 2
-    temp = np.arcsinh(hbfs / N) * N
-    return np.sum(np.log(np.sinh(temp)) - np.log(hbfs)) / beta
-
-
-@deprecated("Use `Geometry` instead.")
-def to_complex(freqs):
-    """ """
-    real = np.where(freqs > 0, freqs, 0.0)
-    imag = np.where(freqs < 0, -freqs, 0.0)
-    return real + 1j * imag
