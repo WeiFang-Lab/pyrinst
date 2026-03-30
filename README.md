@@ -24,7 +24,7 @@ export PYTHONPATH="/path/to/pyrinst/src:$PYTHONPATH"
 conda create -n your_name python=3.13
 pip install cuequivariance==0.7.0 cuequivariance-torch==0.7.0 cuequivariance-ops-torch-cu12==0.7.0
 pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu126
-pip install mace_torch-0.3.14-py3-none-any.whl #这里的 .whl 是我们单独提供的一个包，基于官方 mace_torch-0.3.14 修改
+pip install pkgs/mace_torch-0.3.14-py3-none-any.whl #这里的 .whl 是我们单独提供的一个包，基于官方 mace_torch-0.3.14 修改
 ```
 
 需要注意的点有：
