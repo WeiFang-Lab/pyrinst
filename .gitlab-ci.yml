@@ -6,7 +6,7 @@ variables:
   CONDA_ENV_NAME: "/public/home/zyye/miniconda3/envs/pyrinst"
 
 before_script:
-  - export PATH="${CONDA_HOME}/bin:$PATH"
+  - source ${CONDA_HOME}/etc/profile.d/conda.sh
   - conda activate $CONDA_ENV_NAME
   - echo "Current Conda Environment:"
   - conda info --envs | grep '*'
