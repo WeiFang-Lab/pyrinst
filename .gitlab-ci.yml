@@ -8,10 +8,7 @@ variables:
 before_script:
   - source ${CONDA_HOME}/etc/profile.d/conda.sh
   - conda activate $CONDA_ENV_NAME
-  - echo "Current Conda Environment:"
-  - conda info --envs | grep '*'
-  - python --version
-  - pip install -e .
+  - pip install --no-build-isolation -e .
 
 unit_test:
   stage: test
