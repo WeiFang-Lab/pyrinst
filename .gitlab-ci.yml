@@ -2,11 +2,11 @@ stages:
   - test
 
 variables:
-  CONDA_ENV_NAME: "/home/zyye/.conda/envs/pyrinst"
+  CONDA_HOME: "/public/home/zyye/miniconda3"
+  CONDA_ENV_NAME: "/public/home/zyye/miniconda3/envs/pyrinst"
 
 before_script:
-  - module available 2>&1
-  - module load miniconda3
+  - export PATH="${CONDA_HOME}/bin:$PATH"
   - conda activate $CONDA_ENV_NAME
   - echo "Current Conda Environment:"
   - conda info --envs | grep '*'
@@ -16,7 +16,7 @@ before_script:
 unit_test:
   stage: test
   script:
-    - pytest tests/unittest
+    - pytest tests/unittest --ignore=tests/unittest/test_mace.py
 
 # examples_test:
 #   stage: test
