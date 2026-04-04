@@ -74,7 +74,7 @@ class NewtonRaphson:
         maxiter -- maximum number of overall iterations
         callback -- a user-supplied function called as callback(x,y) after each iteration
         """
-        self.potential.compute(data, task=Task.FREQ)
+        self.potential.compute(data, task=Task.FREQ)  # todo: prevent redundant computation
         xt = [data.x.copy()]
         n_digit = int(np.log10(maxiter)) + 1
         for i in range(maxiter):

@@ -25,7 +25,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="Initial guess for the optimization in xyz, txt, or pkl format.")
     parser.add_argument("-o", "--output", default="opt_geom", help="Final optimized geometry.")
-    parser.add_argument("-v", "--verbose", type=bool, help="Verbosity level.")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Verbosity level.")
     temp_group = parser.add_mutually_exclusive_group()
     temp_group.add_argument("-T", "--Temp", type=float, help="Temperature in K")
     temp_group.add_argument("-b", "--beta", type=float, help="Inverse temperature in whatever unit system you're using")
@@ -101,8 +101,12 @@ def main():
     prefix, ext = os.path.splitext(args.output)
     if ext in {".xyz", ".txt", ".pkl"}:
         args.output = prefix
-    setup_logging(verbose=args.verbose, log_file=f"{prefix}.log", result_file=f"{prefix}.out")
-    log = logging.getLogger()
+    setup_logging(
+        verbose=args.verbose,
+        log_file=f"{prefix}.log",
+        err_file=f"{prefix}.err",
+    )
+    log = logging.getLogger(__name__)
     prefix, ext = os.path.splitext(args.input)
 
     # read input file

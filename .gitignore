@@ -207,6 +207,7 @@ pytest*
 
 *.log
 *.out
+*.err
 *.txt
 *.pkl
 *.xyz

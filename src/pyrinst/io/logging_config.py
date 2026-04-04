@@ -11,43 +11,35 @@ import logging.config
 import sys
 from pathlib import Path
 
-# Define the custom "RESULT" level and attach it to the Logger class
-RESULT_LEVEL_NUM = 25
-logging.addLevelName(RESULT_LEVEL_NUM, "RESULT")
 
 
-def result(self, message, *args, **kws):
+def log_exception(exc_type, exc_value, exc_traceback):
     """
-    Log a message with severity 'RESULT'.
-
-    To use this, you must first call logging.addLevelName().
-
-    Parameters
-    ----------
-    message : str
-        The message to be logged.
-    *args : tuple
-        Variable length argument list.
-    **kws : dict
-        Arbitrary keyword arguments.
+    Log an unhandled exception using the logging system.
     """
-    if self.isEnabledFor(RESULT_LEVEL_NUM):
-        # pylint: disable=protected-access
-        self._log(RESULT_LEVEL_NUM, message, args, **kws)
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
 
-
-logging.Logger.result = result
+    logging.error(
+        "Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback)
+    )
 
 
 # The main setup function using dictConfig
-def setup_logging(verbose=False, log_file="run.log", result_file="run.result"):
+def setup_logging(
+    verbose=False,
+    log_file="run.log",
+    err_file="run.err",
+    console=True,
+):
     """
     Set up the logging configuration for the entire application.
 
-    This function configures three handlers:
+    This function configures several handlers:
     1. A stream handler to print logs to the console (stdout).
-    2. A file handler to save all logs to a main log file.
-    3. A file handler to save only 'RESULT' level logs to a results file.
+    2. A file handler to save all logs to a main log file (.log).
+    3. A file handler to capture warnings and exceptions to an .err file.
 
     The verbosity of the console and main log file is controlled by the
     `verbose` flag.
@@ -60,38 +52,27 @@ def setup_logging(verbose=False, log_file="run.log", result_file="run.result"):
     log_file : str or pathlib.Path, optional
         Path to the main log file which stores all log records.
         (default is "run.log").
-    result_file : str or pathlib.Path, optional
-        Path to the results file which stores only 'RESULT' level records.
-        (default is "run.result").
-
-    Examples
-    --------
-    Here is how to use it in your main application entry point:
-
-    >>> import argparse
-    >>> from logging_setup import setup_logging
-    ...
-    >>> if __name__ == "__main__":
-    ...     parser = argparse.ArgumentParser()
-    ...     parser.add_argument("-v", "--verbose", action="store_true")
-    ...     parser.add_argument("--basename", default="run")
-    ...     args = parser.parse_args()
-    ...
-    ...     setup_logging(
-    ...         verbose=args.verbose,
-    ...         log_file=f"{args.basename}.log",
-    ...         result_file=f"{args.basename}.result"
-    ...     )
-    ...
-    ...     log = logging.getLogger(__name__)
-    ...     log.info("Logging is set up.")
-
+    err_file : str or pathlib.Path, optional
+        Path to the file capturing warnings and unhandled exceptions.
+        (default is "run.err").
+    console : bool, optional
+        If True, output is also sent to the console (default is True).
     """
-    # Ensure log directories exist
-    Path(log_file).parent.mkdir(parents=True, exist_ok=True)
-    Path(result_file).parent.mkdir(parents=True, exist_ok=True)
-
     console_level = "DEBUG" if verbose else "INFO"
+    active_handlers = []
+    warning_handlers = []
+
+    if console:
+        active_handlers.append("console")
+        warning_handlers.append("console")
+
+    if verbose:
+        # Ensure log directories exist
+        Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+        Path(err_file).parent.mkdir(parents=True, exist_ok=True)
+        
+        active_handlers.extend(["main_log_file", "err_file"])
+        warning_handlers.append("err_file")
 
     LOGGING_CONFIG = {
         "version": 1,
@@ -110,30 +91,44 @@ def setup_logging(verbose=False, log_file="run.log", result_file="run.result"):
                 "formatter": "console_formatter",
                 "stream": sys.stdout,
             },
-            # Handler for the main log file (mirrors console)
-            "main_log_file": {
-                "class": "logging.FileHandler",
-                "level": console_level,
-                "formatter": "file_formatter",
-                "filename": log_file,
-                "mode": "w",
-                "encoding": "utf-8",
-            },
-            # Handler for the dedicated results file
-            "result_file": {
-                "class": "logging.FileHandler",
-                "level": "RESULT",  # Only captures RESULT level
-                "formatter": "console_formatter",  # Use simple format
-                "filename": result_file,
-                "mode": "w",
-                "encoding": "utf-8",
+        },
+        "loggers": {
+            # Specific logger for warnings captured by logging.captureWarnings(True)
+            "py.warnings": {
+                "handlers": warning_handlers,
+                "level": "WARNING",
+                "propagate": False,
             },
         },
         "root": {
-            "level": "DEBUG",  # Lowest level to capture all messages
-            "handlers": ["console", "main_log_file", "result_file"],
+            "level": "DEBUG",
+            "handlers": active_handlers,
         },
     }
 
+    if verbose:
+        LOGGING_CONFIG["handlers"]["main_log_file"] = {
+            "class": "logging.FileHandler",
+            "level": console_level,
+            "formatter": "file_formatter",
+            "filename": log_file,
+            "mode": "w",
+            "encoding": "utf-8",
+        }
+        LOGGING_CONFIG["handlers"]["err_file"] = {
+            "class": "logging.FileHandler",
+            "level": "WARNING",
+            "formatter": "file_formatter",
+            "filename": err_file,
+            "mode": "w",
+            "encoding": "utf-8",
+        }
+
     logging.config.dictConfig(LOGGING_CONFIG)
+
+    # Capture standard warnings
+    logging.captureWarnings(True)
+
+    # Capture unhandled exceptions
+    sys.excepthook = log_exception
     
