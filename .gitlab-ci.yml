@@ -2,8 +2,8 @@ stages:
   - test
 
 variables:
-  CONDA_HOME: "/public/home/zyye/miniconda3"
-  CONDA_ENV_NAME: "/public/home/zyye/miniconda3/envs/pyrinst"
+  CONDA_HOME: $INTERNAL_CONDA_HOME
+  CONDA_ENV_NAME: $INTERNAL_CONDA_ENV
 
 before_script:
   - source ${CONDA_HOME}/etc/profile.d/conda.sh
