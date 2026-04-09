@@ -72,6 +72,10 @@ def main():
       1. vasp: POTCAR (one can set up the VASP_PP_PATH system variable instead), KPOINTS, vdw_kernel.bindat.""",
     )
     parser.add_argument(
+        "--hess-method",
+        help="Command for calculating the hessian in the electronic structure code.",
+    )
+    parser.add_argument(
         "--runcmd",
         help="Bash command for running the electronic structure code. If not specified, "
         "the program will guess this based on the PES. You can specify with system the "

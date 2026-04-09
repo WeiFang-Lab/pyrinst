@@ -10,10 +10,14 @@ from .base import OnTheFlyDriver, OnTheFlyResult, Task
 class Orca(OnTheFlyDriver):
     _runcmd: str = "orca"
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, hess_method="", **kwargs):
         super().__init__(*args, **kwargs)
         self._grad_cmd: str = "! EnGrad\n"
-        self._hess_cmd: str = "! Freq\n"
+        self._hess_cmd: str = hess_method or "! Freq\n"
+        if not self._hess_cmd.startswith("!"):
+            self._hess_cmd = "! " + self._hess_cmd
+        if not self._hess_cmd.endswith("\n"):
+            self._hess_cmd += "\n"
         self._input: str = f"{self._sys_name}.inp"
         self._output: str = f"{self._sys_name}.out"
         self._args: str = f"{self._input} > {self._output}"
