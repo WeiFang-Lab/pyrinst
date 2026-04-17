@@ -18,12 +18,11 @@ Design Logic:
 
 import pytest
 
-# The module we are testing
-from pyrinst.utils import units
-
 # The database we are testing against
 from pyrinst.config import _unit_data
 
+# The module we are testing
+from pyrinst.utils import units
 
 # --- 1. Load the "source of truth" from the project's database ---
 # We will test that the units.py module can correctly use these factors.
@@ -46,7 +45,7 @@ FS_SI = REGISTRY['time']['fs']
 PS_SI = REGISTRY['time']['ps']
 
 KB_AU_HARTREE_PER_KELVIN = (
-    _unit_data.UNIT_REGISTRY['energy']['K'] / 
+    _unit_data.UNIT_REGISTRY['energy']['K'] /
     _unit_data.UNIT_REGISTRY['energy']['Hartree']
 )
 
@@ -83,11 +82,11 @@ class TestQuantityBase:
 
         # Check that it returned the correct class
         assert isinstance(e_ev, units.Energy)
-        
+
         # Check that the new object has the correct attributes
         assert e_ev.unit == "eV"
         assert e_ev.value == pytest.approx(e_hartree.get("eV"))
-        
+
         # Check that the original object is unchanged
         assert e_hartree.unit == "Hartree"
         assert e_hartree.value == 1.0
@@ -96,10 +95,9 @@ class TestQuantityBase:
         """Tests the __str__ method for a clean output."""
         e = units.Energy(2.5, "eV")
         assert str(e) == "2.5 eV"
-        
+
         # Test the 'g' formatting for large/small numbers
-        l = units.Length(1.0e-10, "m")
-        assert str(l) == "1e-10 m"
+        assert str(units.Length(1.0e-10, "m")) == "1e-10 m"
 
 
 class TestQuantitySubclasses:
@@ -161,38 +159,38 @@ class TestQuantitySubclasses:
     ]
 )
 def test_quantity_conversions(
-    Cls: type, 
-    value: float, 
-    from_unit: str, 
-    to_unit: str, 
+    cls: type,
+    value: float,
+    from_unit: str,
+    to_unit: str,
     expected: float
 ) -> None:
     """
     Tests a wide range of conversions for mathematical correctness.
-    
-    This parameterized test creates a Quantity object of type `Cls` and
+
+    This parameterized test creates a Quantity object of type `cls` and
     verifies that its `.get()` method produces the `expected` value.
     The expected values are calculated from the SI factors loaded from
     `_unit_data.py`, ensuring the test logic is self-consistent
     with the project's database.
     """
     # Create the object, e.g., units.Energy(1.0, 'hartree')
-    obj = Cls(value, from_unit)
-    
+    obj = cls(value, from_unit)
+
     # Perform the conversion, e.g., obj.get('ev')
     result = obj.get(to_unit)
-    
+
     # Check against the expected value
     assert result == pytest.approx(expected)
 
 class TestTemperature:
     """
     Unit tests for the static `Temperature` utility class.
-    
+
     These tests assume the `Temperature` class exists in `pyrinst.utils.units`
     and that it self-manages its own `_kb_au` constant.
     """
-    
+
     def test_to_beta_happy_path(self) -> None:
         """
         Tests the T (Kelvin) -> beta (1/Hartree) conversion.
@@ -200,7 +198,7 @@ class TestTemperature:
         temp_k = 300.0
         # This is the expected calculation: 1.0 / (T * Kb_au)
         expected_beta = 1.0 / (300.0 * KB_AU_HARTREE_PER_KELVIN)
-        
+
         # We call the static method on the units.Temperature class
         assert units.Temperature.to_beta(temp_k) == pytest.approx(expected_beta)
 
@@ -210,7 +208,7 @@ class TestTemperature:
         """
         beta_au = 1000.0  # An arbitrary internal beta value
         expected_temp = 1.0 / (1000.0 * KB_AU_HARTREE_PER_KELVIN)
-        
+
         assert units.Temperature.to_kelvin(beta_au) == pytest.approx(expected_temp)
 
     @pytest.mark.parametrize("temp_k", [1.0, 77.0, 298.15, 300.0, 1000.0])
@@ -223,7 +221,7 @@ class TestTemperature:
         # We test the class against itself.
         beta = units.Temperature.to_beta(temp_k)
         result_temp = units.Temperature.to_kelvin(beta)
-        
+
         assert result_temp == pytest.approx(temp_k)
 
     @pytest.mark.parametrize("beta_au", [100.0, 1052.79, 5000.0])
@@ -233,7 +231,7 @@ class TestTemperature:
         """
         temp = units.Temperature.to_kelvin(beta_au)
         result_beta = units.Temperature.to_beta(temp)
-        
+
         assert result_beta == pytest.approx(beta_au)
 
     @pytest.mark.parametrize("invalid_temp", [0.0, -100.0, -0.01])

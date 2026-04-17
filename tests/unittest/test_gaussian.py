@@ -1,10 +1,12 @@
 import shutil
 from pathlib import Path
+from unittest.mock import patch
+
 import numpy as np
 import pytest
-from unittest.mock import patch
-from pyrinst.potentials.gaussian import Gaussian, GaussianResult
+
 from pyrinst.potentials.base import Task
+from pyrinst.potentials.gaussian import Gaussian, GaussianResult
 from pyrinst.utils.units import Mass
 
 

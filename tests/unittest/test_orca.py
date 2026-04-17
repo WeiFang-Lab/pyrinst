@@ -1,8 +1,10 @@
 import shutil
 from pathlib import Path
+from unittest.mock import patch
+
 import numpy as np
 import pytest
-from unittest.mock import patch
+
 from pyrinst.potentials.base import Task
 from pyrinst.potentials.orca import Orca, OrcaResult
 

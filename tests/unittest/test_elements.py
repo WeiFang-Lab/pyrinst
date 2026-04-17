@@ -1,7 +1,7 @@
 # tests/test_elements.py
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 import pytest
@@ -9,7 +9,7 @@ import pytest
 from pyrinst.utils.elements import element_data
 
 # Define mock data at the module level for clarity and reuse.
-MOCK_DATA: Dict[str, Any] = {
+MOCK_DATA: dict[str, Any] = {
     "elements": {
         "H": {
             "atomicNumber": 1,
@@ -70,13 +70,13 @@ def mocked_element_data(monkeypatch: pytest.MonkeyPatch) -> None:
         # Case 1: Stable element, should use most abundant isotope's mass
         ("C", 12.0),
         ("H", 1.00782503223),
-        
+
         # Case 2: Unstable element, should use fallback top-level mass
         ("Tc", 96.90636),
-        
+
         # Case 3: Specific isotope via alias
         ("D", 2.01410177812),
-        
+
         # Case 4: Specific isotope via pattern
         ("C13", 13.00335483507),
         ("Tc98", 97.9072124), # Also test specific unstable isotope
@@ -180,9 +180,8 @@ def test_logging_for_invalid_symbol(
     caplog : pytest.LogCaptureFixture
         A built-in pytest fixture that captures logging output.
     """
-    with caplog.at_level(logging.ERROR):
-        with pytest.raises(KeyError):
-            element_data.get_mass("Xyz")
+    with caplog.at_level(logging.ERROR), pytest.raises(KeyError):
+        element_data.get_mass("Xyz")
 
     # Assert that the specific error message we expect is present in the logs.
     assert "not a valid element" in caplog.text
@@ -293,9 +292,8 @@ def test_logging_for_invalid_atomic_number(
     caplog : pytest.LogCaptureFixture
         A built-in pytest fixture that captures logging output.
     """
-    with caplog.at_level(logging.ERROR):
-        with pytest.raises(KeyError):
-            element_data.get_symbol(999)
+    with caplog.at_level(logging.ERROR), pytest.raises(KeyError):
+        element_data.get_symbol(999)
 
     # Assert that the specific error message we expect is present in the logs.
     assert "not found in database" in caplog.text
@@ -307,7 +305,7 @@ def test_get_masses_batch():
     """Tests the batch processing of get_masses."""
     symbols = ['C', 'D', 'C13', 'H']
     expected_masses = np.array([12.0, 2.014102, 13.003355, 1.007825])
-    
+
     actual_masses = element_data.get_masses(symbols)
 
     assert isinstance(actual_masses, np.ndarray)
@@ -318,9 +316,9 @@ def test_get_atomic_numbers_batch():
     """Tests the batch processing of get_atomic_numbers."""
     symbols = ['C', 'D', 'C13', 'H']
     expected_numbers = np.array([6, 1, 6, 1])
-    
+
     actual_numbers = element_data.get_atomic_numbers(symbols)
-    
+
     assert isinstance(actual_numbers, np.ndarray)
     assert np.array_equal(actual_numbers, expected_numbers)
 
@@ -329,9 +327,9 @@ def test_get_base_symbols_batch():
     """Tests the batch processing of get_base_symbols."""
     symbols = ['C', 'D', 'C13', 'H']
     expected_symbols = np.array(['C', 'H', 'C', 'H'])
-    
+
     actual_symbols = element_data.get_base_symbols(symbols)
-    
+
     assert isinstance(actual_symbols, np.ndarray)
     assert np.array_equal(actual_symbols, expected_symbols)
 
@@ -340,9 +338,9 @@ def test_get_symbols_batch():
     """Tests the batch processing of get_symbols."""
     atomic_numbers = [1, 1, 8, 6]
     expected_symbols = np.array(['H', 'H', 'O', 'C'])
-    
+
     actual_symbols = element_data.get_symbols(atomic_numbers)
-    
+
     assert isinstance(actual_symbols, np.ndarray)
     assert np.array_equal(actual_symbols, expected_symbols)
 
