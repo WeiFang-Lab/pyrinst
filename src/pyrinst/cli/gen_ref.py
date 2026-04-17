@@ -5,7 +5,6 @@ import numpy as np
 from pyrinst.geometries import HarmRef
 from pyrinst.io.formats import Formats
 from pyrinst.io.xyz import load
-from pyrinst.potentials import MACE
 from pyrinst.utils.coordinates import is_linear
 from pyrinst.utils.units import CM_1, KB
 
@@ -26,6 +25,11 @@ def main() -> None:
 
     symbols, x, _ = load(args.input, energy_pattern=False)
     if args.PES == "MACE":
+        try:
+            from pyrinst.potentials.mace import MACE
+        except ImportError as exc:
+            msg = "MACE backend is unavailable. Please install its optional dependencies before using pyrinst-gen-ref."
+            raise ImportError(msg) from exc
         mace_pes = MACE(
             symbols,
             model_paths=args.model_path,
