@@ -2,30 +2,55 @@
 
 ## 安装指南
 
-### 内测版本的临时安装指南
+### 兼容矩阵
 
-请用户在程序根目录下运行：
+| 类别 | 当前建议 |
+| --- | --- |
+| Python | 3.11-3.13 |
+| 核心依赖 | `numpy`、`scipy`、`matplotlib` |
+| 可选 MACE 支持 | 项目指定的 `pkgs/mace_torch-*.whl`，以及对应的 `torch` / CUDA 环境 |
+| 开发工具 | `pytest`、`ruff`、`build` |
+| 文档工具 | `sphinx`、`numpydoc` |
+
+### 基础安装
+
+如果只使用核心功能，请在项目根目录运行：
 
 ```bash
 pip install .
 ```
 
-来安装记录在`pyproject.toml`中的依赖。安装完成后，`pyrinst-gen-ref`、`pyrinst-sampling`、`pyrinst-fep-eval` 和 `pyrinst-optimize` 会自动作为命令行程序可用。
+安装完成后，`pyrinst-gen-ref`、`pyrinst-sampling`、`pyrinst-fep-eval` 和 `pyrinst-optimize` 会自动作为命令行程序可用。
 
-### 推荐环境配置 (针对 MACE )
-下面是一个验证过的环境配置步骤，用于支持 MACE 势能面计算：
+### 可选依赖分层
+
+常用安装方式如下：
 
 ```bash
-conda create -n your_name python=3.13
+pip install ".[dev]"
+pip install ".[docs]"
+```
+
+各层含义如下：
+
+- 默认安装 `pip install .` 只包含核心数值依赖，适合大多数非 MACE 工作流。
+- `.[dev]` 用于本地开发、测试和打包检查。
+- `.[docs]` 用于构建 Sphinx 文档。
+- MACE 不通过 `pyproject.toml` 自动安装；如需使用，请单独安装项目指定的 wheel。
+
+### 推荐环境配置（针对 MACE）
+
+下面是一套更接近当前项目实际使用场景的 MACE 环境配置：
+
+```bash
+conda create -n your_name python=3.11
 pip install cuequivariance==0.7.0 cuequivariance-torch==0.7.0 cuequivariance-ops-torch-cu12==0.7.0
 pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu126
 pip install pkgs/mace_torch-0.3.14-py3-none-any.whl #这里的 .whl 是我们单独提供的一个包，基于官方 mace_torch-0.3.14 修改
 ```
 
 需要注意的点有：
-- 如果使用其他镜像请仔细检查版本号是否一致
-- 目前仅建议在 x86 平台进行计算任务
-- 待补充。。。
+- PyRInst 不会自动拉取通用 `mace-torch`；如果你要使用 MACE，请只安装本项目提供或指定的 wheel。
 
 ### i-pi nvt-cc bug 修复
 目前 i-pi 的 nvt-cc 实现存在 bug 需要修复，位于 `ipi/engine/motion/dynamics.py` 的 `NVTCCIntegrator` 类的 `step` 方法，需要在 
@@ -40,7 +65,7 @@ self.nm.free_qstep()
 self.nm.free_qstep()
 ```
 
-在虚拟环境下，这个文件通常位于目录 `path/to/you/venv/lib/python3.13/site-packages/ipi/engine/motion/dynamics.py` 下，其中 `path/to/you/venv/` 是 conda 虚拟环境存放的目录，`python3.13/` 应当与实际安装的python 版本保持一致。
+在虚拟环境下，这个文件通常位于目录 `path/to/you/venv/lib/pythonX.Y/site-packages/ipi/engine/motion/dynamics.py` 下，其中 `path/to/you/venv/` 是 conda 虚拟环境存放的目录，`pythonX.Y/` 应当与你实际安装的 Python 版本保持一致。
 
 ## 使用工作流
 

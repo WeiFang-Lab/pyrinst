@@ -28,7 +28,10 @@ def main() -> None:
         try:
             from pyrinst.potentials.mace import MACE
         except ImportError as exc:
-            msg = "MACE backend is unavailable. Please install its optional dependencies before using pyrinst-gen-ref."
+            msg = (
+                "MACE backend is unavailable. Please install the project-provided MACE wheel "
+                "and its matching runtime environment before using pyrinst-gen-ref."
+            )
             raise ImportError(msg) from exc
         mace_pes = MACE(
             symbols,

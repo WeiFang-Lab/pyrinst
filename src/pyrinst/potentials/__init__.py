@@ -18,7 +18,7 @@ def __getattr__(name: str):
     if name == "MACE" and _MACE_IMPORT_ERROR is not None:
         msg = (
             "MACE backend is unavailable because its optional dependencies could not be imported. "
-            "Install the MACE/ASE stack first."
+            "Install the project-provided MACE wheel and its matching runtime environment first."
         )
         raise ImportError(msg) from _MACE_IMPORT_ERROR
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

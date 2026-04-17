@@ -5,7 +5,6 @@
 [build-system]
 requires = [
     "setuptools>=61.0",
-    "numpy>=2.0",       # NumPy (f2py) is needed. 
 ]
 build-backend = "setuptools.build_meta"
 
@@ -34,7 +33,7 @@ description = "A modern Python toolkit for instanton rate calculations. "
 readme = "README.md"
 
 # The Python versions your project supports.
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 
 # The license for your project.
 license = { file = "LICENSE" }
@@ -55,6 +54,8 @@ classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Chemistry",
     "Topic :: Scientific/Engineering :: Physics",
@@ -68,7 +69,17 @@ dependencies = [
     "numpy>=2.3",
     "scipy>=1.16",
     "matplotlib>=3.10",
-    "pyyaml>=6.0",      # For reading configuration files, e.g., input.yaml
+]
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2",
+    "pytest>=8.0",
+    "ruff>=0.11",
+]
+docs = [
+    "sphinx>=7.0",
+    "numpydoc>=1.8",
 ]
 
 # ==============================================================================
