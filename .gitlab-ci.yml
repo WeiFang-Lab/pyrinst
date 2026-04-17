@@ -1,19 +1,61 @@
 stages:
+  - lint
   - test
+  - package
+  - smoke
+  - docs
 
 variables:
   CONDA_HOME: $INTERNAL_CONDA_HOME
   CONDA_ENV_NAME: $INTERNAL_CONDA_ENV
 
-before_script:
-  - source ${CONDA_HOME}/etc/profile.d/conda.sh
-  - conda activate $CONDA_ENV_NAME
-  - pip install --no-build-isolation -e .
+default:
+  before_script:
+    - source ${CONDA_HOME}/etc/profile.d/conda.sh
+    - conda activate $CONDA_ENV_NAME
+
+lint:
+  stage: lint
+  script:
+    - pip install --no-build-isolation -e ".[dev]"
+    - ruff check .
 
 unit_test:
   stage: test
   script:
-    - pytest tests/unittest --ignore=tests/unittest/test_mace.py
+    - pip install --no-build-isolation -e ".[dev]"
+    - pytest tests/unittest
+
+package_build:
+  stage: package
+  script:
+    - pip install --no-build-isolation -e ".[dev]"
+    - python -m build --sdist --wheel --no-isolation
+    - twine check dist/*
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 7 days
+
+cli_smoke:
+  stage: smoke
+  needs:
+    - package_build
+  dependencies:
+    - package_build
+  script:
+    - pip install --no-build-isolation -e ".[dev]"
+    - bash tests/smoke/release_smoke_test.sh
+
+docs_build:
+  stage: docs
+  script:
+    - pip install --no-build-isolation -e ".[docs]"
+    - sphinx-build -b html docs/source docs/build/html
+  artifacts:
+    paths:
+      - docs/build/html/
+    expire_in: 7 days
 
 # examples_test:
 #   stage: test

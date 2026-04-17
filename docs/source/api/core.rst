@@ -1,28 +1,31 @@
-Core Functionality (``pyrinst.core``)
-=======================================
+Core Modules
+============
 
-.. automodule:: pyrinst.core.modes
+Geometry Models (``pyrinst.geometries``)
+----------------------------------------
+
+.. automodule:: pyrinst.geometries
    :members:
    :show-inheritance:
 
-Optimization (``pyrinst.core.opt``)
----------------------------------
+Thermodynamics (``pyrinst.thermo``)
+-----------------------------------
 
-.. automodule:: pyrinst.core.opt.optimizers
+.. automodule:: pyrinst.thermo
    :members:
    :show-inheritance:
 
-.. automodule:: pyrinst.core.opt.hessian
+Optimization (``pyrinst.opt``)
+------------------------------
+
+.. automodule:: pyrinst.opt.optimizers
    :members:
    :show-inheritance:
 
-.. automodule:: pyrinst.core.opt.projections
+.. automodule:: pyrinst.opt.hessian
    :members:
    :show-inheritance:
 
-Potential Energy Surface (``pyrinst.core.pes``)
----------------------------------
-
-.. automodule:: pyrinst.core.pes.abc
+.. automodule:: pyrinst.opt.projections
    :members:
    :show-inheritance:

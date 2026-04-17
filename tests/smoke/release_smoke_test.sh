@@ -2,13 +2,10 @@
 
 set -euo pipefail
 
-python -m pip install build
-python -m build --wheel --no-isolation
-
 python -m pip uninstall -y pyrinst || true
-python -m pip install --force-reinstall dist/*.whl
+python -m pip install --no-deps --force-reinstall dist/*.whl
 
-pyrinst-gen-ref --help
-pyrinst-sampling --help
-pyrinst-fep-eval --help
-pyrinst-optimize --help
+pyrinst-gen-ref --help >/dev/null
+pyrinst-sampling --help >/dev/null
+pyrinst-fep-eval --help >/dev/null
+pyrinst-optimize --help >/dev/null

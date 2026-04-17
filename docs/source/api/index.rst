@@ -9,5 +9,5 @@ This Chapter includes all APIs of PyRInst.
 
    core
    io
-   config
+   potentials
    utils

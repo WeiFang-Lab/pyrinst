@@ -1,5 +1,5 @@
 Utilities (``pyrinst.utils``)
-============================
+=============================
 
 .. automodule:: pyrinst.utils.coordinates
    :members:
@@ -16,7 +16,17 @@ Utilities (``pyrinst.utils``)
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: pyrinst.utils.logging_config
+.. automodule:: pyrinst.utils.units
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: pyrinst.utils.fep
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: pyrinst.utils.pimc
    :members:
    :undoc-members:
    :show-inheritance:

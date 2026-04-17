@@ -1,8 +1,12 @@
-import numpy as np
-import pytest
 from unittest.mock import MagicMock, patch
 
+import numpy as np
+import pytest
+
 from pyrinst.potentials.base import Task
+
+pytest.importorskip("ase")
+pytest.importorskip("mace.calculators")
 from pyrinst.potentials.mace import MACE
 from pyrinst.utils.units import Energy, Length
 
@@ -10,11 +14,17 @@ from pyrinst.utils.units import Energy, Length
 def test_mace_init():
     with patch("pyrinst.potentials.mace.MACECalculator") as mock_calc_class:
         mock_calc_class.return_value = "fake_calculator"
-        mace = MACE(symbols=["H", "H"], model_paths="fake_path")
+        mace = MACE(symbols=["H", "H"], model_paths="fake_path", device="cpu")
 
         assert mace.symbols == ["H", "H"]
         assert len(mace.atoms) == 2
         assert mace.atoms.calc == "fake_calculator"
+        mock_calc_class.assert_called_once_with(
+            model_paths="fake_path",
+            default_dtype="float64",
+            device="cpu",
+            enable_cueq=False,
+        )
 
 
 def test_mace_call():
@@ -22,7 +32,7 @@ def test_mace_call():
         mock_calc = MagicMock()
         mock_calc_class.return_value = mock_calc
 
-        mace = MACE(symbols=["H", "H"], model_paths="fake_path", calculator=mock_calc)
+        mace = MACE(symbols=["H", "H"], model_paths="fake_path", calculator=mock_calc, device="cpu")
 
         mace.atoms = MagicMock()
         mace.atoms.get_potential_energy.return_value = -1.0
@@ -33,14 +43,14 @@ def test_mace_call():
         x = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
         e, g, h = mace(x, task=Task.FREQ)
 
-        eV_to_Hartree = Energy(1.0, "eV").get("Hartree")
-        A_to_Bohr = Length(1.0, "A").get("Bohr")
+        ev_to_au = Energy(1.0, "eV").get("Hartree")
+        ang_to_au = Length(1.0, "A").get("Bohr")
 
-        assert e == -1.0 * eV_to_Hartree
-        expected_g = -np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]) * eV_to_Hartree / A_to_Bohr
+        assert e == -1.0 * ev_to_au
+        expected_g = -np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]) * ev_to_au / ang_to_au
         np.testing.assert_allclose(g, expected_g)
 
-        expected_h = np.ones((6, 6)) * eV_to_Hartree / (A_to_Bohr**2)
+        expected_h = np.ones((6, 6)) * ev_to_au / (ang_to_au**2)
         np.testing.assert_allclose(h, expected_h)
         assert h.shape == (6, 6)
 
@@ -51,7 +61,7 @@ def test_mace_freq_modes(mock_vib_data_class):
         mock_calc = MagicMock()
         mock_calc_class.return_value = mock_calc
 
-        mace = MACE(symbols=["H", "H"], model_paths="fake_path", calculator=mock_calc)
+        mace = MACE(symbols=["H", "H"], model_paths="fake_path", calculator=mock_calc, device="cpu")
         mace.atoms.calc.get_hessian = MagicMock(return_value=np.zeros((6, 6)))
 
         mock_vib_data = MagicMock()

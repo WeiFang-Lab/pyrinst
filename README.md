@@ -37,6 +37,7 @@ pip install ".[docs]"
 - `.[dev]` 用于本地开发、测试和打包检查。
 - `.[docs]` 用于构建 Sphinx 文档。
 - MACE 不通过 `pyproject.toml` 自动安装；如需使用，请单独安装项目指定的 wheel。
+- 默认 CI 只覆盖 CPU 路径；MACE/GPU 验证通过手动脚本执行。
 
 ### 推荐环境配置（针对 MACE）
 
@@ -51,6 +52,12 @@ pip install pkgs/mace_torch-0.3.14-py3-none-any.whl #这里的 .whl 是我们单
 
 需要注意的点有：
 - PyRInst 不会自动拉取通用 `mace-torch`；如果你要使用 MACE，请只安装本项目提供或指定的 wheel。
+- 默认 CI 中的 `test_mace.py` 仅用于 CPU 侧接口检查；真正的 GPU/MACE 验证请手动运行下面两个脚本：
+
+```bash
+bash tests/gpu/check_mace_env.sh
+PYRINST_MACE_MODEL=/abs/path/to/model.model bash tests/gpu/run_mace_release_checks.sh
+```
 
 ### i-pi nvt-cc bug 修复
 目前 i-pi 的 nvt-cc 实现存在 bug 需要修复，位于 `ipi/engine/motion/dynamics.py` 的 `NVTCCIntegrator` 类的 `step` 方法，需要在 
