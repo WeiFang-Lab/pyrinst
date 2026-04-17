@@ -15,9 +15,9 @@ N=32
 
 export PYTHONBUFFERED=1
 
-optimize.py -P orca -F header.txt --working-dir beads -g 3e-4 --maxstep 0.1 -p --mode min min_guess.xyz -o min_opt.xyz --runcmd ${ORCA} --hess-method NumFreq > min_opt.out
-optimize.py -P orca -F header.txt --working-dir beads -g 3e-4 --maxstep 0.1 -p --mode ts ts_guess.xyz -o ts_opt.xyz --runcmd ${ORCA} -l min_opt.pkl --hess-method NumFreq > ts_opt.out
-optimize.py -P orca -F header.txt --working-dir beads -g 3e-4 --maxstep 0.1 -p --mode inst ts_opt.pkl -T $T -N $N -o inst_$N.xyz -s 0.2 -F header.txt --runcmd ${ORCA} --hess-method NumFreq > inst_$N.out
+pyrinst-optimize -P orca -F header.txt --working-dir beads -g 3e-4 --maxstep 0.1 -p --mode min min_guess.xyz -o min_opt.xyz --runcmd ${ORCA} --hess-method NumFreq > min_opt.out
+pyrinst-optimize -P orca -F header.txt --working-dir beads -g 3e-4 --maxstep 0.1 -p --mode ts ts_guess.xyz -o ts_opt.xyz --runcmd ${ORCA} -l min_opt.pkl --hess-method NumFreq > ts_opt.out
+pyrinst-optimize -P orca -F header.txt --working-dir beads -g 3e-4 --maxstep 0.1 -p --mode inst ts_opt.pkl -T $T -N $N -o inst_$N.xyz -s 0.2 -F header.txt --runcmd ${ORCA} --hess-method NumFreq > inst_$N.out
 
 echo "Instanton calculation completed! "
 echo ""
@@ -34,4 +34,3 @@ echo "* Results for reference: "
 echo "*   barrier = 0.0404743 Eh = 1.10136 eV = 106.265 kJ/mol = 25.398 kcal/mol"
 echo "*   kEyring = 3.3529094294703793e-21 = 0.0001386138804827874 / s"
 echo "*   log10(kEyring / s^-1) = -3.858193278272231"
-

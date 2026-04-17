@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import argparse
 import pickle
 
@@ -12,14 +10,13 @@ from pyrinst.utils.fep import free_energy_perturbation
 from pyrinst.utils.units import EV, KB
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Generate distribution via quasi random number.")
     parser.add_argument("input", type=str, help="pkl file.")
     parser.add_argument("--prefix", type=str, default="simulation.pos", help="prefix of beads filename")
     parser.add_argument("-n", "--nbeads", type=int, default=24, help="The number of beads.")
     args = parser.parse_args()
 
-    # load beads energies and harm energies
     with open(args.input, "rb") as f:
         input_geom = pickle.load(f)
 

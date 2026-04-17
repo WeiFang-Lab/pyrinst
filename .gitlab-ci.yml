@@ -15,6 +15,14 @@ unit_test:
   script:
     - pytest tests/unittest --ignore=tests/unittest/test_mace.py
 
+release_smoke_test:
+  stage: test
+  before_script:
+    - source ${CONDA_HOME}/etc/profile.d/conda.sh
+    - conda activate $CONDA_ENV_NAME
+  script:
+    - bash tests/smoke/release_smoke_test.sh
+
 # examples_test:
 #   stage: test
 #   script:

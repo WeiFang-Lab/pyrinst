@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import argparse
 
 import numpy as np
@@ -14,12 +12,11 @@ from pyrinst.utils.units import CM_1, KB
 HBAR: float = 1
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="Centroid structure in xyz format.")
     parser.add_argument("-o", "--output", default="ref", help="filename of reference pkl.")
     parser.add_argument("-P", "--PES", type=str, choices=("MACE",), help="Potential energy surface")
-    # parameters for mace calculator
     parser.add_argument("--model_path", help="path of MACE model path", type=str)
     parser.add_argument("--dtype", help="dtype of MACE model", type=str, default="float64")
     parser.add_argument("--device", help="device which model runs on", type=str, default="cuda")

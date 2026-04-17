@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import argparse
 import json
 import logging
@@ -21,7 +19,7 @@ from pyrinst.utils.coordinates import is_linear
 from pyrinst.utils.units import Temperature
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="Initial guess for the optimization in xyz, txt, or pkl format.")
     parser.add_argument("-o", "--output", default="opt_geom", help="Final optimized geometry.")
@@ -29,7 +27,6 @@ def main():
     temp_group = parser.add_mutually_exclusive_group()
     temp_group.add_argument("-T", "--Temp", type=float, help="Temperature in K")
     temp_group.add_argument("-b", "--beta", type=float, help="Inverse temperature in whatever unit system you're using")
-    # todo: case-insensitive
     parser.add_argument(
         "--mode",
         choices=GEOMETRY_REGISTRY.keys(),
@@ -113,7 +110,6 @@ def main():
     log = logging.getLogger(__name__)
     prefix, ext = os.path.splitext(args.input)
 
-    # read input file
     if ext == ".pkl":
         with open(args.input, "rb") as f:
             data = pickle.load(f)
@@ -166,7 +162,7 @@ def main():
             try:
                 m = next(getattr(pes, attr) for attr in ("masses", "mass", "m") if hasattr(pes, attr))
             except StopIteration:
-                msg: str = "Custom PES is missing a mass attribute. Expected one of: 'masses', 'mass', or 'm'."
+                msg = "Custom PES is missing a mass attribute. Expected one of: 'masses', 'mass', or 'm'."
                 raise AttributeError(msg) from None
             m = np.atleast_1d(m)
         else:
@@ -180,7 +176,6 @@ def main():
                 x.shape = (len(m), -1)
             data = GEOMETRY_REGISTRY[args.mode](x, symbols, n_zero=n_zero, masses=m)
 
-    # temperature
     if args.Temp is not None:
         temp: float | None = args.Temp
         beta: float | None = Temperature.to_beta(temp)

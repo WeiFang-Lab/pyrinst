@@ -85,10 +85,10 @@ dependencies = [
 # ==============================================================================
 # This section creates the command-line tools for your users.
 [project.scripts]
-pyrinst-fep-eval = "bin.fep_eval:main"
-pyrinst-gen-ref = "bin.gen_ref:main"
-pyrinst-optimize = "bin.optimize:main"
-pyrinst-sampling = "bin.sampling:main"
+pyrinst-fep-eval = "pyrinst.cli.fep_eval:main"
+pyrinst-gen-ref = "pyrinst.cli.gen_ref:main"
+pyrinst-optimize = "pyrinst.cli.optimize:main"
+pyrinst-sampling = "pyrinst.cli.sampling:main"
 
 # ==============================================================================
 # Tool-specific configurations

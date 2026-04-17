@@ -14,14 +14,14 @@ export GAUSS_SCRDIR=/tmp/GAU-zyye
 mkdir -p ${GAUSS_SCRDIR}
 
 echo "First optimize the stationary points"
-optimize.py -P Gaussian --working-dir beads -g 3e-3 --maxstep 0.1 H.xyz --mode min -o Hopt.xyz -F header_doublet --runcmd g16 > H.out
-optimize.py -P Gaussian --working-dir beads -g 3e-3 --maxstep 0.1 CH4.xyz --mode min -o CH4opt.xyz -F header_singlet --runcmd g16 > CH4.out
-optimize.py -P Gaussian --working-dir beads -g 3e-3 --maxstep 0.1 TS.xyz --mode ts -o TSopt.xyz -l Hopt.pkl CH4opt.pkl -F header_doublet --runcmd g16 > TS.out
+pyrinst-optimize -P Gaussian --working-dir beads -g 3e-3 --maxstep 0.1 H.xyz --mode min -o Hopt.xyz -F header_doublet --runcmd g16 > H.out
+pyrinst-optimize -P Gaussian --working-dir beads -g 3e-3 --maxstep 0.1 CH4.xyz --mode min -o CH4opt.xyz -F header_singlet --runcmd g16 > CH4.out
+pyrinst-optimize -P Gaussian --working-dir beads -g 3e-3 --maxstep 0.1 TS.xyz --mode ts -o TSopt.xyz -l Hopt.pkl CH4opt.pkl -F header_doublet --runcmd g16 > TS.out
 
 echo "Second calculate the instantons for N=16 and N=32"
 echo "  We generate the instanton initial guess by spreading around the TS"
-optimize.py -P Gaussian --working-dir beads -g 3e-3 --maxstep 0.1 --mode inst TSopt.pkl -T $T -N 16 -o inst_16.xyz -s 0.2 -F header_doublet --runcmd g16 > inst_16.out
-optimize.py -P Gaussian --working-dir beads -g 3e-3 --maxstep 0.1 --mode inst inst_16.pkl -T $T -N 32 -o inst_32.xyz -F header_doublet --runcmd g16 > inst_32.out
+pyrinst-optimize -P Gaussian --working-dir beads -g 3e-3 --maxstep 0.1 --mode inst TSopt.pkl -T $T -N 16 -o inst_16.xyz -s 0.2 -F header_doublet --runcmd g16 > inst_16.out
+pyrinst-optimize -P Gaussian --working-dir beads -g 3e-3 --maxstep 0.1 --mode inst inst_16.pkl -T $T -N 32 -o inst_32.xyz -F header_doublet --runcmd g16 > inst_32.out
 
 echo "Your results (N=32): "
 tail -n3 inst_32.out
@@ -31,4 +31,3 @@ echo "* kinst = 4.8127e-20 cm^3 / s"
 echo "* log10(kinst / (cm^3 s^-1)) = -19.31761"
 
 rm -rf ${GAUSS_SCRDIR}
-

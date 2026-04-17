@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import argparse
 import pickle
 
@@ -10,7 +8,7 @@ from pyrinst.io.xyz import save
 from pyrinst.utils.pimc import HarmFEP, InstFEP
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Generate distribution via quasi random number.")
     parser.add_argument("input", help="pkl file.")
     parser.add_argument("-T", type=float, default=300, help="Temperature (K).")
@@ -38,7 +36,6 @@ def main():
     sampled_nm_pos = polymer.sample_normal_modes(n_samples=args.N)
     sampled_bead_pos = polymer.get_cart_pos(nm_pos=sampled_nm_pos)
 
-    # refresh freqs and add harm_energies
     input_geom.freqs = polymer.freqs if type(input_geom) is HarmRef else polymer.freq_rp
     input_geom.harm_energies = polymer.harm_energies
     with open(args.input, "wb") as f:
@@ -46,16 +43,13 @@ def main():
 
     for bead_idx in range(args.nbeads):
         filename = f"{args.output}_{str(bead_idx).zfill(len(str(args.nbeads)))}.xyz"
-        # Extract positions for this bead across all samples
-        bead_positions = sampled_bead_pos[:, bead_idx, :]  # Shape: (N, natoms*3)
+        bead_positions = sampled_bead_pos[:, bead_idx, :]
 
-        # Create list of x
         x_list = []
         for sample_idx in range(args.N):
-            pos_3d = bead_positions[sample_idx].reshape(-1, 3)  # Shape: (natoms, 3)
-            x_list.append(pos_3d)  # Shape: (frames, natoms, 3)
+            pos_3d = bead_positions[sample_idx].reshape(-1, 3)
+            x_list.append(pos_3d)
 
-        # Write file
         save(filename, x_list, input_geom.symbols, comment=" ")
 
 
