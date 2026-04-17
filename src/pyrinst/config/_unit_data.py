@@ -6,6 +6,7 @@ It is not intended for direct use by end-users.
 """
 
 import collections.abc
+
 from scipy import constants as sc
 
 

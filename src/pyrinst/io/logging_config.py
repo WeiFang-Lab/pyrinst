@@ -12,7 +12,6 @@ import sys
 from pathlib import Path
 
 
-
 def log_exception(exc_type, exc_value, exc_traceback):
     """
     Log an unhandled exception using the logging system.
@@ -70,11 +69,11 @@ def setup_logging(
         # Ensure log directories exist
         Path(log_file).parent.mkdir(parents=True, exist_ok=True)
         Path(err_file).parent.mkdir(parents=True, exist_ok=True)
-        
+
         active_handlers.extend(["main_log_file", "err_file"])
         warning_handlers.append("err_file")
 
-    LOGGING_CONFIG = {
+    logging_config = {
         "version": 1,
         "disable_existing_loggers": False,
         "formatters": {
@@ -107,7 +106,7 @@ def setup_logging(
     }
 
     if verbose:
-        LOGGING_CONFIG["handlers"]["main_log_file"] = {
+        logging_config["handlers"]["main_log_file"] = {
             "class": "logging.FileHandler",
             "level": console_level,
             "formatter": "file_formatter",
@@ -115,7 +114,7 @@ def setup_logging(
             "mode": "w",
             "encoding": "utf-8",
         }
-        LOGGING_CONFIG["handlers"]["err_file"] = {
+        logging_config["handlers"]["err_file"] = {
             "class": "logging.FileHandler",
             "level": "WARNING",
             "formatter": "file_formatter",
@@ -124,11 +123,10 @@ def setup_logging(
             "encoding": "utf-8",
         }
 
-    logging.config.dictConfig(LOGGING_CONFIG)
+    logging.config.dictConfig(logging_config)
 
     # Capture standard warnings
     logging.captureWarnings(True)
 
     # Capture unhandled exceptions
     sys.excepthook = log_exception
-    

@@ -12,12 +12,13 @@
 #
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath('../../src/'))
 
 # -- Project information -----------------------------------------------------
 
 project = 'PyRInst'
-copyright = '2025, Wei Group'
+copy_right = '2025, Wei Group'
 author = 'Wei Group'
 
 # The full version, including alpha/beta/rc tags

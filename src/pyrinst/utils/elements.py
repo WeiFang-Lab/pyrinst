@@ -1,8 +1,9 @@
 import json
 import logging
 import re
+from collections.abc import Iterable
 from importlib import resources
-from typing import Any, Callable, Dict, Optional, Tuple, Union, Iterable
+from typing import Any
 
 import numpy as np
 
@@ -21,10 +22,10 @@ class ElementData:
 
     def __init__(self, data_path: str = 'atomic_data.json') -> None:
         """Initializes the ElementData object by loading data from a JSON file."""
-        self._elements: Dict[str, Any] = {}
-        self._aliases: Dict[str, Any] = {}
+        self._elements: dict[str, Any] = {}
+        self._aliases: dict[str, Any] = {}
         # This new dictionary will store the most abundant isotope for each element.
-        self._default_masses: Dict[str, float] = {}
+        self._default_masses: dict[str, float] = {}
         try:
             self._load_data(data_path)
             self._preprocess_data()  # Pre-calculate defaults after loading
@@ -60,7 +61,7 @@ class ElementData:
             len(self._elements),
             len(self._aliases),
         )
-    
+
     def _preprocess_data(self) -> None:
         """
         Pre-processes data to determine the default mass for each element.
@@ -73,7 +74,7 @@ class ElementData:
         for symbol, data in self._elements.items():
             isotopes = data.get('isotopes', {})
             default_mass = None
-            
+
             # Find most abundant isotope
             if isotopes:
                 most_abundant_isotope_num = None
@@ -83,7 +84,7 @@ class ElementData:
                     if composition > max_composition:
                         max_composition = composition
                         most_abundant_isotope_num = mass_number
-                
+
                 # If we found a valid abundant isotope, get its mass.
                 if most_abundant_isotope_num is not None:
                     default_mass = isotopes[most_abundant_isotope_num]['mass']
@@ -107,12 +108,12 @@ class ElementData:
                         "No default mass could be determined for element '%s'.",
                         symbol
                     )
-            
+
             if default_mass is not None:
                 self._default_masses[symbol] = default_mass
         logger.debug("Data preprocessing complete.")
-    
-    def _parse_symbol(self, symbol: str) -> Tuple[str, Optional[str]]:
+
+    def _parse_symbol(self, symbol: str) -> tuple[str, str | None]:
         """Parses a symbol to determine the base element and mass number.
 
         Parameters
@@ -208,16 +209,16 @@ class ElementData:
         if mass_number:
             try:
                 return self._elements[element]['isotopes'][mass_number]['mass']
-            except KeyError:
+            except KeyError as e:
                 logger.error("Isotope '%s-%s' not in database.", element, mass_number)
-                raise KeyError(f"Isotope '{symbol}' not found.")
+                raise KeyError(f"Isotope '{symbol}' not found.") from e
 
         # If a generic symbol is given, return the pre-calculated default mass.
         try:
             return self._default_masses[element]
-        except KeyError:
+        except KeyError as e:
             logger.error("No default mass available for element '%s'.", element)
-            raise KeyError(f"No default mass could be determined for element '{element}'.")
+            raise KeyError(f"No default mass could be determined for element '{element}'.") from e
 
     def get_atomic_number(self, symbol: str) -> int:
         """Gets the atomic number for any valid symbol.
@@ -332,7 +333,7 @@ class ElementData:
                     atomic_number,
                 )
                 return symbol
-        
+
         logger.error("Atomic number %d not found in database.", atomic_number)
         raise KeyError(f"Atomic number {atomic_number} not found in database.")
 

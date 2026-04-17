@@ -7,52 +7,52 @@ from pyrinst.utils.coordinates import mass_weight
 from pyrinst.utils.units import AMU, HBAR, KB
 
 
-def box_muller(U1, U2):
+def box_muller(u1, u2):
     """
     Box-Muller transformation,
-    a method to convert two independent uniform random variables (U1, U2)
+    a method to convert two independent uniform random variables (u1, u2)
     into two independent standard normal random variables.
     """
     # Add small epsilon to avoid log(0)
     epsilon = 1e-15
-    U1 = np.clip(U1, epsilon, 1.0 - epsilon)
-    R = np.sqrt(-2 * np.log(U1))
-    T = 2 * np.pi * U2
-    return R * np.cos(T), R * np.sin(T)
+    u1 = np.clip(u1, epsilon, 1.0 - epsilon)
+    r = np.sqrt(-2 * np.log(u1))
+    t = 2 * np.pi * u2
+    return r * np.cos(t), r * np.sin(t)
 
 
-def sobol_gaussian_sample(loc, scale, M0):
+def sobol_gaussian_sample(loc, scale, m0):
     """
     Generate Gaussian samples using Sobol sequences with Box-Muller transform.
 
     Parameters:
         loc: Mean values (can be multidimensional array)
         scale: Standard deviations (same shape as loc)
-        M0: Number of samples (must be a power of 2 for Sobol sequences)
+        m0: Number of samples (must be a power of 2 for Sobol sequences)
 
     Returns:
-        Samples with shape (M0, *loc.shape)
+        Samples with shape (m0, *loc.shape)
     """
     # Flatten the arrays for sampling
     loc_flat = np.array(loc).flatten()
     scale_flat = np.array(scale).flatten()
 
     d = len(loc_flat)
-    M = int(np.log2(M0))
+    m = int(np.log2(m0))
 
     # Generate Sobol sequences
     sampler = qmc.Sobol(d=2 * d, scramble=True)
-    samp = sampler.random_base2(M)
+    samp = sampler.random_base2(m)
 
     # Apply Box-Muller transform
-    Z1, Z2 = box_muller(samp[:, :d], samp[:, d:])
+    z1, _ = box_muller(samp[:, :d], samp[:, d:])
 
-    # Use Z1 for the samples (Z2 could be used for additional samples if needed)
-    samples = Z1 * scale_flat + loc_flat
+    # Use z1 for the samples (z2 could be used for additional samples if needed)
+    samples = z1 * scale_flat + loc_flat
 
     # Reshape back to original shape
     original_shape = np.array(loc).shape
-    return samples.reshape((2**M, *original_shape))
+    return samples.reshape((2**m, *original_shape))
 
 
 def mk_o_nm_matrix(nbeads):
@@ -69,7 +69,7 @@ def mk_o_nm_matrix(nbeads):
     return b2o_nm / np.sqrt(nbeads)
 
 
-class nm_fft:  # ! TODO add (matrix-version) of the open path transformation here
+class NMFFT:  # ! TODO add (matrix-version) of the open path transformation here
     """Uses Fast Fourier transforms to do normal mode transformations.
 
     Attributes:
@@ -214,7 +214,7 @@ class HarmFEP:
         self.resize(ref.x, self.masses, nbeads, self.lmd)
 
         # Normal mode <-> Cartesian coordinates transformation
-        self.transform = nm_fft(nbeads=self.nbeads, natoms=self.natoms)
+        self.transform = NMFFT(nbeads=self.nbeads, natoms=self.natoms)
         self._nm_freq = None
 
     def resize(self, x, masses, nbeads, lmd):
@@ -255,10 +255,10 @@ class HarmFEP:
         beta = 1.0 / (KB * temperature)  # 1/Hartree
 
         # Calculate the ring polymer frequency scale, omega_P = P / (beta*hbar)
-        omega_P = self.nbeads / (beta * HBAR)  # 1/au.time
+        omega_p = self.nbeads / (beta * HBAR)  # 1/au.time
 
         # Calculate actual normal mode frequencies
-        nm_freq_with_units = omega_P * nm_freq_dimensionless  # 1/au.time
+        nm_freq_with_units = omega_p * nm_freq_dimensionless  # 1/au.time
 
         # Hartree -> 1/ au.time
         mode_freq_with_units = np.where(self.freqs > 0, self.freqs, 0.0) / HBAR
@@ -270,7 +270,8 @@ class HarmFEP:
 
         # Calculate variance combining normal modes and harmonic modes
         # Normal mode variance: sigma^2 = P / (m * beta * omega^2)
-        # Effective harmonic frequencies: omega_eff^2 = omega_real^2 - omega_imag^2 (should be stable with small imaginary frequencies)
+        # Effective harmonic frequencies: omega_eff^2 = omega_real^2 - omega_imag^2
+        # (should be stable with small imaginary frequencies)
         variance = np.zeros_like(self.nmass3)
 
         for k in range(self.nbeads):
@@ -317,7 +318,7 @@ class HarmFEP:
         self.sigma = sigma
 
         # Generate samples
-        sampled_nm_pos = sobol_gaussian_sample(loc=nm_pos * 0, scale=sigma, M0=n_samples)
+        sampled_nm_pos = sobol_gaussian_sample(loc=nm_pos * 0, scale=sigma, m0=n_samples)
 
         return sampled_nm_pos  # Shape: (n_samples, nbeads, natoms*3)
 
@@ -403,7 +404,7 @@ class InstFEP(HarmFEP):
             sampled_nm_pos: Array of shape (n_samples, (nbeads-1)*natoms*3-1)
         """
         self.sigma = self.calculate_variance()  # Shape: (nbeads-1)*natoms*3
-        return sobol_gaussian_sample(loc=np.zeros_like(self.sigma), scale=self.sigma, M0=n_samples)
+        return sobol_gaussian_sample(loc=np.zeros_like(self.sigma), scale=self.sigma, m0=n_samples)
 
     def nm_to_cart(self, nm_coordinates):
         """

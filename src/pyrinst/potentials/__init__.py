@@ -7,9 +7,11 @@ from .vasp import Vasp
 _MACE_IMPORT_ERROR: ImportError | None = None
 
 try:
-    from .mace import MACE
+    from .mace import MACE as _MACE
 except ImportError as exc:
     _MACE_IMPORT_ERROR = exc
+else:
+    MACE = _MACE
 
 BUILTIN_POTENTIALS = tuple(POTENTIAL_REGISTRY.keys())
 
