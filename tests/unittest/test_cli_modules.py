@@ -7,6 +7,7 @@ def test_cli_modules_are_importable():
         "pyrinst.cli.sampling",
         "pyrinst.cli.fep_eval",
         "pyrinst.cli.optimize",
+        "pyrinst.cli.plot",
     ]
 
     for module_name in module_names:

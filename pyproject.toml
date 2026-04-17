@@ -101,6 +101,7 @@ docs = [
 pyrinst-fep-eval = "pyrinst.cli.fep_eval:main"
 pyrinst-gen-ref = "pyrinst.cli.gen_ref:main"
 pyrinst-optimize = "pyrinst.cli.optimize:main"
+pyrinst-plot = "pyrinst.cli.plot:main"
 pyrinst-sampling = "pyrinst.cli.sampling:main"
 
 # ==============================================================================
