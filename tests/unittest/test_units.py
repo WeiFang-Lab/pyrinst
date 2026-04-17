@@ -127,7 +127,7 @@ class TestQuantitySubclasses:
 # --- 3. The main conversion logic test ---
 
 @pytest.mark.parametrize(
-    "Cls, value, from_unit, to_unit, expected",
+    "cls, value, from_unit, to_unit, expected",
     [
         # --- Energy Conversions ---
         (units.Energy, 1.0, 'hartree', 'ev', HARTREE_SI / EV_SI),
