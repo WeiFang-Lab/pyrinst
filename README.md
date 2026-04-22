@@ -270,3 +270,38 @@ pyrinst/
 ├── pyproject.toml
 └── README.md
 ```
+
+## 与 i-PI 对标的命名说明（driver / 中心程序）
+
+结论先说：当前 `pyrinst` **还没有**实现 i-PI 那种基于 socket 的中心调度进程（server/engine）来接收 driver 连接。  
+现有架构里更接近“中心程序”的角色，是本地 CLI 主进程（例如 `pyrinst-optimize`）+ 优化器流程，它直接调用势能接口；所谓“driver”主要是 `OnTheFlyDriver` 这类对外部程序的封装，通过子进程命令执行外部计算，而不是 socket RPC。
+
+### 1) 当前仓库中对应组件（无 socket server）
+
+- CLI 入口定义：`pyproject.toml` 的 `[project.scripts]`  
+  https://github.com/WeiFang-Lab/pyrinst/blob/main/pyproject.toml#L100-L105
+- 优化主入口（调度优化流程）：`src/pyrinst/cli/optimize.py::main`  
+  https://github.com/WeiFang-Lab/pyrinst/blob/main/src/pyrinst/cli/optimize.py#L22-L223
+- 优化器执行循环（驱动 potential 计算）：`src/pyrinst/opt/optimizers.py::NewtonRaphson.search`  
+  https://github.com/WeiFang-Lab/pyrinst/blob/main/src/pyrinst/opt/optimizers.py#L70-L100
+- “driver”封装基类（外部程序调用）：`src/pyrinst/potentials/base.py::OnTheFlyDriver`  
+  https://github.com/WeiFang-Lab/pyrinst/blob/main/src/pyrinst/potentials/base.py#L74-L132
+- 外部程序实际调用点（`subprocess.run`）：  
+  https://github.com/WeiFang-Lab/pyrinst/blob/main/src/pyrinst/potentials/base.py#L93-L108
+
+> 上述代码路径可见：目前是“本地进程内调度 + 子进程执行”，并没有 `listen/accept/connect` 这类 socket server/client 生命周期管理。
+
+### 2) 若要仿照 i-PI，中心程序建议命名
+
+可优先采用以下命名模式（由直观到工程化）：
+
+- 对外进程名：`pyrinst-server`（首选）或 `pyrinst-engine`
+- 内部核心类：`DriverScheduler` / `DriverOrchestrator`
+- 外部被调程序：继续叫 `driver`
+
+职责边界建议：
+
+- **server/engine（中心程序）**：监听 socket、管理 driver 注册/心跳、任务分发、超时与重试、结果汇总。
+- **driver（外部执行端）**：连接中心程序、接收单个任务、执行真实势能/力计算、回传结果与状态，不负责全局调度策略。
+
+简述：在 i-PI 语境里，中心程序本质就是 **i-PI server/engine**；在 `pyrinst` 语境可对应命名为 **pyrinst-server（或 pyrinst-engine）**。
