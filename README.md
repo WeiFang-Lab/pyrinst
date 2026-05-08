@@ -44,7 +44,7 @@ What each layer means:
 The following setup is closer to the environment currently used by this project in practice:
 
 ```bash
-conda create -n your_name python=3.11
+conda create -n your_name python=3.13
 pip install cuequivariance==0.7.0 cuequivariance-torch==0.7.0 cuequivariance-ops-torch-cu12==0.7.0
 pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu126
 pip install pkgs/mace_torch-0.3.14-py3-none-any.whl # This wheel is provided by the project and is based on a modified official mace_torch-0.3.14
