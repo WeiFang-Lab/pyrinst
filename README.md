@@ -135,7 +135,7 @@ pyrinst-sampling ref_out.pkl -T 300 -N 4096 -n 24 -o simulation.pos
 
 ---
 
-### 3. Estimate Energies
+### 3. Evaluate Energies
 
 > This is usually the most time-consuming step. Before running production calculations, plan resource allocation carefully to maximize throughput.
 
@@ -255,7 +255,7 @@ This step is the same as in `Harm-FEP`. It generates the `simulation.pos` bead-c
 
 ---
 
-### 4. Estimate Energies
+### 4. Evaluate Energies
 
 Use the same procedure described above for `Harm-FEP`.
 
