@@ -21,6 +21,7 @@ def main() -> None:
     parser.add_argument("--nprandom", action="store_true", help="Use numpy function to generate gaussian samples")
     args = parser.parse_args()
 
+    sampler = "numpy" if args.nprandom else "sobol"
     input_geom = np.load(args.input, allow_pickle=True)
     if type(input_geom) is HarmRef:
         input_geom.T = args.T
@@ -33,7 +34,7 @@ def main() -> None:
     else:
         raise ValueError(f"Invalid geometry type: {type(input_geom)}")
 
-    sampled_nm_pos = polymer.sample_normal_modes(n_samples=args.N)
+    sampled_nm_pos = polymer.sample_normal_modes(n_samples=args.N, sampler=sampler)
     sampled_bead_pos = polymer.get_cart_pos(nm_pos=sampled_nm_pos)
 
     input_geom.freqs = polymer.freqs if type(input_geom) is HarmRef else polymer.freq_rp

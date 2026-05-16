@@ -72,6 +72,8 @@ self.nm.free_qstep()
 so that it becomes:
 
 ```python
+# self.qcstep() # for the moment I just avoid doing the centroid step.
+self.nm.free_qstep()
 self.nm.free_qstep()
 ```
 
@@ -130,8 +132,11 @@ pyrinst-sampling ref_out.pkl -T 300 -N 4096 -n 24 -o simulation.pos
 - `-N`: Total number of samples (default: `4096`)
 - `-n, --nbeads`: Number of beads (default: `24`)
 - `-o, --output`: Prefix for output files (default: `simulation.pos`, which generates files such as `simulation.pos_00.xyz` through `simulation.pos_23.xyz`)
+- `--nprandom`: Use NumPy random sampling instead of the default Sobol sampling. This option is useful for high-dimensional systems where SciPy's Sobol sampler exceeds its supported dimensionality limit.
 
 > **Note:** During execution, this script not only writes XYZ configuration files, but also **updates the `pkl` file** with the harmonic reference energy of each bead. Be sure to keep a copy of the updated `pkl` file.
+
+> The results obtained from Sobol sampling and NumPy random sampling may show small differences, but the deviation is typically less than `0.05 meV/atom`.
 
 ---
 
