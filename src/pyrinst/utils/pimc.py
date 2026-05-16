@@ -54,6 +54,7 @@ def sobol_gaussian_sample(loc, scale, m0):
     original_shape = np.array(loc).shape
     return samples.reshape((2**m, *original_shape))
 
+
 def numpy_gaussian_sample(loc, scale, n_samples, rng=None):
     """
     Generate Gaussian samples using NumPy's pseudo-random normal distribution.
@@ -100,6 +101,7 @@ def gaussian_sample(loc, scale, n_samples, sampler="sobol", rng=None):
         return numpy_gaussian_sample(loc=loc, scale=scale, n_samples=n_samples, rng=rng)
 
     raise ValueError(f"Unsupported sampler: {sampler}")
+
 
 def mk_o_nm_matrix(nbeads):
     """
@@ -363,7 +365,13 @@ class HarmFEP:
         sigma = self.calculate_variance()
         self.sigma = sigma
 
-        return gaussian_sample( loc=np.zeros_like(nm_pos), scale=sigma, n_samples=n_samples, sampler=sampler, rng=rng, )
+        return gaussian_sample(
+            loc=np.zeros_like(nm_pos),
+            scale=sigma,
+            n_samples=n_samples,
+            sampler=sampler,
+            rng=rng,
+        )
 
     def nm_to_beads(self, nm_coordinates):
         """
@@ -449,7 +457,13 @@ class InstFEP(HarmFEP):
         """
         self.sigma = self.calculate_variance()
 
-        return gaussian_sample( loc=np.zeros_like(self.sigma), scale=self.sigma, n_samples=n_samples, sampler=sampler, rng=rng, )
+        return gaussian_sample(
+            loc=np.zeros_like(self.sigma),
+            scale=self.sigma,
+            n_samples=n_samples,
+            sampler=sampler,
+            rng=rng,
+        )
 
     def nm_to_cart(self, nm_coordinates):
         """
