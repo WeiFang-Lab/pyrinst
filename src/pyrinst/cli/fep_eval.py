@@ -6,7 +6,7 @@ import numpy as np
 from pyrinst.geometries import HarmRef, InstRef
 from pyrinst.io.formats import Formats
 from pyrinst.io.xyz import load
-from pyrinst.utils.fep import free_energy_perturbation
+from pyrinst.utils.fep import effective_sample_size, free_energy_perturbation
 from pyrinst.utils.units import EV, KB
 
 
@@ -42,11 +42,15 @@ def main() -> None:
     aes = np.average(beads_energies, axis=0)
     bhs = input_geom.harm_energies
     des = aes - bhs
-    df1, var1 = free_energy_perturbation(des, 1.0 / (input_geom.T * KB), weights=weights)
+    beta = 1.0 / (input_geom.T * KB)
+    df1, var1 = free_energy_perturbation(des, beta, weights=weights)
+    ess = effective_sample_size(des, beta, weights=weights)
+
     print(f"reference: {df0 / EV:{Formats.ENERGY}} eV")
     print(f"correction: {df1 / EV:{Formats.ENERGY}} eV")
     print(f"Delta F({input_geom.T} K): {(df0 + df1) / EV:{Formats.ENERGY}} eV")
     print(f"uncertainty: {var1 / EV:{Formats.ENERGY}} eV")
+    print(f"ESS: {ess:.2f} / {len(des)} ({ess / len(des):.2%})")
 
 
 if __name__ == "__main__":

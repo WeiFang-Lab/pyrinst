@@ -45,3 +45,22 @@ def free_energy_perturbation(potential_energies, beta, maxlag=None, weights=1):
     error = error_exp / (beta * mean_exp)
 
     return delta_free_energy, error
+
+def effective_sample_size(potential_energies, beta, weights=1):
+    """Calculate the ESS of the final FEP sampling weights."""
+    logw = -beta * np.asarray(potential_energies, dtype=float)
+
+    if np.isscalar(weights):
+        if weights <= 0:
+            return 0.0
+        logw = logw + np.log(weights)
+    else:
+        weights = np.asarray(weights, dtype=float)
+        logw = np.where(weights > 0, logw + np.log(np.where(weights > 0, weights, 1.0)), -np.inf)
+
+    shift = np.max(logw)
+    if not np.isfinite(shift):
+        return 0.0
+
+    final_weights = np.exp(logw - shift)
+    return np.sum(final_weights) ** 2 / np.sum(final_weights**2)
