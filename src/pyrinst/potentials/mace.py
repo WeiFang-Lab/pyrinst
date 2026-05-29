@@ -7,6 +7,7 @@ from mace.calculators import MACECalculator
 from numpy.typing import NDArray
 
 from pyrinst.potentials import Potential, Task
+from pyrinst.utils.elements import ElementData
 from pyrinst.utils.units import Energy, Length
 
 
@@ -37,7 +38,9 @@ class MACE(Potential):
         calculator : MACECalculator | None
             Pre-initialized MACE calculator. If None, creates one using calc_kwargs.
         """
-        symbols = symbols.tolist() if isinstance(symbols, np.ndarray) else list(symbols)
+        element_data = ElementData()
+        symbols_raw = symbols.tolist() if isinstance(symbols, np.ndarray) else list(symbols)
+        symbols = element_data.get_base_symbols(symbols_raw)
         self.atoms = Atoms(symbols=symbols, positions=np.empty((len(symbols), 3)))
 
         if calculator is None:
@@ -46,6 +49,7 @@ class MACE(Potential):
             )
 
         self.atoms.calc = calculator
+        self.symbols_raw = symbols_raw
         self.symbols = symbols
 
     def __call__(self, x: NDArray, task: Task = Task.SP) -> tuple[float, NDArray | None, NDArray | None]:
