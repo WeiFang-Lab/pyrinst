@@ -6,7 +6,7 @@ import numpy as np
 from pyrinst.geometries import HarmRef, InstRef
 from pyrinst.io.xyz import save
 from pyrinst.utils.pimc import HarmFEP, InstFEP
-
+from pyrinst.utils.elements import element_data
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate distribution via quasi random number.")
@@ -42,6 +42,8 @@ def main() -> None:
     with open(args.input, "wb") as f:
         pickle.dump(input_geom, f)
 
+    symbols_base = element_data.get_base_symbol(input_geom.symbols)
+
     for bead_idx in range(args.nbeads):
         filename = f"{args.output}_{str(bead_idx).zfill(len(str(args.nbeads)))}.xyz"
         bead_positions = sampled_bead_pos[:, bead_idx, :]
@@ -51,7 +53,7 @@ def main() -> None:
             pos_3d = bead_positions[sample_idx].reshape(-1, 3)
             x_list.append(pos_3d)
 
-        save(filename, x_list, input_geom.symbols, comment=" ")
+        save(filename, x_list, symbols_base, comment=" ")
 
 
 if __name__ == "__main__":
