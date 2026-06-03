@@ -5,7 +5,7 @@ from collections.abc import Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 
-from pyrinst.potentials import Potential, Task
+from pyrinst.potentials import Level, Potential
 from pyrinst.utils.units import Length, Mass
 
 
@@ -36,10 +36,10 @@ class MullerBrown(Potential):
         self.au2kcal = 627.509474063056
         self.masses = np.ones(2) * Mass(1.00748, "amu").get("au")
 
-    def __call__(self, x, task: Task = Task.GRAD):
+    def __call__(self, x, level: Level = Level.GRAD):
         energy = self.potential(x)
-        gradient = self.gradient(x) if task > Task.SP else None
-        hessian = self.hessian(x) if task > Task.GRAD else None
+        gradient = self.gradient(x) if level > Level.ENER else None
+        hessian = self.hessian(x) if level > Level.GRAD else None
         return energy, gradient, hessian
 
     def potential(self, x: Sequence):

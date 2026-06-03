@@ -3,6 +3,7 @@ import importlib
 
 def test_cli_modules_are_importable():
     module_names = [
+        "pyrinst.cli.driver",
         "pyrinst.cli.gen_ref",
         "pyrinst.cli.sampling",
         "pyrinst.cli.fep_eval",

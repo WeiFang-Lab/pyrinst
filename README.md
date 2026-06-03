@@ -207,6 +207,49 @@ pyrinst-gen-ref water.xyz -P MACE --model_path MACE-OFF23_medium_water_train3_ru
 pyrinst-optimize ref.pkl -o inst.pkl -T 300 --mode centroid -P MACE -F MACE-OFF23_medium_water_train3_run-1020_stagetwo.model -N 24 -s 0.189
 ```
 
+### Serial and Parallel Instanton Optimization
+
+For a local Python potential, such as MACE, or for an on-the-fly backend that should run one calculation at a time, use the normal serial form:
+
+```bash
+pyrinst-optimize ref.pkl \
+    -o inst.pkl \
+    -T 300 \
+    --mode centroid \
+    -P MACE \
+    -F /path/to/model.model \
+    -N 24 \
+    -s 0.189 \
+    --working-dir inst_work
+```
+
+For parallel on-the-fly calculations, start the optimizer with `--parallel`:
+
+```bash
+pyrinst-optimize ref.pkl \
+    -o inst.pkl \
+    -T 300 \
+    --mode centroid \
+    -P orca \
+    -F orca_template.inp \
+    -N 24 \
+    -s 0.189 \
+    --parallel \
+    --working-dir inst_work
+```
+
+Then start one or more driver workers from the same directory, so they can read the `server_info.json` written by the optimizer:
+
+```bash
+pyrinst-driver \
+    -P orca \
+    -F orca_template.inp \
+    --runcmd orca \
+    --working-dir inst_work
+```
+
+Each driver process handles one task at a time. Launch multiple driver processes, for example through a job array, to evaluate instanton beads in parallel. The optimizer keeps the global optimization state, while each driver creates and uses its own calculation subdirectories under `inst_work`.
+
 **参数：**
 - `input`: 第一步生成的 `ref.pkl` 路径
 - `-o, --output`: 优化完成输出的 Pkl 名称（例如：`inst.pkl`）

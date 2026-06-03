@@ -13,10 +13,35 @@ from pyrinst.io.formats import Formats
 from pyrinst.io.logging_config import setup_logging
 from pyrinst.io.xyz import load
 from pyrinst.opt import OPTIMIZER_REGISTRY
-from pyrinst.potentials import BUILTIN_POTENTIALS, POTENTIAL_REGISTRY, FixAtom
+from pyrinst.potentials import (
+    BUILTIN_POTENTIALS,
+    POTENTIAL_REGISTRY,
+    CachedExecutor,
+    FixAtom,
+    ParallelExecutor,
+    SingleExecutor,
+)
+from pyrinst.potentials.base import OnTheFlyPotential
 from pyrinst.thermo import analyze
 from pyrinst.utils.coordinates import is_linear
 from pyrinst.utils.units import Temperature
+
+
+def _close_remote_driver(executor) -> None:
+    if isinstance(executor, ParallelExecutor):
+        executor.close()
+    elif isinstance(executor, CachedExecutor):
+        _close_remote_driver(executor.executor)
+
+
+def _potential_owner(executor):
+    if isinstance(executor, ParallelExecutor):
+        return executor
+    if isinstance(executor, CachedExecutor):
+        return _potential_owner(executor.executor)
+    if isinstance(executor, SingleExecutor):
+        return executor.potential
+    return executor
 
 
 def main() -> None:
@@ -78,6 +103,7 @@ def main() -> None:
         "the program will guess this based on the PES. You can specify with system the "
         "environment variable 'RUNCMD' instead.",
     )
+    parser.add_argument("--parallel", action="store_true", help="Use external pyrinst driver workers.")
     parser.add_argument("--working-dir", default=".", help="Working file directory to preserve the calculations.")
     parser.add_argument("--opt", choices=OPTIMIZER_REGISTRY.keys(), default="EF", help="Optimization algorithm to use.")
     parser.add_argument("-g", "--gtol", default=1e-3, type=float, help="Tolerance in gradient for optimization.")
@@ -124,99 +150,117 @@ def main() -> None:
             msg: str = f"Unknown file format: {args.input}"
             raise ValueError(msg)
     pot_cls = POTENTIAL_REGISTRY[key := args.Potential.lower()]
-    if key in BUILTIN_POTENTIALS:
+    if args.parallel:
+        if symbols is None:
+            raise ValueError("Parallel on-the-fly drivers require atomic symbols from the input geometry.")
+        if not issubclass(pot_cls, OnTheFlyPotential):
+            raise TypeError("--parallel only supports on-the-fly potential backends.")
+        executor = ParallelExecutor(symbols)
+    elif key in BUILTIN_POTENTIALS:
         kwargs = vars(args)
         kwargs["template_input"] = kwargs["mainInputFile"]
         kwargs["add_files"] = kwargs["additionalFiles"]
         if key == "mace":
             kwargs["model_paths"] = kwargs["mainInputFile"]
-        pes = pot_cls(symbols, **kwargs)
+        potential = pot_cls(symbols, **kwargs)
+        executor = CachedExecutor(SingleExecutor(potential, working_dir=args.working_dir))
     else:
         if args.mainInputFile:
             with open(args.mainInputFile) as f:
                 main_input = json.load(f)
             if isinstance(main_input, dict):
-                pes = pot_cls(**main_input)
+                potential = pot_cls(**main_input)
             elif isinstance(main_input, list):
-                pes = pot_cls(*main_input)
+                potential = pot_cls(*main_input)
             else:
                 raise ValueError(f"Unknown input file format: {args.mainInputFile}")
         else:
-            pes = pot_cls()
+            potential = pot_cls()
+        executor = CachedExecutor(SingleExecutor(potential, working_dir=args.working_dir))
     if args.fix:
         symbols_fix, x_fix, _ = load(args.fix, energy_pattern=False)
         args.dx[0] = None if args.dx[0] < 0 else args.dx[0]
         args.dx[1] = None if args.dx[1] < 0 else args.dx[1]
-        pes.symbols = np.concat((pes.symbols, symbols_fix))
-        pes = FixAtom(pes, x_fix, dx=args.dx)
+        calculator = _potential_owner(executor)
+        calculator.symbols = np.concat((calculator.symbols, symbols_fix))
+        executor = FixAtom(executor, x_fix, dx=args.dx)
 
-    if ext != ".pkl":
-        match args.phase:
-            case PhaseType.SOLID | PhaseType.MODEL:
-                n_zero = 0
-            case PhaseType.LIQUID:
-                n_zero = 3
-            case PhaseType.GAS:
-                n_zero = 3 if len(x) == 1 else (5 if is_linear(x) else 6)
-        if ext == ".txt":
-            try:
-                m = next(getattr(pes, attr) for attr in ("masses", "mass", "m") if hasattr(pes, attr))
-            except StopIteration:
-                msg = "Custom PES is missing a mass attribute. Expected one of: 'masses', 'mass', or 'm'."
-                raise AttributeError(msg) from None
-            m = np.atleast_1d(m)
+    try:
+        if ext != ".pkl":
+            match args.phase:
+                case PhaseType.SOLID | PhaseType.MODEL:
+                    n_zero = 0
+                case PhaseType.LIQUID:
+                    n_zero = 3
+                case PhaseType.GAS:
+                    n_zero = 3 if len(x) == 1 else (5 if is_linear(x) else 6)
+            if ext == ".txt":
+                source = _potential_owner(executor)
+                try:
+                    m = next(getattr(source, attr) for attr in ("masses", "mass", "m") if hasattr(source, attr))
+                except StopIteration:
+                    msg = "Custom PES is missing a mass attribute. Expected one of: 'masses', 'mass', or 'm'."
+                    raise AttributeError(msg) from None
+                m = np.atleast_1d(m)
+            else:
+                m = None
+            if args.mode == "inst" and args.spread is None:
+                if m is not None:
+                    x.shape = (len(x), len(m), -1)
+                data = TransitionState(x, symbols, n_zero=n_zero, masses=m)
+            else:
+                if m is not None:
+                    x.shape = (len(m), -1)
+                data = GEOMETRY_REGISTRY[args.mode](x, symbols, n_zero=n_zero, masses=m)
+
+        if args.Temp is not None:
+            temp: float | None = args.Temp
+            beta: float | None = Temperature.to_beta(temp)
+        elif args.beta is not None:
+            beta = args.beta
+            temp = Temperature.to_kelvin(beta)
+        elif isinstance(data, Instanton):
+            beta = data.beta
+            temp = Temperature.to_kelvin(beta)
         else:
-            m = None
-        if args.mode == "inst" and args.spread is None:
-            if m is not None:
-                x.shape = (len(x), len(m), -1)
-            data = TransitionState(x, symbols, n_zero=n_zero, masses=m)
-        else:
-            if m is not None:
-                x.shape = (len(m), -1)
-            data = GEOMETRY_REGISTRY[args.mode](x, symbols, n_zero=n_zero, masses=m)
+            beta = temp = None
 
-    if args.Temp is not None:
-        temp: float | None = args.Temp
-        beta: float | None = Temperature.to_beta(temp)
-    elif args.beta is not None:
-        beta = args.beta
-        temp = Temperature.to_kelvin(beta)
-    elif isinstance(data, Instanton):
-        beta = data.beta
-        temp = Temperature.to_kelvin(beta)
-    else:
-        beta = temp = None
+        if len(args.link):
+            data.update_links(*[np.load(file, allow_pickle=True) for file in args.link])
 
-    if len(args.link):
-        data.update_links(*[np.load(file, allow_pickle=True) for file in args.link])
+        if args.mode in (Instanton.type_alias, InstRef.type_alias):
+            if type(data) in (TransitionState, HarmRef):
+                data = data.get_inst_guess(args.beads, beta, args.spread)
+            data.set_beta(beta)
+            if args.beads and args.beads != data.N:
+                data.interpolate(args.beads)
 
-    if args.mode in (Instanton.type_alias, InstRef.type_alias):
-        if type(data) in (TransitionState, HarmRef):
-            data = data.get_inst_guess(args.beads, beta, args.spread)
-        data.set_beta(beta)
-        if args.beads and args.beads != data.N:
-            data.interpolate(args.beads)
+        opt = OPTIMIZER_REGISTRY[args.opt](
+            order=data.order, executor=executor, maxstep=args.maxstep, project=args.project, update=not args.no_update
+        )
+        opt.search(
+            data,
+            gtol=args.gtol,
+            maxiter=args.maxiter,
+            callback=partial(type(data).output, filename=args.output),
+        )
 
-    opt = OPTIMIZER_REGISTRY[args.opt](
-        order=data.order, potential=pes, maxstep=args.maxstep, project=args.project, update=not args.no_update
-    )
-    opt.search(data, gtol=args.gtol, maxiter=args.maxiter, callback=partial(type(data).output, filename=args.output))
+        data.final_output(args.output)
 
-    data.final_output(args.output)
+        if isinstance(data, InstRef):
+            return
 
-    if isinstance(data, InstRef):
-        return
+        if beta is None:
+            log.info("Temperature not specified. Program terminated.")
+            return
 
-    if beta is None:
-        log.info("Temperature not specified. Program terminated.")
-        return
+        log.info("\nComputing rate...")
+        fmt: str = Formats.BETA
+        log.info(f"T = {temp:{fmt}} K, 1000/T(K) = {1000 / temp:{fmt}}; beta = {beta:{fmt}}")
 
-    log.info("\nComputing rate...")
-    fmt: str = Formats.BETA
-    log.info(f"T = {temp:{fmt}} K, 1000/T(K) = {1000 / temp:{fmt}}; beta = {beta:{fmt}}")
-
-    analyze(data, beta)
+        analyze(data, beta)
+    finally:
+        _close_remote_driver(executor)
 
 
 if __name__ == "__main__":

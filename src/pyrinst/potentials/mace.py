@@ -6,7 +6,7 @@ from ase.vibrations.data import VibrationsData
 from mace.calculators import MACECalculator
 from numpy.typing import NDArray
 
-from pyrinst.potentials import Potential, Task
+from pyrinst.potentials import Level, Potential
 from pyrinst.utils.units import Energy, Length
 
 
@@ -48,14 +48,14 @@ class MACE(Potential):
         self.atoms.calc = calculator
         self.symbols = symbols
 
-    def __call__(self, x: NDArray, task: Task = Task.SP) -> tuple[float, NDArray | None, NDArray | None]:
+    def __call__(self, x: NDArray, level: Level = Level.ENER) -> tuple[float, NDArray | None, NDArray | None]:
         arr = np.asarray(x, dtype=float).reshape(-1, 3) * Length(1, "au").get("A")
         self.atoms.set_positions(arr)
         energy_conv = Energy(1.0, "eV").get("Hartree")
         length_conv = Length(1.0, "A").get("Bohr")
         energy = self.atoms.get_potential_energy() * energy_conv
-        gradient = -self.atoms.get_forces() * energy_conv / length_conv if task > Task.SP else None
-        if task > Task.GRAD:
+        gradient = -self.atoms.get_forces() * energy_conv / length_conv if level > Level.ENER else None
+        if level > Level.GRAD:
             hessian = self.atoms.calc.get_hessian(atoms=self.atoms).reshape(x.size, x.size)
             hessian *= energy_conv / (length_conv**2)
             hessian = 0.5 * (hessian + hessian.T)

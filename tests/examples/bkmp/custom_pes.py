@@ -8,7 +8,7 @@ or in full space in Cartesian coordinates
 import bkmp
 import numpy as np
 
-from pyrinst.potentials import Potential, Task
+from pyrinst.potentials import Level, Potential
 from pyrinst.utils.elements import element_data
 from pyrinst.utils.units import Mass
 
@@ -23,10 +23,10 @@ class Full(Potential):
     def _check(self):
         assert len(self.atoms) == 3
 
-    def __call__(self, x, task: Task = Task.GRAD):
+    def __call__(self, x, level: Level = Level.GRAD):
         energy = self.potential(x)
-        gradient = self.gradient(x) if task > Task.SP else None
-        hessian = self.hessian(x) if task > Task.GRAD else None
+        gradient = self.gradient(x) if level > Level.ENER else None
+        hessian = self.hessian(x) if level > Level.GRAD else None
         return energy, gradient, hessian
 
     def potential(self, x):

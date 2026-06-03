@@ -4,10 +4,10 @@ from numpy.typing import NDArray
 from pyrinst.io.xyz import lines
 from pyrinst.utils.elements import element_data
 
-from .base import OnTheFlyDriver, OnTheFlyResult, Task
+from .base import Level, OnTheFlyPotential, OnTheFlyResult
 
 
-class Orca(OnTheFlyDriver):
+class Orca(OnTheFlyPotential):
     _runcmd: str = "orca"
 
     def __init__(self, *args, hess_method="", **kwargs):
@@ -30,14 +30,14 @@ class Orca(OnTheFlyDriver):
                 else:
                     self.add_input += line
 
-    def generate_input(self, x: NDArray, task: Task = Task.GRAD):
+    def generate_input(self, x: NDArray, level: Level = Level.GRAD):
         input_file: str = f"{self._folder}/{self._input}"
         assert len(x) == len(self.symbols)
         with open(input_file, "w") as f:
             f.write(self.main_input)
-            if task == Task.FREQ:
+            if level == Level.FREQ:
                 f.write(self._hess_cmd)
-            if task >= Task.GRAD:
+            if level >= Level.GRAD:
                 f.write(self._grad_cmd)
             f.write(self.add_input + lines(self.symbols, x) + "*\n")
 
