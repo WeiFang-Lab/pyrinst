@@ -5,8 +5,9 @@ import numpy as np
 
 from pyrinst.geometries import HarmRef, InstRef
 from pyrinst.io.xyz import save
-from pyrinst.utils.pimc import HarmFEP, InstFEP
 from pyrinst.utils.elements import element_data
+from pyrinst.utils.pimc import HarmFEP, InstFEP
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate distribution via quasi random number.")
