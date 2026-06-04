@@ -43,7 +43,7 @@ def main() -> None:
     with open(args.input, "wb") as f:
         pickle.dump(input_geom, f)
 
-    symbols_base = element_data.get_base_symbol(input_geom.symbols)
+    symbols_base = element_data.get_base_symbols(input_geom.symbols)
 
     for bead_idx in range(args.nbeads):
         filename = f"{args.output}_{str(bead_idx).zfill(len(str(args.nbeads)))}.xyz"
