@@ -278,3 +278,10 @@ Finally, use the computed bead energies to perform the last FEP evaluation and p
 ```bash
 pyrinst-fep-eval inst.pkl --prefix simulation.pos
 ```
+
+## Isotpes
+Currently, only hydrogen isotope calculations in HarmFEP are supported.
+
+You need to modify the H atoms in the initial XYZ file to D or T. During subsequent reference calculations, Pyrinst will correctly interpret the corresponding mass for frequency calculations.
+
+> Note that during the sampling process, the program will revert D(T) back to H. This is done because the potential energy is independent of the isotope.
