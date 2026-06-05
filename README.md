@@ -229,6 +229,47 @@ After the initial reference structure is generated, perform a fixed-centroid ins
 pyrinst-optimize ref.pkl -o inst.pkl -T 300 --mode centroid -P MACE -F MACE-OFF23_medium_water_train3_run-1020_stagetwo.model -N 24 -s 0.189
 ```
 
+#### Serial and Parallel Instanton Optimization
+
+For serial optimization, pass the potential backend directly to `pyrinst-optimize`:
+
+```bash
+pyrinst-optimize ref.pkl \
+    -o inst.pkl \
+    -T 300 \
+    --mode centroid \
+    -P MACE \
+    -F /path/to/model.model \
+    -N 24 \
+    -s 0.189 \
+    --working-dir inst_work
+```
+
+For parallel on-the-fly optimization, the main optimizer does not need the potential backend. It only keeps the optimization state and dispatches bead geometries:
+
+```bash
+pyrinst-optimize ref.pkl \
+    -o inst.pkl \
+    -T 300 \
+    --mode centroid \
+    -N 24 \
+    -s 0.189 \
+    --parallel \
+    --working-dir inst_work
+```
+
+Start one or more driver workers from the same directory. The driver command is where the potential backend is specified:
+
+```bash
+pyrinst-driver \
+    -P orca \
+    -F orca_template.inp \
+    --runcmd orca \
+    --working-dir inst_work
+```
+
+Each driver process handles one task at a time. Launch multiple driver processes, for example through a job array, to evaluate instanton beads in parallel. The optimizer writes `server_info.json`; drivers read that file to connect back to the optimizer and receive the atomic symbols.
+
 **Arguments:**
 
 - `input`: Path to the `ref.pkl` file generated in step 1

@@ -21,7 +21,6 @@ from pyrinst.potentials import (
     ParallelExecutor,
     SingleExecutor,
 )
-from pyrinst.potentials.base import OnTheFlyPotential
 from pyrinst.thermo import analyze
 from pyrinst.utils.coordinates import is_linear
 from pyrinst.utils.units import Temperature
@@ -73,7 +72,7 @@ def main() -> None:
     parser.add_argument(
         "--dx", nargs=2, default=[-1, 0.01], type=float, help="Finite difference step size for fixed atoms."
     )
-    parser.add_argument("-P", "--Potential", type=str.lower, required=True, help="Specify the backend Potential.")
+    parser.add_argument("-P", "--Potential", type=str.lower, help="Specify the backend Potential.")
     parser.add_argument("--plugin", help="Custom potential module path.")
     parser.add_argument(
         "-F",
@@ -149,23 +148,23 @@ def main() -> None:
         else:
             msg: str = f"Unknown file format: {args.input}"
             raise ValueError(msg)
-    pot_cls = POTENTIAL_REGISTRY[key := args.Potential.lower()]
     if args.parallel:
         if symbols is None:
             raise ValueError("Parallel on-the-fly drivers require atomic symbols from the input geometry.")
-        if not issubclass(pot_cls, OnTheFlyPotential):
-            raise TypeError("--parallel only supports on-the-fly potential backends.")
         executor = ParallelExecutor(symbols)
-    elif key in BUILTIN_POTENTIALS:
-        kwargs = vars(args)
-        kwargs["template_input"] = kwargs["mainInputFile"]
-        kwargs["add_files"] = kwargs["additionalFiles"]
-        if key == "mace":
-            kwargs["model_paths"] = kwargs["mainInputFile"]
-        potential = pot_cls(symbols, **kwargs)
-        executor = CachedExecutor(SingleExecutor(potential, working_dir=args.working_dir))
     else:
-        if args.mainInputFile:
+        if args.Potential is None:
+            parser.error("-P/--Potential is required unless --parallel is used.")
+        pot_cls = POTENTIAL_REGISTRY[key := args.Potential.lower()]
+        if key in BUILTIN_POTENTIALS:
+            kwargs = vars(args)
+            kwargs["template_input"] = kwargs["mainInputFile"]
+            kwargs["add_files"] = kwargs["additionalFiles"]
+            if key == "mace":
+                kwargs["model_paths"] = kwargs["mainInputFile"]
+            potential = pot_cls(symbols, **kwargs)
+            executor = CachedExecutor(SingleExecutor(potential, working_dir=args.working_dir))
+        elif args.mainInputFile:
             with open(args.mainInputFile) as f:
                 main_input = json.load(f)
             if isinstance(main_input, dict):
@@ -174,9 +173,10 @@ def main() -> None:
                 potential = pot_cls(*main_input)
             else:
                 raise ValueError(f"Unknown input file format: {args.mainInputFile}")
+            executor = CachedExecutor(SingleExecutor(potential, working_dir=args.working_dir))
         else:
             potential = pot_cls()
-        executor = CachedExecutor(SingleExecutor(potential, working_dir=args.working_dir))
+            executor = CachedExecutor(SingleExecutor(potential, working_dir=args.working_dir))
     if args.fix:
         symbols_fix, x_fix, _ = load(args.fix, energy_pattern=False)
         args.dx[0] = None if args.dx[0] < 0 else args.dx[0]
