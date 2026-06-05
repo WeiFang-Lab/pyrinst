@@ -5,6 +5,7 @@ import numpy as np
 
 from pyrinst.geometries import HarmRef, InstRef
 from pyrinst.io.xyz import save
+from pyrinst.utils.elements import element_data
 from pyrinst.utils.pimc import HarmFEP, InstFEP
 
 
@@ -21,6 +22,7 @@ def main() -> None:
     parser.add_argument("--nprandom", action="store_true", help="Use numpy function to generate gaussian samples")
     args = parser.parse_args()
 
+    sampler = "numpy" if args.nprandom else "sobol"
     input_geom = np.load(args.input, allow_pickle=True)
     if type(input_geom) is HarmRef:
         input_geom.T = args.T
@@ -33,13 +35,15 @@ def main() -> None:
     else:
         raise ValueError(f"Invalid geometry type: {type(input_geom)}")
 
-    sampled_nm_pos = polymer.sample_normal_modes(n_samples=args.N)
+    sampled_nm_pos = polymer.sample_normal_modes(n_samples=args.N, sampler=sampler)
     sampled_bead_pos = polymer.get_cart_pos(nm_pos=sampled_nm_pos)
 
     input_geom.freqs = polymer.freqs if type(input_geom) is HarmRef else polymer.freq_rp
     input_geom.harm_energies = polymer.harm_energies
     with open(args.input, "wb") as f:
         pickle.dump(input_geom, f)
+
+    symbols_base = element_data.get_base_symbols(input_geom.symbols)
 
     for bead_idx in range(args.nbeads):
         filename = f"{args.output}_{str(bead_idx).zfill(len(str(args.nbeads)))}.xyz"
@@ -50,7 +54,7 @@ def main() -> None:
             pos_3d = bead_positions[sample_idx].reshape(-1, 3)
             x_list.append(pos_3d)
 
-        save(filename, x_list, input_geom.symbols, comment=" ")
+        save(filename, x_list, symbols_base, comment=" ")
 
 
 if __name__ == "__main__":

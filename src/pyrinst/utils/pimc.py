@@ -55,6 +55,54 @@ def sobol_gaussian_sample(loc, scale, m0):
     return samples.reshape((2**m, *original_shape))
 
 
+def numpy_gaussian_sample(loc, scale, n_samples, rng=None):
+    """
+    Generate Gaussian samples using NumPy's pseudo-random normal distribution.
+
+    Parameters:
+        loc: Mean values.
+        scale: Standard deviations with the same shape as loc.
+        n_samples: Number of samples.
+        rng: Optional NumPy random generator.
+
+    Returns:
+        Samples with shape (n_samples, *loc.shape).
+    """
+    loc_arr = np.asarray(loc)
+    scale_arr = np.asarray(scale)
+
+    if loc_arr.shape != scale_arr.shape:
+        raise ValueError(f"loc and scale must have the same shape, got {loc_arr.shape} and {scale_arr.shape}")
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    return rng.normal(loc=loc_arr, scale=scale_arr, size=(n_samples, *loc_arr.shape))
+
+
+def gaussian_sample(loc, scale, n_samples, sampler="sobol", rng=None):
+    """
+    Generate Gaussian samples using the selected sampler.
+
+    Parameters:
+        loc: Mean values.
+        scale: Standard deviations.
+        n_samples: Number of samples.
+        sampler: Sampling method. Supported values are "sobol" and "numpy".
+        rng: Optional NumPy random generator for the NumPy sampler.
+
+    Returns:
+        Samples with shape (n_samples, *loc.shape).
+    """
+    if sampler == "sobol":
+        return sobol_gaussian_sample(loc=loc, scale=scale, m0=n_samples)
+
+    if sampler in ("numpy", "np", "random"):
+        return numpy_gaussian_sample(loc=loc, scale=scale, n_samples=n_samples, rng=rng)
+
+    raise ValueError(f"Unsupported sampler: {sampler}")
+
+
 def mk_o_nm_matrix(nbeads):
     """
     Makes a matrix that transforms between the bead and the (open path) normal mode
@@ -300,27 +348,30 @@ class HarmFEP:
         else:
             return variance
 
-    def sample_normal_modes(self, n_samples):
+    def sample_normal_modes(self, n_samples, sampler="sobol", rng=None):
         """
-        Sample normal mode coordinates using quasi-random numbers.
+        Sample normal mode coordinates.
 
         Parameters:
-            n_samples: Number of samples (should be power of 2)
+            n_samples: Number of samples.
+            sampler: Sampling method. Supported values are "sobol" and "numpy".
+            rng: Optional NumPy random generator for the NumPy sampler.
 
-        Returns:
-            sampled_nm_pos: Array of shape (n_samples, nbeads, natoms*3)
+            Returns:
+                sampled_nm_pos: Array of shape (n_samples, nbeads, natoms*3).
         """
-        # Transform current positions to normal modes
-        nm_pos = self.transform.b2nm(self.npos)  # Shape: (nbeads, natoms*3)
+        nm_pos = self.transform.b2nm(self.npos)
 
-        # Calculate variance (standard deviation)
-        sigma = self.calculate_variance()  # Shape: (nbeads, natoms*3)
+        sigma = self.calculate_variance()
         self.sigma = sigma
 
-        # Generate samples
-        sampled_nm_pos = sobol_gaussian_sample(loc=nm_pos * 0, scale=sigma, m0=n_samples)
-
-        return sampled_nm_pos  # Shape: (n_samples, nbeads, natoms*3)
+        return gaussian_sample(
+            loc=np.zeros_like(nm_pos),
+            scale=sigma,
+            n_samples=n_samples,
+            sampler=sampler,
+            rng=rng,
+        )
 
     def nm_to_beads(self, nm_coordinates):
         """
@@ -392,19 +443,27 @@ class InstFEP(HarmFEP):
         else:
             return variance
 
-    def sample_normal_modes(self, n_samples):
+    def sample_normal_modes(self, n_samples, sampler="sobol", rng=None):
         """
-        Sample normal mode coordinates using quasi-random numbers.
+        Sample normal mode coordinates.
 
         Parameters:
-            temperature: Temperature in Kelvin
-            n_samples: Number of samples (should be power of 2)
+            n_samples: Number of samples.
+            sampler: Sampling method. Supported values are "sobol" and "numpy".
+            rng: Optional NumPy random generator for the NumPy sampler.
 
         Returns:
-            sampled_nm_pos: Array of shape (n_samples, (nbeads-1)*natoms*3-1)
+            sampled_nm_pos: Array of shape (n_samples, (nbeads-1)*natoms*3-1).
         """
-        self.sigma = self.calculate_variance()  # Shape: (nbeads-1)*natoms*3
-        return sobol_gaussian_sample(loc=np.zeros_like(self.sigma), scale=self.sigma, m0=n_samples)
+        self.sigma = self.calculate_variance()
+
+        return gaussian_sample(
+            loc=np.zeros_like(self.sigma),
+            scale=self.sigma,
+            n_samples=n_samples,
+            sampler=sampler,
+            rng=rng,
+        )
 
     def nm_to_cart(self, nm_coordinates):
         """

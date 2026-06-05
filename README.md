@@ -62,7 +62,8 @@ PYRINST_MACE_MODEL=/abs/path/to/model.model bash tests/gpu/run_mace_release_chec
 
 ### i-pi `nvt-cc` Bug Fix
 
-At the moment, the `nvt-cc` implementation in i-pi contains a bug that needs to be patched. In `ipi/engine/motion/dynamics.py`, inside the `step` method of the `NVTCCIntegrator` class, add one extra line below:
+For i-pi versions **3.20 and later**, the `nvt-cc` bug has been fixed upstream.  
+For older i-pi versions, if upgrading is not possible, apply the following manual patch : In `ipi/engine/motion/dynamics.py`, inside the `step` method of the `NVTCCIntegrator` class, add one extra line below:
 
 ```python
 # self.qcstep() # for the moment I just avoid doing the centroid step.
@@ -318,3 +319,10 @@ Finally, use the computed bead energies to perform the last FEP evaluation and p
 ```bash
 pyrinst-fep-eval inst.pkl --prefix simulation.pos
 ```
+
+## Isotpes
+Currently, only hydrogen isotope calculations in HarmFEP are supported.
+
+You need to modify the H atoms in the initial XYZ file to D or T. During subsequent reference calculations, Pyrinst will correctly interpret the corresponding mass for frequency calculations.
+
+> Note that during the sampling process, the program will revert D(T) back to H. This is done because the potential energy is independent of the isotope.
