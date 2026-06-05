@@ -5,7 +5,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from pyrinst.potentials.base import Task
+from pyrinst.potentials.base import Level
 from pyrinst.potentials.orca import Orca, OrcaResult
 
 
@@ -103,7 +103,7 @@ def test_orca_generate_input(tmp_path, mock_orca_template):
     drv._folder = str(tmp_path)
 
     x = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.74]])
-    drv.generate_input(x, Task.GRAD)
+    drv.generate_input(x, Level.GRAD)
 
     infile = tmp_path / "test.inp"
     assert infile.exists()
@@ -126,7 +126,7 @@ def test_orca_call(mock_result, mock_subprocess, tmp_path, mock_orca_template):
     res_inst.grad = np.zeros((2, 3))
     res_inst.hess = np.zeros((6, 6))
 
-    e, g, h = drv(x, Task.GRAD)
+    e, g, h = drv(x, Level.GRAD)
 
     assert mock_subprocess.called
     assert mock_result.called

@@ -8,10 +8,10 @@ from numpy.typing import NDArray
 
 from pyrinst.utils.units import ANGSTROM, EV, Energy, Length, Mass
 
-from .base import OnTheFlyDriver, OnTheFlyResult, Task
+from .base import Level, OnTheFlyPotential, OnTheFlyResult
 
 
-class Vasp(OnTheFlyDriver):
+class Vasp(OnTheFlyPotential):
     def __init__(self, *args, cell, add_files: Sequence[str], **kwargs):
         super().__init__(*args, **kwargs)
         if len(cell) == 3:
@@ -37,13 +37,8 @@ class Vasp(OnTheFlyDriver):
             self._gen_potcar(os.environ.get("VASP_PP_PATH"))
         if "KPOINTS" not in self._add_files:
             raise RuntimeError("KPOINTS file not provided")
-        self.cwd = os.getcwd()
         self._output: str = f"{self._sys_name}.out"
         self._args = f" > {self._output}"
-
-    def compute(self, geom, task: Task = Task.GRAD):
-        super().compute(geom, task)
-        self.cleanup()
 
     def _gen_potcar(self, vasp_pp_path):
         """Writes out the POTCAR with elements in the correct order
@@ -53,19 +48,17 @@ class Vasp(OnTheFlyDriver):
         if vasp_pp_path is None:
             raise RuntimeError("VASP_PP_PATH not specified. Either specified this or give a POTCAR file")
 
-    def generate_input(self, x: NDArray, task: Task = Task.GRAD):
+    def generate_input(self, x: NDArray, level: Level = Level.GRAD):
         """Sets up the system for each VASP calculation."""
-        os.chdir(self._folder)
-        with open("INCAR", "w") as f:
-            if task == Task.FREQ:
-                f.write("\n" + self._hess_command)
+        with open(os.path.join(self._folder, "INCAR"), "w") as f:
+            if level == Level.FREQ:
+                f.write("\n" + self._hess_cmd)
             f.write(self.incar)
         self._gen_poscar(x)
 
         for file, content in self._add_files.items():
-            with open(file, "wb" if file == "vdw_kernel.bindat" else "w") as f:
+            with open(os.path.join(self._folder, file), "wb" if file == "vdw_kernel.bindat" else "w") as f:
                 f.write(content)
-        os.chdir(self.cwd)
 
     def _gen_poscar(self, x: NDArray):
         """Writes out the POSCAR file for a given configuration.
@@ -74,7 +67,7 @@ class Vasp(OnTheFlyDriver):
         counter = defaultdict(int)
         for element in self.symbols:
             counter[element] += 1
-        with open("POSCAR", "w") as f:
+        with open(os.path.join(self._folder, "POSCAR"), "w") as f:
             f.write("POSCAR\n   1.0\n")
             for i in range(3):
                 for j in range(3):
@@ -96,15 +89,13 @@ class Vasp(OnTheFlyDriver):
         """Deletes all wave functions and charges files when all calculations finish.
         These WAVECARs takes up a lot of space and quite worthless here.
         """
-        os.chdir(self._working_dir)
-        for f in os.walk("./").next()[1]:
-            if os.path.exists(f + "/WAVECAR"):
-                os.remove(f + "/WAVECAR")
-            if os.path.exists(f + "/CHGCAR"):
-                os.remove(f + "/CHGCAR")
-            if os.path.exists(f + "/CHG"):
-                os.remove(f + "/CHG")
-        os.chdir(self.cwd)
+        for entry in os.scandir(self._working_dir):
+            if not entry.is_dir():
+                continue
+            for filename in ("WAVECAR", "CHGCAR", "CHG"):
+                path = os.path.join(entry.path, filename)
+                if os.path.exists(path):
+                    os.remove(path)
 
 
 class VaspResult(OnTheFlyResult):

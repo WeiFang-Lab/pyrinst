@@ -8,12 +8,12 @@ from numpy.typing import NDArray
 from pyrinst.io.xyz import lines
 from pyrinst.utils.elements import element_data
 
-from .base import OnTheFlyDriver, SingleFileResult, Task
+from .base import Level, OnTheFlyPotential, SingleFileResult
 
 log = logging.getLogger(__name__)
 
 
-class Gaussian(OnTheFlyDriver):  # todo: not fully tested
+class Gaussian(OnTheFlyPotential):  # todo: not fully tested
     _runcmd: str = "g09"
 
     def __init__(self, *args, **kwargs):
@@ -57,16 +57,16 @@ class Gaussian(OnTheFlyDriver):  # todo: not fully tested
         self._output: str = f"{self._sys_name}.log"
         self._args: str = f"< {self._input} > {self._output} ; formchk {self._sys_name}.chk"
 
-    def generate_input(self, x: NDArray, task: Task = Task.GRAD):
+    def generate_input(self, x: NDArray, level: Level = Level.GRAD):
         input_file: str = f"{self._folder}/{self._input}"
         assert len(x) == len(self.symbols)
         with open(input_file, "w") as f:
             for i in range(self._link):
                 f.write(self._header[i])
                 if i == self._link - 1:
-                    if task == Task.FREQ:
+                    if level == Level.FREQ:
                         f.write(f"{self._hess_cmd}\n")
-                    elif task == Task.GRAD:
+                    elif level == Level.GRAD:
                         f.write(f"{self._grad_cmd}\n")
                 f.write(f"\n{self._title}\n{self._charge_mult}{lines(self.symbols, x)}\n\n{self._tail[i]}\n")
 

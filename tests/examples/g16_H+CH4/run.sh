@@ -9,8 +9,7 @@ T=200
 set -e
 
 export PYTHONBUFFERED=1
-module load gaussian/g16c02
-export GAUSS_SCRDIR=/tmp/GAU-zyye
+export GAUSS_SCRDIR=/tmp/GAU-pyrinst
 mkdir -p ${GAUSS_SCRDIR}
 
 echo "First optimize the stationary points"
