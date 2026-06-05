@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from pyrinst.potentials.base import Task
+from pyrinst.potentials.base import Level
 
 pytest.importorskip("ase")
 pytest.importorskip("mace.calculators")
@@ -41,7 +41,7 @@ def test_mace_call():
         mock_calc.get_hessian.return_value = np.ones((6, 6))
 
         x = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
-        e, g, h = mace(x, task=Task.FREQ)
+        e, g, h = mace(x, level=Level.FREQ)
 
         ev_to_au = Energy(1.0, "eV").get("Hartree")
         ang_to_au = Length(1.0, "A").get("Bohr")

@@ -7,7 +7,7 @@ from numpy.linalg import norm
 from numpy.typing import NDArray
 from scipy import linalg
 
-from pyrinst.potentials import Potential, Task
+from pyrinst.potentials import Executor, Level
 
 from .hessian import bfgs, bofill, powell
 from .projections import proj_eig
@@ -27,11 +27,11 @@ class NewtonRaphson:
 
     type_alias: str = "NR"
 
-    def __init__(self, potential: Potential, maxstep=None, project: bool = True, update: bool = True):
+    def __init__(self, executor: Executor, maxstep=None, project: bool = True, update: bool = True):
         """
         verbosity -- controls messages
         """
-        self.potential = potential
+        self.executor = executor
         self.maxstep = maxstep
         self.project: bool = project
         self.update_method: Callable | None = bofill if update else None
@@ -51,10 +51,10 @@ class NewtonRaphson:
         x, G, H = data.x.copy(), data.G.copy(), data.H.copy()
         data.x += h
         if self.update_method:
-            self.potential.compute(data, task=Task.GRAD)
+            self.executor.compute(data, level=Level.GRAD)
             data.H = self.update_method(H, (data.x - x).ravel(), (data.G - G).ravel())
         else:
-            self.potential.compute(data, task=Task.FREQ)
+            self.executor.compute(data, level=Level.FREQ)
 
     def iterate(self, data: "StationaryPoint") -> None:
         """Take one iteration, including rescaling step"""
@@ -74,7 +74,7 @@ class NewtonRaphson:
         maxiter -- maximum number of overall iterations
         callback -- a user-supplied function called as callback(x,y) after each iteration
         """
-        self.potential.compute(data, task=Task.FREQ)  # todo: prevent redundant computation
+        self.executor.compute(data, level=Level.FREQ)  # todo: prevent redundant computation
         xt = [data.x.copy()]
         n_digit = int(np.log10(maxiter)) + 1
         for i in range(maxiter):
@@ -96,7 +96,7 @@ class NewtonRaphson:
 
         else:
             log.warning("WARNING: did not converge")
-        self.potential.compute(data, task=Task.FREQ)
+        self.executor.compute(data, level=Level.FREQ)
 
         # data.xt = np.array(xt)
 
@@ -151,17 +151,17 @@ class LBFGS(NewtonRaphson):
 
     type_alias = "lBFGS"
 
-    def __init__(self, potential: Potential, maxstep: float = 0.3, **_):
+    def __init__(self, executor: Executor, maxstep: float = 0.3, **_):
         """Initializes the LBFGS optimizer.
 
         Parameters
         ----------
-        potential : Potential
-            The potential-energy surface to optimize.
+        executor : Executor
+            The executor used to evaluate the potential-energy surface.
         maxstep : float, optional
             The maximum allowed step size for each iteration. Defaults to 0.3.
         """
-        super().__init__(potential, maxstep=maxstep)
+        super().__init__(executor, maxstep=maxstep)
         self.m: int = 3  # The number of previous steps and gradients to store.
         if self.m <= 0:
             raise ValueError("m must be a positive integer")

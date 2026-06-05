@@ -1,5 +1,5 @@
-from .base import POTENTIAL_REGISTRY, Potential, Task
-from .fixatom import FixAtom
+from .base import POTENTIAL_REGISTRY, Level, Potential
+from .executors import CachedExecutor, Driver, Executor, FixAtom, ParallelExecutor, SerialExecutor, SingleExecutor
 from .gaussian import Gaussian
 from .orca import Orca
 from .vasp import Vasp
@@ -29,10 +29,16 @@ __all__ = [
     "FixAtom",
     "Gaussian",
     "Orca",
+    "Driver",
     "Vasp",
     "POTENTIAL_REGISTRY",
+    "Executor",
+    "SingleExecutor",
+    "SerialExecutor",
+    "ParallelExecutor",
+    "CachedExecutor",
     "Potential",
-    "Task",
+    "Level",
     "BUILTIN_POTENTIALS",
 ]
 

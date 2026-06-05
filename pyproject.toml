@@ -70,6 +70,7 @@ dependencies = [
     "numpy>=2.3",
     "scipy>=1.16",
     "matplotlib>=3.10",
+    "pyzmq>=26.0",
 ]
 
 [project.optional-dependencies]
@@ -98,6 +99,7 @@ docs = [
 # ==============================================================================
 # This section creates the command-line tools for your users.
 [project.scripts]
+pyrinst-driver = "pyrinst.cli.driver:main"
 pyrinst-fep-eval = "pyrinst.cli.fep_eval:main"
 pyrinst-gen-ref = "pyrinst.cli.gen_ref:main"
 pyrinst-optimize = "pyrinst.cli.optimize:main"
