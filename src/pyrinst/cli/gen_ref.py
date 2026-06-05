@@ -43,7 +43,7 @@ def main() -> None:
         )
 
     reference = HarmRef(x, mace_pes.symbols_raw, n_zero=(5 if is_linear(x) else 6))
-    mace_pes.compute(reference, task=2)
+    SerialExecutor(mace_pes).compute(reference, level=Level.FREQ)
     reference.calc_freq()
     min_freq: float = min(reference.freqs[np.argpartition(abs(reference.freqs), reference.n_zero)[reference.n_zero :]])
     if min_freq > 0:

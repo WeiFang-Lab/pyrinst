@@ -6,7 +6,7 @@ from ase.vibrations.data import VibrationsData
 from mace.calculators import MACECalculator
 from numpy.typing import NDArray
 
-from pyrinst.potentials import Potential, Task
+from pyrinst.potentials import Level, Potential
 from pyrinst.utils.elements import element_data
 from pyrinst.utils.units import Energy, Length
 
