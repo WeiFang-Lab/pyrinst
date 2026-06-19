@@ -34,12 +34,12 @@ while IFS= read -r path; do
   fi
 done <<< "${SCRIPT_PATHS}"
 
-command -v pyrinst-gen-ref >/dev/null || { echo "pyrinst-gen-ref not found on PATH=$PATH" >&2; exit 1; }
-command -v pyrinst-sampling >/dev/null || { echo "pyrinst-sampling not found on PATH=$PATH" >&2; exit 1; }
-command -v pyrinst-fep-eval >/dev/null || { echo "pyrinst-fep-eval not found on PATH=$PATH" >&2; exit 1; }
-command -v pyrinst-optimize >/dev/null || { echo "pyrinst-optimize not found on PATH=$PATH" >&2; exit 1; }
+command -v pyrinst >/dev/null || { echo "pyrinst not found on PATH=$PATH" >&2; exit 1; }
 
-pyrinst-gen-ref --help >/dev/null
-pyrinst-sampling --help >/dev/null
-pyrinst-fep-eval --help >/dev/null
-pyrinst-optimize --help >/dev/null
+pyrinst --help >/dev/null
+pyrinst geom --help >/dev/null
+pyrinst rate --help >/dev/null
+pyrinst sample --help >/dev/null
+pyrinst fep-eval --help >/dev/null
+pyrinst plot --help >/dev/null
+pyrinst driver --help >/dev/null

@@ -20,7 +20,7 @@ If you only need the core functionality, run the following in the project root:
 pip install .
 ```
 
-After installation, `pyrinst-gen-ref`, `pyrinst-sampling`, `pyrinst-fep-eval`, and `pyrinst-optimize` will be available as command-line programs.
+After installation, `pyrinst` will be available as the command-line program.
 
 ### Optional Dependency Layers
 
@@ -92,21 +92,21 @@ The overall workflow consists of the following four main steps.
 
 First, compute the Hessian and vibrational frequency information for the centroid geometry and build the reference harmonic oscillator state.
 
-**Related command:** `pyrinst-gen-ref` (entry module: `pyrinst.cli.gen_ref`)
+**Related command:** `pyrinst geom --mode single`
 
 **Example:**
 
 ```bash
-pyrinst-gen-ref geom.xyz -o ref_out -P MACE --model_path /path/to/model.model --device cuda
+pyrinst geom centroid.xyz -o ref_out -P mace --model-path /path/to/model.model --device cuda --mode single
 ```
 
 **Arguments:**
 
 - `input`: Input centroid geometry in XYZ format
 - `-o, --output`: Output prefix for the reference-state PKL file (default: `ref`)
-- `-P, --PES`: Selected potential energy surface, for example `MACE`
+- `-P, --potential`: Selected potential energy surface, for example `mace`
 - Parameters specific to the MACE PES:
-- `--model_path`: Path to the MACE model
+- `--model-path`: Path to the MACE model
 - `--dtype`: Precision, either `float64` or `float32`
 - `--device`: Execution device, either `cuda` or `cpu`
 
@@ -118,12 +118,12 @@ After the script finishes, it prints the relevant frequency information and writ
 
 Sample the system in normal-mode space under the harmonic potential and generate configurations for each bead.
 
-**Related command:** `pyrinst-sampling` (entry module: `pyrinst.cli.sampling`)
+**Related command:** `pyrinst sample`
 
 **Example:**
 
 ```bash
-pyrinst-sampling ref_out.pkl -T 300 -N 4096 -n 24 -o simulation.pos
+pyrinst sample ref_out.pkl -T 300 -N 4096 -n 24 -o simulation.pos
 ```
 
 **Arguments:**
@@ -175,12 +175,12 @@ Parameters that matter most for performance:
 
 Use the bead configurations with computed energies together with the `pkl` file to obtain the final free-energy estimate.
 
-**Related command:** `pyrinst-fep-eval` (entry module: `pyrinst.cli.fep_eval`)
+**Related command:** `pyrinst fep-eval`
 
 **Example:**
 
 ```bash
-pyrinst-fep-eval ref_out.pkl --prefix simulation.pos_eval -n 24
+pyrinst fep-eval ref_out.pkl --prefix simulation.pos_eval -n 24
 ```
 
 **Arguments:**
@@ -206,12 +206,12 @@ Because this method is built around an instanton-based correction, the workflow 
 
 First, compute the reference harmonic state from the centroid geometry so it can be used as the initial guess for the later optimization.
 
-**Related command:** `pyrinst-gen-ref`
+**Related command:** `pyrinst geom --mode single`
 
 **Example:**
 
 ```bash
-pyrinst-gen-ref water.xyz -P MACE --model_path MACE-OFF23_medium_water_train3_run-1020_stagetwo.model
+pyrinst geom water.xyz -P mace --model-path MACE-OFF23_medium_water_train3_run-1020_stagetwo.model --mode single
 ```
 
 The default output reference file is `ref.pkl`.
@@ -222,24 +222,30 @@ The default output reference file is `ref.pkl`.
 
 After the initial reference structure is generated, perform a fixed-centroid instanton geometry optimization at the target temperature.
 
-**Related command:** `pyrinst-optimize`
+**Related command:** `pyrinst geom`
 
 **Example:**
 
 ```bash
-pyrinst-optimize ref.pkl -o inst.pkl -T 300 --mode centroid -P MACE -F MACE-OFF23_medium_water_train3_run-1020_stagetwo.model -N 24 -s 0.189
+pyrinst geom ref.pkl -o inst.pkl -T 300 --mode centroid -P mace -F MACE-OFF23_medium_water_train3_run-1020_stagetwo.model -N 24 -s 0.189
+```
+
+If the optimized geometry already exists and you only want to recompute the rate analysis, run:
+
+```bash
+pyrinst rate inst.pkl -T 300
 ```
 
 #### Serial and Parallel Instanton Optimization
 
-For serial optimization, pass the potential backend directly to `pyrinst-optimize`:
+For serial optimization, pass the potential backend directly to `pyrinst geom`:
 
 ```bash
-pyrinst-optimize ref.pkl \
+pyrinst geom ref.pkl \
     -o inst.pkl \
     -T 300 \
     --mode centroid \
-    -P MACE \
+    -P mace \
     -F /path/to/model.model \
     -N 24 \
     -s 0.189 \
@@ -249,7 +255,7 @@ pyrinst-optimize ref.pkl \
 For parallel on-the-fly optimization, the main optimizer does not need the potential backend. It only keeps the optimization state and dispatches bead geometries:
 
 ```bash
-pyrinst-optimize ref.pkl \
+pyrinst geom ref.pkl \
     -o inst.pkl \
     -T 300 \
     --mode centroid \
@@ -262,7 +268,7 @@ pyrinst-optimize ref.pkl \
 Start one or more driver workers from the same directory. The driver command is where the potential backend is specified:
 
 ```bash
-pyrinst-driver \
+pyrinst driver \
     -P orca \
     -F orca_template.inp \
     --runcmd orca \
@@ -277,7 +283,7 @@ Each driver process handles one task at a time. Launch multiple driver processes
 - `-o, --output`: Name of the output PKL file after optimization, for example `inst.pkl`
 - `-T`: Target temperature
 - `--mode`: Use `centroid` here for fixed-centroid instanton optimization
-- `-P, --PES`: Selected potential energy surface
+- `-P, --potential`: Selected potential energy surface
 - `-F`: Additional model-path argument corresponding to the selected PES
 - `-N`: Number of beads, for example `24`
 - `-s, --spread`: Length of the initial instanton guess
@@ -290,12 +296,12 @@ Each driver process handles one task at a time. Launch multiple driver processes
 
 After obtaining the optimized instanton structure, sample configurations around it.
 
-**Related command:** `pyrinst-sampling`
+**Related command:** `pyrinst sample`
 
 **Example:**
 
 ```bash
-pyrinst-sampling inst.pkl -T 300 -N 2048
+pyrinst sample inst.pkl -T 300 -N 2048
 ```
 
 This step is the same as in `Harm-FEP`. It generates the `simulation.pos` bead-configuration files and updates the harmonic energy stored in `inst.pkl`.
@@ -312,12 +318,12 @@ Use the same procedure described above for `Harm-FEP`.
 
 Finally, use the computed bead energies to perform the last FEP evaluation and print the result.
 
-**Related command:** `pyrinst-fep-eval`
+**Related command:** `pyrinst fep-eval`
 
 **Example:**
 
 ```bash
-pyrinst-fep-eval inst.pkl --prefix simulation.pos
+pyrinst fep-eval inst.pkl --prefix simulation.pos
 ```
 
 ## Isotpes

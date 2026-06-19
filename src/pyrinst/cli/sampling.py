@@ -9,8 +9,7 @@ from pyrinst.utils.elements import element_data
 from pyrinst.utils.pimc import HarmFEP, InstFEP
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate distribution via quasi random number.")
+def configure_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("input", help="pkl file.")
     parser.add_argument("-T", type=float, default=300, help="Temperature (K).")
     parser.add_argument("-N", type=int, default=4096, help="The number of configurations sampled.")
@@ -20,8 +19,16 @@ def main() -> None:
     )
     parser.add_argument("-l", "--lmd_val", type=float, default=1.0, help="The mass scaling factor.")
     parser.add_argument("--nprandom", action="store_true", help="Use numpy function to generate gaussian samples")
-    args = parser.parse_args()
 
+
+def add_parser(subparsers: argparse._SubParsersAction) -> argparse.ArgumentParser:
+    parser = subparsers.add_parser("sample", help="Sample bead configurations for FEP.")
+    configure_parser(parser)
+    parser.set_defaults(func=run)
+    return parser
+
+
+def run(args: argparse.Namespace, _parser: argparse.ArgumentParser | None = None) -> None:
     sampler = "numpy" if args.nprandom else "sobol"
     input_geom = np.load(args.input, allow_pickle=True)
     if type(input_geom) is HarmRef:
@@ -55,6 +62,12 @@ def main() -> None:
             x_list.append(pos_3d)
 
         save(filename, x_list, symbols_base, comment=" ")
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description="Generate distribution via quasi random number.")
+    configure_parser(parser)
+    run(parser.parse_args(argv), parser)
 
 
 if __name__ == "__main__":

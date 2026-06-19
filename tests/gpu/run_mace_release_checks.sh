@@ -30,14 +30,15 @@ echo "[mace-release] Running CLI smoke for MACE-backed reference generation"
 pushd "$WORKDIR" >/dev/null
 rm -f ref.* sampled* smoke_eval.xyz
 
-pyrinst-gen-ref "$ROOT_DIR/tests/examples/inst-fep/water.xyz" \
+pyrinst geom "$ROOT_DIR/tests/examples/inst-fep/water.xyz" \
+  --mode single \
   -o ref \
   -P MACE \
-  --model_path "$MODEL_PATH" \
+  --model-path "$MODEL_PATH" \
   --device "$DEVICE" \
   --enable_cueq
 
-pyrinst-sampling ref.pkl -T 300 -N 8 -n 8 -o sampled
+pyrinst sample ref.pkl -T 300 -N 8 -n 8 -o sampled
 
 if command -v mace_eval_configs >/dev/null 2>&1; then
   mace_eval_configs \

@@ -10,13 +10,20 @@ from pyrinst.utils.fep import effective_sample_size, free_energy_perturbation
 from pyrinst.utils.units import EV, KB
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate distribution via quasi random number.")
+def configure_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("input", type=str, help="pkl file.")
     parser.add_argument("--prefix", type=str, default="simulation.pos", help="prefix of beads filename")
     parser.add_argument("-n", "--nbeads", type=int, default=24, help="The number of beads.")
-    args = parser.parse_args()
 
+
+def add_parser(subparsers: argparse._SubParsersAction) -> argparse.ArgumentParser:
+    parser = subparsers.add_parser("fep-eval", help="Evaluate FEP corrections from sampled bead energies.")
+    configure_parser(parser)
+    parser.set_defaults(func=run)
+    return parser
+
+
+def run(args: argparse.Namespace, _parser: argparse.ArgumentParser | None = None) -> None:
     with open(args.input, "rb") as f:
         input_geom = pickle.load(f)
 
@@ -51,6 +58,12 @@ def main() -> None:
     print(f"Delta F({input_geom.T} K): {(df0 + df1) / EV:{Formats.ENERGY}} eV")
     print(f"uncertainty: {var1 / EV:{Formats.ENERGY}} eV")
     print(f"ESS: {ess:.2f} / {len(des)} ({ess / len(des):.2%})")
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description="Generate distribution via quasi random number.")
+    configure_parser(parser)
+    run(parser.parse_args(argv), parser)
 
 
 if __name__ == "__main__":

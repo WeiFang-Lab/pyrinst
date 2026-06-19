@@ -4,7 +4,7 @@ export PYTHONBUFFERED=1
 export GAUSS_SCRDIR=/tmp/GAU-pyrinst
 mkdir -p ${GAUSS_SCRDIR}
 
-pyrinst-optimize --parallel -g 3e-3 --maxstep 0.1 --mode inst inst_16.pkl -T 200 -N 32 -o inst_32.xyz > inst_32.out
+pyrinst geom --parallel -g 3e-3 --maxstep 0.1 --mode inst inst_16.pkl -T 200 -N 32 -o inst_32.xyz > inst_32.out
 
 echo "Your results (N=32): "
 tail -n3 inst_32.out

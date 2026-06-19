@@ -30,13 +30,7 @@ class PlotPayload:
     geometry: Geometry | None
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description=(
-            "Plot the potential along an instanton path against the mass-weighted path length. "
-            "Supports pyrinst .pkl files and xyz trajectories."
-        )
-    )
+def configure_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("files", nargs="+", help="xyz or pkl file(s)")
     parser.add_argument("-i", "--index", default=None, help="Text file recording indices of beads to highlight")
     parser.add_argument("-r", "--reverse", action="store_true", help="Reverse the direction of the path")
@@ -69,6 +63,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="How to align energies between profiles",
     )
     parser.add_argument("-m", "--markers", type=str.lower, choices=["normal", "small", "none"], default="normal")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Plot the potential along an instanton path against the mass-weighted path length. "
+            "Supports pyrinst .pkl files and xyz trajectories."
+        )
+    )
+    configure_parser(parser)
     return parser
 
 
@@ -225,10 +229,21 @@ def print_path_analysis(payload: PlotPayload) -> None:
         print(f'{"Total":>15s}  {total_cart:>9.4f}  {total_mw:>9.4f}  {np.sum(bn_pct):>5.1f}%')
 
 
-def main(argv: list[str] | None = None) -> None:
-    parser = build_parser()
-    args = parser.parse_args(argv)
+def add_parser(subparsers: argparse._SubParsersAction) -> argparse.ArgumentParser:
+    parser = subparsers.add_parser(
+        "plot",
+        help="Plot potential profiles along paths.",
+        description=(
+            "Plot the potential along an instanton path against the mass-weighted path length. "
+            "Supports pyrinst .pkl files and xyz trajectories."
+        ),
+    )
+    configure_parser(parser)
+    parser.set_defaults(func=run)
+    return parser
 
+
+def run(args: argparse.Namespace, _parser: argparse.ArgumentParser | None = None) -> None:
     idx: NDArray[np.integer] | None = None if args.index is None else np.atleast_1d(np.loadtxt(args.index, dtype=int))
 
     fig, ax = plt.subplots(figsize=args.figsize)
@@ -357,6 +372,10 @@ def main(argv: list[str] | None = None) -> None:
         fig.savefig(args.savefig, dpi=600)
     else:
         plt.show()
+
+
+def main(argv: list[str] | None = None) -> None:
+    run(build_parser().parse_args(argv))
 
 
 if __name__ == "__main__":
