@@ -44,6 +44,7 @@ def add_backend_args(
             "or a JSON initializer for a custom potential."
         ),
     )
+    parser.add_argument("--device", help="device which model runs on", type=str, default="cpu")
     group.add_argument("-A", "--additional-files", nargs="+", help="Additional backend input files.")
     group.add_argument("--hess-method", help="Backend command or method for Hessian calculations.")
     group.add_argument("--runcmd", help="Command for running the backend.")

@@ -13,7 +13,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("input", help="pkl file.")
     parser.add_argument("-T", type=float, default=300, help="Temperature (K).")
     parser.add_argument("-N", type=int, default=4096, help="The number of configurations sampled.")
-    parser.add_argument("-n", "--nbeads", type=int, default=24, help="The number of beads.")
+    parser.add_argument("--nbeads", type=int, default=24, help="The number of beads.")
     parser.add_argument(
         "-o", "--output", type=str, default="simulation.pos", help="The prefix of output configuration files."
     )

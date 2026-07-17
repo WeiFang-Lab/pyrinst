@@ -89,9 +89,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--maxstep", default=0.3, type=float, help="Max-step in optimization.")
     parser.add_argument("--maxiter", default=10, type=int, help="Max-iters in optimization.")
     parser.add_argument("--no-update", action="store_true", help="Don't update but recompute Hessian at each step.")
-    parser.add_argument(
-        "-N", "--beads", type=int, help="Number of ring-polymer beads (default chosen from input file)."
-    )
+    parser.add_argument("--nbeads", type=int, help="Number of ring-polymer beads (default chosen from input file).")
     parser.add_argument("-s", "--spread", type=float, help="Spread of initial guess.")
 
 
@@ -261,10 +259,10 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser | None = None)
 
         if args.mode in (Instanton.type_alias, InstRef.type_alias):
             if type(data) in (TransitionState, HarmRef):
-                data = data.get_inst_guess(args.beads, beta, args.spread)
+                data = data.get_inst_guess(args.nbeads, beta, args.spread)
             data.set_beta(beta)
-            if args.beads and args.beads != data.N:
-                data.interpolate(args.beads)
+            if args.nbeads and args.nbeads != data.N:
+                data.interpolate(args.nbeads)
 
         if args.maxiter == 0:
             evaluate_current_geometry(data, executor)

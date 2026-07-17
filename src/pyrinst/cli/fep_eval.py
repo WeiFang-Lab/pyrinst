@@ -13,7 +13,7 @@ from pyrinst.utils.units import EV, KB
 def configure_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("input", type=str, help="pkl file.")
     parser.add_argument("--prefix", type=str, default="simulation.pos", help="prefix of beads filename")
-    parser.add_argument("-n", "--nbeads", type=int, default=24, help="The number of beads.")
+    parser.add_argument("--nbeads", type=int, default=24, help="The number of beads.")
 
 
 def add_parser(subparsers: argparse._SubParsersAction) -> argparse.ArgumentParser:
