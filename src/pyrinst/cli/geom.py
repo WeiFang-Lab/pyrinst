@@ -90,6 +90,9 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--maxiter", default=10, type=int, help="Max-iters in optimization.")
     parser.add_argument("--no-update", action="store_true", help="Don't update but recompute Hessian at each step.")
     parser.add_argument("--nbeads", type=int, help="Number of ring-polymer beads (default chosen from input file).")
+    parser.add_argument(
+        "--full-ring", action="store_true", help="Optimize all beads independently (centroid mode only)."
+    )
     parser.add_argument("-s", "--spread", type=float, help="Spread of initial guess.")
 
 
@@ -123,6 +126,16 @@ def load_input_geometry(filename: str):
 def make_initial_geometry(args: argparse.Namespace, data, symbols, x, ext: str, executor):
     if ext == ".pkl":
         return data
+
+    if args.mode == "centroid":
+        if ext == ".xyz":
+            x = x.reshape(-1, len(symbols), 3)
+        if ext != ".xyz" or not args.full_ring or x.ndim != 3 or len(x) < 2:
+            raise ValueError("Centroid path input requires a multi-frame XYZ and --full-ring, or a reference pkl")
+        _, beta = resolve_temperature(args, None)
+        if beta is None:
+            raise ValueError("XYZ paths require -T/--temperature or --beta")
+        return InstRef(x, symbols, beta=beta, full_ring=True)
 
     phase = PhaseType(args.phase)
     match phase:
@@ -232,6 +245,8 @@ def evaluate_current_geometry(data, executor) -> None:
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser | None = None) -> None:
     if parser is None:
         parser = argparse.ArgumentParser()
+    if args.full_ring and args.mode != "centroid":
+        parser.error("--full-ring is only supported with --mode centroid")
     if args.mode == "single":
         run_single(args, parser)
         return
@@ -258,11 +273,29 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser | None = None)
             data.update_links(*[np.load(file, allow_pickle=True) for file in args.link])
 
         if args.mode in (Instanton.type_alias, InstRef.type_alias):
+            if beta is None or beta <= 0:
+                parser.error("Instanton optimization requires a positive temperature or beta")
             if type(data) in (TransitionState, HarmRef):
-                data = data.get_inst_guess(args.nbeads, beta, args.spread)
+                if args.nbeads is None:
+                    parser.error("--nbeads is required to generate an initial path")
+                spread = 0.1 if args.spread is None else args.spread
+                if isinstance(data, HarmRef):
+                    if args.mode != "centroid":
+                        parser.error("HarmRef input requires --mode centroid")
+                    data = data.get_inst_guess(args.nbeads, beta, spread, full_ring=args.full_ring)
+                else:
+                    if args.mode != "inst":
+                        parser.error("Centroid optimization requires HarmRef or InstRef input")
+                    data = data.get_inst_guess(args.nbeads, beta, spread)
+            if args.mode == "centroid" and not isinstance(data, InstRef):
+                parser.error("Centroid optimization requires HarmRef or InstRef input")
+            if args.full_ring:
+                data = data.to_full_ring()
             data.set_beta(beta)
-            if args.nbeads and args.nbeads != data.N:
+            if args.nbeads is not None and args.nbeads != data.N:
                 data.interpolate(args.nbeads)
+            if isinstance(data, InstRef) and data.links:
+                data.validate_reference()
 
         if args.maxiter == 0:
             evaluate_current_geometry(data, executor)

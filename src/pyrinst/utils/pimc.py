@@ -407,10 +407,13 @@ class HarmFEP:
 
 class InstFEP(HarmFEP):
     def __init__(self, inst, nbeads=24, lmd=None):
-        assert nbeads == inst.N
+        if nbeads != inst.N:
+            raise ValueError("Sampling bead count must match the reference")
+        inst.validate_reference()
+        inst = inst.to_full_ring()
         super().__init__(inst, nbeads, lmd)
 
-        self.npos: NDArray = np.concatenate((inst.x, inst.x[::-1]))
+        self.npos: NDArray = inst.x
 
         self.beta: float = inst.beta
 

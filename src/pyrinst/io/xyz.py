@@ -323,7 +323,10 @@ def load(filepath: str | list[str], read_coords: bool = True, energy_pattern: st
                 num_atoms: int = int(line.strip())
 
                 try:
-                    atom_symbols, frame_coords, comment_val = _read_frame(f, num_atoms, read_coords, energy_pattern)
+                    frame_symbols, frame_coords, comment_val = _read_frame(f, num_atoms, read_coords, energy_pattern)
+                    if atom_symbols is not None and not np.array_equal(atom_symbols, frame_symbols):
+                        raise ValueError("Atom symbols and ordering must match in all XYZ frames")
+                    atom_symbols = frame_symbols
                 except Exception as e:
                     raise OSError(f"Error reading frame {len(file_coords)} from '{path}'.") from e
 

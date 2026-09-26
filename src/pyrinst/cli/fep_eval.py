@@ -23,9 +23,13 @@ def add_parser(subparsers: argparse._SubParsersAction) -> argparse.ArgumentParse
     return parser
 
 
-def run(args: argparse.Namespace, _parser: argparse.ArgumentParser | None = None) -> None:
+def run(args: argparse.Namespace) -> None:
     with open(args.input, "rb") as f:
         input_geom = pickle.load(f)
+    if args.nbeads != input_geom.N:
+        raise ValueError("FEP bead count must match the sampled reference")
+    if isinstance(input_geom, InstRef):
+        input_geom = input_geom.to_full_ring()
 
     df0 = input_geom.delta_free_energy()
 
@@ -38,12 +42,14 @@ def run(args: argparse.Namespace, _parser: argparse.ArgumentParser | None = None
         print("Harmonic FEP")
     elif type(input_geom) is InstRef:
         _, x, beads_energies = load(filenames, energy_pattern=energy_pattern)
-        ref_energy = np.r_[(input_geom.energy, input_geom.energy[::-1])][:, None]
-        x = x.transpose(1, 0, 2, 3)
+        ref_energy = input_geom.energy[:, None]
+        x = x.reshape(args.nbeads, -1, len(input_geom.m), 3).transpose(1, 0, 2, 3)
         dx = np.diff(x, axis=1, append=x[:, 0][:, None, ...])
-        dx0 = np.diff(input_geom.x, axis=0)
-        dx0 = np.concat((dx0, np.zeros_like(dx0[:1]), -dx0[::-1], np.zeros_like(dx0[:1])))
-        weights = np.maximum(np.einsum("ijkl,jkl,k->i", dx, dx0, input_geom.masses) / input_geom.BN, 0)
+        x0 = input_geom.x
+        dx0 = np.diff(x0, axis=0, append=x0[:1])
+        weights = 1 if np.isclose(input_geom.BN, 0) else np.maximum(
+            np.einsum("ijkl,jkl,k->i", dx, dx0, input_geom.masses) / input_geom.BN, 0
+        )
         print("Instanton FEP")
     beads_energies = beads_energies * EV - ref_energy
     aes = np.average(beads_energies, axis=0)
@@ -63,7 +69,7 @@ def run(args: argparse.Namespace, _parser: argparse.ArgumentParser | None = None
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Generate distribution via quasi random number.")
     configure_parser(parser)
-    run(parser.parse_args(argv), parser)
+    run(parser.parse_args(argv))
 
 
 if __name__ == "__main__":

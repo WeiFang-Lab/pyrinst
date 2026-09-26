@@ -10,7 +10,7 @@ from scipy import linalg
 from pyrinst.potentials import Executor, Level
 
 from .hessian import bfgs, bofill, powell
-from .projections import proj_eig
+from .projections import centroid, proj_eig
 
 if TYPE_CHECKING:
     from pyrinst.geometries import StationaryPoint
@@ -48,6 +48,8 @@ class NewtonRaphson:
         return h
 
     def move(self, data: "StationaryPoint", h: NDArray) -> None:
+        if data.type_alias == "centroid":
+            h -= h.mean(axis=0)
         x, G, H = data.x.copy(), data.G.copy(), data.H.copy()
         data.x += h
         if self.update_method:
@@ -121,7 +123,11 @@ class ModeFollowing(NewtonRaphson):
         # compute attempted step
         hess = data.H.copy()
 
-        if self.project:
+        if data.type_alias == "centroid":
+            b, eig_vecs = proj_eig(data.x, hess, 0, constr_vecs=centroid(data.x))
+            if not len(b):
+                return
+        elif self.project:
             b, eig_vecs = proj_eig(data.x, hess, data.n_zero, mass=data.m)
         else:
             b, eig_vecs = linalg.eigh(hess)  # todo: banded
@@ -278,7 +284,7 @@ class StreamBedWalk(ModeFollowing):
         if self.order == 0:
             xv = -f / b
             alpha = 1
-            lam = b[0] + abs(f[0] / self.maxstep) if b[0] < 0 or norm(xv) > self.maxstep else 0
+            lam = b[0] - abs(f[0] / self.maxstep) if b[0] < 0 or norm(xv) > self.maxstep else 0
 
         else:
             # invert sign in cases of order>1 only

@@ -3,6 +3,7 @@ import math
 import pickle
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import ClassVar
@@ -246,7 +247,7 @@ class TransitionState(StationaryPoint):
 
 @dataclass(slots=True)
 class Springs:
-    """half-ring"""
+    """Springs for a full ring or its reflection-symmetric half."""
 
     N: int
     beta: float
@@ -267,6 +268,10 @@ class Springs:
             raise ValueError
 
     def gradient(self, x: NDArray) -> NDArray:
+        if len(x) == self.N:
+            return self.omega_n**2 * self.masses[:, None] * (2 * x - np.roll(x, 1, axis=0) - np.roll(x, -1, axis=0))
+        if 2 * len(x) != self.N:
+            raise ValueError("Invalid bead count")
         res: NDArray = np.zeros_like(x)
         dx: NDArray = np.diff(x, axis=0)
         res[:-1] -= dx
@@ -274,6 +279,10 @@ class Springs:
         return 2 * self.omega_n**2 * self.masses[:, None] * res
 
     def hessian(self, x: NDArray) -> NDArray:  # todo: banded
+        if len(x) == self.N:
+            return self.hessian_full(x)
+        if 2 * len(x) != self.N:
+            raise ValueError("Invalid bead count")
         tmp: NDArray = (2 * np.ones_like(x[0]) * self.masses[:, None] * self.omega_n**2).ravel()
         d: int = tmp.size
         res: NDArray = np.zeros((self.N // 2 * d, self.N // 2 * d))
@@ -289,15 +298,17 @@ class Springs:
         res: NDArray = np.zeros((self.N * d, self.N * d))
         indices: NDArray = np.arange(len(res))
         res[indices, indices] = 2 * tmp[indices % d]
-        res[indices, indices - d] = res[indices - d, indices] = -tmp[indices % d]
+        res[indices, indices - d] -= tmp[indices % d]
+        res[indices - d, indices] -= tmp[indices % d]
         return res
 
 
 @dataclass(slots=True)
 class Instanton(TransitionState):
-    """half-ring instanton"""
+    """Ring-polymer instanton; reflection-symmetric half ring by default."""
 
     beta: float | None = None
+    full_ring: bool = field(default=False, kw_only=True)
     N: int = field(init=False)
     springs: Springs = field(init=False)
     type_alias: ClassVar[str] = "inst"
@@ -306,15 +317,48 @@ class Instanton(TransitionState):
         StationaryPoint.__post_init__(self)
         if self.beta is None:
             raise ValueError("beta must be specified for instanton")
-        self.N: int = 2 * len(self.x)
+        self.N: int = self.bead_weight * len(self.x)
+        self.validate_nbeads(self.N)
         self.springs = Springs(self.N, self.beta, self.masses)
+
+    def __setstate__(self, state):
+        # Slot-based pickles written before full_ring existed have no such key.
+        self.full_ring = False
+        for name, value in state[1].items():
+            setattr(self, name, value)
+
+    @property
+    def bead_weight(self) -> int:
+        return 1 if self.full_ring else 2
+
+    def validate_nbeads(self, N: int) -> None:
+        if N < 2 or (not self.full_ring and N % 2):
+            raise ValueError("Bead count must be >= 2 and even for a half ring")
+
+    def to_full_ring(self) -> "Instanton":
+        """Return an independent full-ring object, leaving this object unchanged.
+
+        Mirror all bead-local data together. Full-ring spectra and sampling data
+        remain valid; a half-ring optimizer's assembled Hessian cannot be expanded.
+        """
+        inst = deepcopy(self)
+        if not inst.full_ring:
+            for name in ("coords", "energy", "grad", "hess"):
+                value = getattr(inst, name)
+                if value is not None:
+                    if name == "hess" and value.ndim == 2:
+                        inst.hess = None
+                    else:
+                        setattr(inst, name, np.concatenate((value, value[::-1])))
+            inst.full_ring = True
+        return inst
 
     def __hash__(self) -> int:
         return 2
 
     @property
     def V(self) -> float:
-        return 2 * sum(self.energy) + self.springs.potential(self.x)
+        return self.bead_weight * sum(self.energy) + self.springs.potential(self.x)
 
     @V.setter
     def V(self, value: NDArray) -> None:
@@ -322,16 +366,16 @@ class Instanton(TransitionState):
 
     @property
     def G(self) -> NDArray:
-        return 2 * self.grad + self.springs.gradient(self.x)
+        return self.bead_weight * self.grad + self.springs.gradient(self.x)
 
     @G.setter
     def G(self, value: NDArray) -> None:
         self.grad = value
 
     def build_hess(self):
-        res: NDArray = self.springs.hessian(self.x).reshape(self.N // 2, self.dof, self.N // 2, self.dof)
+        res: NDArray = self.springs.hessian(self.x).reshape(len(self.x), self.dof, len(self.x), self.dof)
         indices: NDArray = np.arange(len(res))
-        res[indices, :, indices, :] += 2 * self.hess
+        res[indices, :, indices, :] += self.bead_weight * self.hess
         return res.reshape(self.x.size, self.x.size)
 
     @property
@@ -346,16 +390,33 @@ class Instanton(TransitionState):
         self.hess = value
 
     def hessian_full(self) -> NDArray:
-        res: NDArray = self.springs.hessian_full(self.x).reshape(self.N, self.dof, self.N, self.dof)
-        indices: NDArray = np.arange(len(res))
-        res[indices, :, indices, :] += np.r_[self.hess, self.hess[::-1]]
-        return res.reshape(self.N * self.dof, self.N * self.dof)
+        inst = self if self.full_ring else self.to_full_ring()
+        if inst.hess is None:
+            raise ValueError("Full-ring Hessian requires bead Hessians; recompute them before analysis")
+        return inst.H
 
     @property
     def dof(self) -> int:
         return self.x[0].size
 
     def interpolate(self, N: int) -> None:
+        self.validate_nbeads(N)
+        if isinstance(self, InstRef):
+            center = self.x.mean(axis=0)
+            if self.full_ring:
+                self.x = CubicSpline(
+                    np.arange(self.N + 1) / self.N, np.concatenate((self.x, self.x[:1])), bc_type="periodic"
+                )(np.arange(N) / N)
+            elif len(self.x) == 1:
+                self.x = np.repeat(self.x, N // 2, axis=0)
+            else:
+                self.x = CubicSpline(np.linspace(0, 1, len(self.x)), self.x)(np.linspace(0, 1, N // 2))
+            self.x += center - self.x.mean(axis=0)
+            self.N = N
+            self.springs = Springs(N, self.beta, self.masses)
+            self.energy = self.grad = self.hess = self.freqs = self.modes = None
+            self.harm_energies = None
+            return
         indices_old, indices_new = np.linspace(0, 1, self.N // 2), np.linspace(0, 1, N // 2)
         self.x = CubicSpline(indices_old, self.x, extrapolate=False)(indices_new)
         self.energy = CubicSpline(indices_old, self.energy, extrapolate=False)(indices_new)
@@ -377,11 +438,12 @@ class Instanton(TransitionState):
             save(filename + ".xyz", self.x, self.symbols, comment)
 
     def final_output(self, prefix: str) -> None:
-        contrib: NDArray = self.m * 2 * np.sum(np.sum(np.diff(self.x, axis=0) ** 2, axis=0), axis=-1)
+        dx = np.diff(self.x, axis=0, append=self.x[:1]) if self.full_ring else np.diff(self.x, axis=0)
+        contrib: NDArray = self.bead_weight * self.m * np.sum(dx**2, axis=(0, 2))
         BN: float = np.sum(contrib)
         fmt: str = Formats.BN
         log.info(f"mass-weighted BN: BN = {BN:{fmt}}, BN/(betaN*hbar) = {self.N * BN / (self.beta * HBAR):{fmt}}")
-        if self.symbols is not None:
+        if self.symbols is not None and BN > 0:
             log.info("Contributions to BN (squared mass-weighted path length) from various atoms:")
             for a, atom in enumerate(self.symbols):
                 log.info(f"atom {a} ({atom}): {contrib[a] / BN:>5.1%}")
@@ -395,12 +457,12 @@ class Instanton(TransitionState):
     @property
     def E(self) -> float:
         """Tunneling energy"""
-        return (2 * sum(self.energy) - self.springs.potential(self.x)) / self.N
+        return (self.bead_weight * sum(self.energy) - self.springs.potential(self.x)) / self.N
 
     @property
     def BN(self) -> float:
-        dx: NDArray = np.diff(self.x, axis=0)
-        return 2 * np.einsum("j,ijk,ijk", self.m, dx, dx)
+        dx = np.diff(self.x, axis=0, append=self.x[:1]) if self.full_ring else np.diff(self.x, axis=0)
+        return self.bead_weight * np.einsum("j,ijk,ijk", self.m, dx, dx)
 
     def get_thermo_data(self, beta: float, N: int | None = None) -> ThermoData:
         data = ThermoData(beta, self.type_alias)
@@ -450,13 +512,16 @@ class HarmRef(Geometry):
         mass_factor = mass_amu[np.newaxis, :, np.newaxis] ** -0.5  # shape (1, N, 1)
         self.modes = modes_raw * mass_factor
 
-    def get_inst_guess(self, N: int, beta: float, length: float = 0.1) -> "InstRef":
+    def get_inst_guess(self, N: int, beta: float, length: float = 0.1, *, full_ring: bool = False) -> "InstRef":
+        if N is None or N < 2 or (not full_ring and N % 2):
+            raise ValueError("Specify a bead count >= 2 (even for a half ring)")
         if self.modes is None:
             self.calc_freq()
         mode = self.modes[0] / norm(self.modes[0])
-        phase: NDArray = np.linspace(0, math.pi, N // 2)
+        phase = 2 * np.pi * np.arange(N) / N if full_ring else np.linspace(0, math.pi, N // 2)
         x_inst: NDArray = self.x + length * mode[None, ...] * np.cos(phase).reshape(-1, *(1,) * self.x.ndim)
-        return InstRef(x_inst, self.symbols, n_zero=self.n_zero, links=[self], masses=self.m, beta=beta)
+        x_inst += self.x - x_inst.mean(axis=0)
+        return InstRef(x_inst, self.symbols, links=[self], masses=self.m, beta=beta, full_ring=full_ring)
 
     def delta_free_energy(self) -> float:
         freqs_complex = np.where(self.freqs > 0, 1, -1j) * self.freqs
@@ -476,6 +541,20 @@ class InstRef(Instanton):
     def __post_init__(self):
         Instanton.__post_init__(self)
         self.n_zero = self.x[0].size
+        self.T = 1 / (KB * self.beta)
+
+    def validate_reference(self) -> None:
+        if len(self.links) != 1 or not isinstance(self.links[0], HarmRef):
+            raise ValueError("InstRef FEP requires one HarmRef link")
+        ref = self.links[0]
+        if (
+            not np.array_equal(self.symbols, ref.symbols)
+            or self.m.shape != ref.m.shape
+            or not np.allclose(self.m, ref.m)
+            or self.x.shape[1:] != ref.x.shape
+            or not np.allclose(self.x.mean(axis=0), ref.x, rtol=0, atol=1e-7)
+        ):
+            raise ValueError("HarmRef symbols, masses and centroid must match the instanton")
 
     def update_links(self, *args) -> None:
         if len(args) < 2:
@@ -485,7 +564,7 @@ class InstRef(Instanton):
 
     @property
     def G(self) -> NDArray:
-        res: NDArray = 2 * self.grad + self.springs.gradient(self.x)
+        res: NDArray = self.bead_weight * self.grad + self.springs.gradient(self.x)
         return res - np.mean(res, axis=0)
 
     @G.setter
@@ -494,34 +573,28 @@ class InstRef(Instanton):
 
     @property
     def H(self) -> NDArray:
-        if self.hess.ndim == 3:
-            p = centroid(self.x).reshape(-1, self.x.size)
-            p_mat = np.identity(self.x.size) - np.einsum("ij,ik->jk", p, p)
-            return p_mat @ Instanton.build_hess(self) @ p_mat
-        else:  # ndim == 2
-            return self.hess
+        p = centroid(self.x).reshape(-1, self.x.size)
+        p_mat = np.identity(self.x.size) - np.einsum("ij,ik->jk", p, p)
+        hess = Instanton.build_hess(self) if self.hess.ndim == 3 else self.hess
+        return p_mat @ hess @ p_mat
 
     @H.setter
     def H(self, value: NDArray) -> None:
         self.hess = value
-
-    def hessian_full(self) -> NDArray:
-        x: NDArray = np.concat((self.x, self.x[::-1]))
-        p = centroid(x).reshape(-1, x.size)
-        p_mat = np.identity(x.size) - np.einsum("ij,ik->jk", p, p)
-        return p_mat @ Instanton.hessian_full(self) @ p_mat
 
     def set_beta(self, beta: float) -> None:
         Instanton.set_beta(self, beta)
         self.T = 1 / (KB * beta)
 
     def final_output(self, prefix: str) -> None:
+        self.harm_energies = None
         hess_mw = mass_weight(self.hessian_full(), self.m, dim=self.x.shape[-1])
         eigs, self.modes = np.linalg.eigh(hess_mw)
         self.freqs = np.sqrt(abs(eigs)) * np.sign(eigs)
         Instanton.final_output(self, prefix)
 
     def delta_free_energy(self) -> float:
+        self.validate_reference()
         if np.isclose(BN := self.BN, 0):
             df: float = self.x[0].size * np.log(self.N)
         else:

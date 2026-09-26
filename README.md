@@ -227,7 +227,7 @@ After the initial reference structure is generated, perform a fixed-centroid ins
 **Example:**
 
 ```bash
-pyrinst geom ref.pkl -o inst.pkl -T 300 --mode centroid -P mace -F MACE-OFF23_medium_water_train3_run-1020_stagetwo.model -N 24 -s 0.189
+pyrinst geom ref.pkl -o inst.pkl -T 300 --mode centroid -P mace -F MACE-OFF23_medium_water_train3_run-1020_stagetwo.model --nbeads 24 -s 0.189
 ```
 
 If the optimized geometry already exists and you only want to recompute the rate analysis, run:
@@ -247,7 +247,7 @@ pyrinst geom ref.pkl \
     --mode centroid \
     -P mace \
     -F /path/to/model.model \
-    -N 24 \
+    --nbeads 24 \
     -s 0.189 \
     --working-dir inst_work
 ```
@@ -259,7 +259,7 @@ pyrinst geom ref.pkl \
     -o inst.pkl \
     -T 300 \
     --mode centroid \
-    -N 24 \
+    --nbeads 24 \
     -s 0.189 \
     --parallel \
     --working-dir inst_work
@@ -285,10 +285,58 @@ Each driver process handles one task at a time. Launch multiple driver processes
 - `--mode`: Use `centroid` here for fixed-centroid instanton optimization
 - `-P, --potential`: Selected potential energy surface
 - `-F`: Additional model-path argument corresponding to the selected PES
-- `-N`: Number of beads, for example `24`
+- `--nbeads`: Total number of beads in the complete ring, for example `24`
+- `--full-ring`: Optimize all beads independently in `centroid` mode; omit for a new half-ring calculation
 - `-s, --spread`: Length of the initial instanton guess
 
 > **Tip:** If the instanton optimization does not converge smoothly, try adjusting the optimization settings several times. For example, reduce `maxstep`, switch the optimization algorithm with `opt`, change the initial guess length with `spread`, or enable `no-update` so the optimization uses the true Hessian rather than an updated approximate Hessian.
+
+#### Full-ring fixed-centroid optimization
+
+The centroid constraint fixes each atom's mean coordinates across beads. Half-ring calculations store
+N/2 beads and assume reflection symmetry; full-ring calculations store and optimize all N beads,
+including the spring connecting the last bead to the first. Full rings accept N >= 2, including odd N;
+half rings require even N >= 2. Full-ring calculations require more potential evaluations and larger Hessians.
+
+```bash
+# Generate a full-ring guess from a harmonic reference.
+pyrinst geom ref.pkl --mode centroid --full-ring --nbeads 24 -T 300 -s 0.189 -P mace -F model.model -o full
+
+# Expand an existing half-ring reference without changing its total bead count.
+pyrinst geom half.pkl --mode centroid --full-ring -P mace -F model.model -o full
+
+# Resume a saved full ring; its representation and temperature are retained.
+pyrinst geom full.pkl --mode centroid -P mace -F model.model -o resumed
+
+# Read an independently supplied full path, with one XYZ frame per bead.
+pyrinst geom path.xyz --mode centroid --full-ring -T 300 --link ref.pkl -P mace -F model.model -o full
+```
+
+`--full-ring` is a flag and takes no value. Old PKL files are interpreted as half rings. Omitting the
+flag when resuming a PKL preserves its representation; full rings are never automatically folded.
+In Python, `full = inst.to_full_ring()` returns an independent full-ring object without modifying
+`inst`. It mirrors coordinates and all bead-local potential data together, preserving the total bead
+count, temperature, reference links, full-ring spectra and sampling data. An assembled half-ring
+optimization Hessian is cleared and must be recomputed before full-ring analysis.
+Changing `--nbeads` on a full ring uses periodic interpolation while preserving its centroid.
+The XYZ path must contain at least two frames with matching atom order; do not append a duplicate
+first frame to close it. Its initial centroid is held fixed. A linked `HarmRef` with matching symbols,
+masses and centroid is required for subsequent FEP, but may be omitted for optimization alone.
+
+Guesses generated from a harmonic reference or expanded from a half ring are symmetric and may
+remain symmetric during optimization. Supply an asymmetric XYZ path when needed; no random
+symmetry-breaking perturbation is added automatically.
+
+Sampling and FEP recognize the stored ring type. Use the same total bead count throughout:
+
+```bash
+pyrinst sample full.pkl -T 300 --nbeads 24 -N 2048 -o simulation.pos
+# Evaluate the sampled bead energies with the target potential before this step.
+pyrinst fep-eval full.pkl --nbeads 24 --prefix simulation.pos
+```
+
+Sampling updates the input PKL with the frequencies and harmonic energies needed by FEP.
+Keep a copy if you need to preserve the unsampled reference.
 
 ---
 
