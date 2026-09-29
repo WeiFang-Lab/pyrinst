@@ -5,6 +5,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
+
 from pyrinst.geometries import Instanton, InstRef
 from pyrinst.thermo import ThermoData
 from pyrinst.utils.coordinates import mass_weight
