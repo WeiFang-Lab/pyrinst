@@ -13,6 +13,7 @@ import numpy as np
 from numpy.linalg import norm
 from numpy.typing import NDArray
 from scipy.interpolate import CubicSpline
+from scipy.linalg import eig_banded
 
 from pyrinst.io.formats import Formats, format_array
 from pyrinst.io.xyz import save
@@ -395,6 +396,48 @@ class Instanton(TransitionState):
             raise ValueError("Full-ring Hessian requires bead Hessians; recompute them before analysis")
         return inst.H
 
+    def hessian_full_banded(self) -> NDArray:
+        """Mass-weighted full-ring Hessian in SciPy's lower banded storage.
+
+        Fold the cycle from both ends so every spring joins beads at most two
+        block positions apart. Assemble directly from bead Hessians, without
+        creating the dense full-ring matrix.
+        """
+        if type(self) is not Instanton:
+            raise NotImplementedError("Projected or specialized instantons require their dense Hessian")
+        if self.hess is None or self.hess.ndim != 3:
+            raise ValueError("Full-ring banded Hessian requires bead Hessians; recompute them before analysis")
+
+        n_beads, dof = self.N, self.dof
+        order = [0]
+        left, right = 1, n_beads - 1
+        while left <= right:
+            order.append(left)
+            if left < right:
+                order.append(right)
+            left += 1
+            right -= 1
+        position = np.empty(n_beads, dtype=int)
+        position[order] = np.arange(n_beads)
+
+        sqrt_mass = np.repeat(np.sqrt(self.m), self.x.shape[-1])
+        blocks = self.hess if self.full_ring else np.concatenate((self.hess, self.hess[::-1]))
+        blocks = blocks / sqrt_mass[None, :, None] / sqrt_mass[None, None, :]
+        omega2 = self.springs.omega_n**2
+        band = np.zeros((min(2 * dof, n_beads * dof - 1) + 1, n_beads * dof))
+        rows, cols = np.tril_indices(dof)
+        coords = np.arange(dof)
+
+        for bead in range(n_beads):
+            first = position[bead] * dof
+            band[rows - cols, first + cols] = blocks[bead, rows, cols]
+            band[0, first + coords] += 2 * omega2
+
+        for bead in range(n_beads):
+            low, high = sorted((position[bead], position[(bead + 1) % n_beads]))
+            band[(high - low) * dof, low * dof + coords] -= omega2
+        return band
+
     @property
     def dof(self) -> int:
         return self.x[0].size
@@ -477,7 +520,11 @@ class Instanton(TransitionState):
         if np.isclose(self.N * BN, 0):
             raise RuntimeError("Your instanton beads are likely collapsed")
         # vibrations
-        lam: NDArray = np.linalg.eigvalsh(mass_weight(self.hessian_full(), self.m, dim=self.x.shape[-1]))
+        if type(self) is Instanton and self.hess is not None and self.hess.ndim == 3:
+            lam: NDArray = eig_banded(self.hessian_full_banded(), lower=True, eigvals_only=True)
+        else:
+            # InstRef projects out centroid modes; stored dense Hessians also need this path.
+            lam = np.linalg.eigvalsh(mass_weight(self.hessian_full(), self.m, dim=self.x.shape[-1]))
         self.freqs: NDArray = np.sqrt(abs(lam)) * np.sign(lam)
         freqs_nonzero: NDArray = self.freqs[np.argpartition(abs(self.freqs), self.n_zero + 1)[self.n_zero + 1 :]]
         order: int = sum(freqs_nonzero < 0)
