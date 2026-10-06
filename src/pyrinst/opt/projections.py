@@ -30,12 +30,13 @@ def rot(x, mass: float | NDArray = 1):
     """Returns rotational modes. Use argument mass to get mass-weighted
     rotational modes"""
     assert x.shape[-1] == 3
-    x -= mechanics.center_of_mass(x, mass)
-    _, eig_vecs = linalg.eigh(mechanics.inertia(x, mass))
-    x_rot = np.dot(x, eig_vecs)
+    mass_array = np.full(x.shape[-2], mass) if np.isscalar(mass) else np.asarray(mass)
+    centered = x - mechanics.center_of_mass(x, mass_array)
+    _, eig_vecs = linalg.eigh(mechanics.inertia(centered, mass_array))
+    x_rot = np.dot(centered, eig_vecs)
     p = np.zeros((3,) + x.shape)
     for j in range(3):  # x, y, z
-        p[..., j] = np.cross(x_rot * np.sqrt(mass)[..., None], eig_vecs[j], axisc=0)
+        p[..., j] = np.cross(x_rot * np.sqrt(mass_array)[..., None], eig_vecs[j], axisc=0)
     for j in range(3):
         p[j] /= norm(p[j])
     return p
@@ -46,6 +47,48 @@ def centroid(x: NDArray, mass: float | NDArray = 1) -> NDArray:
     p = np.tile(np.eye(np.prod(x.shape[1:], dtype=int)), (1, len(x))).reshape(-1, *x.shape) * np.sqrt(mass)
     p /= np.linalg.norm(p[0].ravel())
     return p
+
+
+def rigid_body_basis(x: NDArray, n_zero: int, masses: NDArray, metric: str = "cartesian") -> NDArray:
+    """Return an orthonormal rigid-motion basis without modifying coordinates.
+
+    ``cartesian`` matches the unweighted Cartesian Hessian used by the optimizers.
+    ``legacy_mass`` reproduces the subspace used by their older projected path
+    for controlled comparisons; it does not mass-weight the Hessian itself.
+    """
+    if n_zero not in (0, 3, 5, 6):
+        raise ValueError("n_zero must be 0, 3, 5, or 6")
+    if metric not in ("cartesian", "legacy_mass"):
+        raise ValueError("projection metric must be cartesian or legacy_mass")
+    if x.ndim != 3 or x.shape[-1] != 3 or len(masses) != x.shape[1]:
+        raise ValueError("rigid-body basis requires bead, atom, Cartesian coordinates and atomic masses")
+    size = x.size
+    if n_zero == 0:
+        return np.empty((size, 0), dtype=float)
+    atom_weights = np.ones_like(masses, dtype=float) if metric == "cartesian" else np.asarray(masses, dtype=float)
+    if np.any(atom_weights <= 0):
+        raise ValueError("atomic masses must be positive")
+    weights = np.tile(atom_weights, len(x))
+    xyz = np.asarray(x, dtype=float).reshape(-1, 3)
+    center = np.average(xyz, axis=0, weights=weights)
+    weighted = np.sqrt(weights)
+    translations = np.zeros((size, 3))
+    for axis in range(3):
+        translations[axis::3, axis] = weighted
+    if n_zero == 3:
+        candidates = translations
+    else:
+        centered = xyz - center
+        rotations = np.column_stack(
+            [(np.cross(np.eye(3)[axis], centered) * weighted[:, None]).ravel() for axis in range(3)]
+        )
+        candidates = np.column_stack((translations, rotations))
+    basis, factors, _ = linalg.qr(candidates, mode="economic", pivoting=True)
+    diagonal = abs(np.diag(factors))
+    rank = int(np.count_nonzero(diagonal > 1e-10 * max(1.0, diagonal[0])))
+    if rank != n_zero:
+        raise ValueError(f"rigid-body basis has rank {rank}, expected {n_zero}")
+    return basis[:, :n_zero]
 
 
 def proj_eig(

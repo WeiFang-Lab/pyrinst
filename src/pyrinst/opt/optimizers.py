@@ -1,4 +1,5 @@
 import logging
+import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
@@ -9,8 +10,9 @@ from scipy import linalg
 
 from pyrinst.potentials import Executor, Level
 
-from .hessian import bfgs, bofill, powell
-from .projections import centroid, proj_eig
+from .hessian import bfgs, bofill, half_ring_bands, powell, update_bead_hessians, update_bead_hessians_rigid
+from .projections import centroid, proj_eig, rigid_body_basis
+from .sbw_resolvent import ResolventError, banded_projected_sbw_step, banded_sbw_step
 
 if TYPE_CHECKING:
     from pyrinst.geometries import StationaryPoint
@@ -92,9 +94,10 @@ class NewtonRaphson:
             if callback:
                 callback(data)
 
-            log.debug(f"new x = {data.x}")
-            log.debug(f"new G = {data.G}")
-            log.debug(f"new H = {data.H}")
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug("new x = %s", data.x)
+                log.debug("new G = %s", data.G)
+                log.debug("new H = %s", data.H)
 
         else:
             log.warning("WARNING: did not converge")
@@ -118,15 +121,10 @@ class ModeFollowing(NewtonRaphson):
         sign[: self.order] = 1  # positive for maximization
         return sign * 2 * f / (abs(b) * (1 + np.sqrt(1 + 4 * f**2 / b**2)))
 
-    def iterate(self, data: "StationaryPoint") -> None:
-        """Take one iteration, including rescaling step"""
-        # compute attempted step
+    def _eigenpairs(self, data: "StationaryPoint") -> tuple[NDArray, NDArray]:
         hess = data.H.copy()
-
         if data.type_alias == "centroid":
             b, eig_vecs = proj_eig(data.x, hess, 0, constr_vecs=centroid(data.x))
-            if not len(b):
-                return
         elif self.project:
             b, eig_vecs = proj_eig(data.x, hess, data.n_zero, mass=data.m)
         else:
@@ -134,6 +132,13 @@ class ModeFollowing(NewtonRaphson):
             idx: NDArray = np.sort(np.argpartition(abs(b), data.n_zero)[data.n_zero :])
             b = b[idx]
             eig_vecs = eig_vecs[:, idx]
+        return b, eig_vecs
+
+    def iterate(self, data: "StationaryPoint") -> None:
+        """Take one iteration, including rescaling step"""
+        b, eig_vecs = self._eigenpairs(data)
+        if not len(b):
+            return
         n = sum(b < 0)  # number of negative eigenvalues
 
         message = f"{n} -ve eigvals"
@@ -150,6 +155,47 @@ class ModeFollowing(NewtonRaphson):
         self.move(data, h)
         log.info(f"step ={norm(h):.5e}")
         log.debug(f"eigvals: {b}")
+
+
+class _BandedBeadHessian:
+    """Keep bead potential Hessians local while reusing the parent's step rule."""
+
+    def _eigenpairs(self, data: "StationaryPoint") -> tuple[NDArray, NDArray]:
+        if (
+            self.project
+            or getattr(data, "type_alias", None) != "inst"
+            or getattr(data, "full_ring", False)
+            or data.hess is None
+            or data.hess.ndim != 3
+        ):
+            return super()._eigenpairs(data)
+        bands = half_ring_bands(data.hess, data.masses, data.springs.omega_n, data.x.shape[-1])
+        b, eig_vecs = linalg.eig_banded(bands, lower=True)
+        idx: NDArray = np.sort(np.argpartition(abs(b), data.n_zero)[data.n_zero :])
+        return b[idx], eig_vecs[:, idx]
+
+    def move(self, data: "StationaryPoint", h: NDArray) -> None:
+        if not self.update_method or getattr(data, "type_alias", None) not in ("inst", "centroid"):
+            super().move(data, h)
+            return
+        if data.hess is None or data.hess.ndim != 3:
+            raise ValueError("bead-local Hessian update requires per-bead Hessians")
+        if data.type_alias == "centroid":
+            h -= h.mean(axis=0)
+        x, grad, hess = data.x.copy(), data.grad.copy(), data.hess.copy()
+        data.x += h
+        self.executor.compute(data, level=Level.GRAD)
+        method = "powell" if self.update_method is powell else "bfgs" if self.update_method is bfgs else "bofill"
+        if getattr(self, "rigid_update", False):
+            data.hess = update_bead_hessians_rigid(hess, data.x, data.grad, data.x - x, data.grad - grad)
+        else:
+            data.hess = update_bead_hessians(hess, data.x - x, data.grad - grad, method=method)
+
+
+class BandedModeFollowing(_BandedBeadHessian, ModeFollowing):
+    """Mode following with local Hessian updates and half-ring banded eigenpairs."""
+
+    type_alias = "EFB"
 
 
 class LBFGS(NewtonRaphson):
@@ -290,24 +336,173 @@ class StreamBedWalk(ModeFollowing):
             # invert sign in cases of order>1 only
             b[1 : self.order] *= -1
             f[1 : self.order] *= -1
-            b0 = b[0]
-            b1 = b[1]
-
-            if b0 > 0:  # b[1:] also must be +ve
-                if 0.5 * b1 > b0:
-                    alpha = 1
-                    lam = 0.5 * (b0 + 0.5 * b1)  # choose midpoint
-                else:
-                    alpha = (b1 - b0) / b1  # change alpha so that it's possible
-                    lam = 0.25 * (3 * b0 + b1)  # midpoint between b0 and b1*(1-alpha/2)
-            elif b1 < 0:  # b0 also must be -ve
-                if b1 >= 0.5 * b0:
-                    alpha = 1
-                    lam = 0.5 * (0.5 * b0 + b1)
-                else:
-                    alpha = (b0 - b1) / b1
-                    lam = 0.25 * (b0 + 3 * b1)
-            else:  # b0 is -ve but others are +ve
-                alpha = 1
-                lam = 0.25 * (b0 + b1)
+            alpha, lam = self.alpha_lambda(b[0], b[1])
         return alpha * f / (lam - b)  # step in ev space
+
+    @staticmethod
+    def alpha_lambda(b0: float, b1: float) -> tuple[float, float]:
+        """Use the original SBW scalar rule for saddle searches."""
+        if b0 > 0:
+            if 0.5 * b1 > b0:
+                return 1.0, 0.5 * (b0 + 0.5 * b1)
+            return (b1 - b0) / b1, 0.25 * (3 * b0 + b1)
+        if b1 < 0:
+            if b1 >= 0.5 * b0:
+                return 1.0, 0.5 * (0.5 * b0 + b1)
+            return (b0 - b1) / b1, 0.25 * (b0 + 3 * b1)
+        return 1.0, 0.25 * (b0 + b1)
+
+
+class BandedStreamBedWalk(_BandedBeadHessian, StreamBedWalk):
+    """SBW with local Hessian updates and half-ring banded eigenpairs."""
+
+    type_alias = "SBWB"
+
+
+class BandedResolventStreamBedWalk(_BandedBeadHessian, StreamBedWalk):
+    """SBW with bead-local Hessian updates and a banded resolvent step.
+
+    Supports projected or unprojected first-order half-ring instantons.
+    Failed numerical checks fall back to the matching dense SBW step.
+    """
+
+    type_alias = "SBWR"
+
+    def __init__(
+        self,
+        *args,
+        projection_metric: str = "cartesian",
+        low_mode_shift: str = "eigenvalue",
+        low_mode_preconditioner: str = "projected",
+        band_lu: bool = True,
+        warm_start: bool = True,
+        warm_shift_mode: bool = True,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        if projection_metric not in ("cartesian", "legacy_mass"):
+            raise ValueError("projection metric must be cartesian or legacy_mass")
+        if low_mode_shift not in ("eigenvalue", "bound"):
+            raise ValueError("low-mode shift must be eigenvalue or bound")
+        if low_mode_preconditioner not in ("projected", "constrained"):
+            raise ValueError("low-mode preconditioner must be projected or constrained")
+        self.projection_metric = projection_metric
+        self.low_mode_shift = low_mode_shift
+        self.low_mode_preconditioner = low_mode_preconditioner
+        self.band_lu = band_lu
+        self.warm_start = warm_start
+        self.warm_shift_mode = warm_shift_mode
+        self.low_mode_vectors: NDArray | None = None
+        self.shift_mode_vector: NDArray | None = None
+        self.low_mode_history_lengths: list[int] = []
+        self.warm_start_retries = 0
+        self.resolvent_seconds = 0.0
+        self.resolvent_calls = 0
+        self.resolvent_fallbacks = 0
+        self.resolvent_fallback_iterations: list[int] = []
+        self.resolvent_failure_reasons: list[str] = []
+        self.resolvent_component_seconds: dict[str, float] = {}
+
+    def _checked_displacement(self, step: NDArray, constraints: NDArray | None) -> NDArray:
+        """Reject invalid coordinates before moving or updating bead Hessians."""
+        if not np.all(np.isfinite(step)):
+            raise ResolventError("SBW displacement is not finite")
+        if not np.isfinite(norm(step)):
+            raise ResolventError("SBW displacement norm is not finite")
+        step = self.scale(step)
+        step_norm = norm(step)
+        if not np.isfinite(step_norm):
+            raise ResolventError("SBW displacement norm is not finite")
+        if self.maxstep is not None and step_norm > self.maxstep * (1 + 1e-12):
+            raise ResolventError("SBW displacement exceeds maxstep")
+        if constraints is not None and norm(constraints.T @ step) > 1e-8 * max(1.0, step_norm):
+            raise ResolventError("SBW displacement violates rigid-body constraints")
+        return step
+
+    def iterate(self, data: "StationaryPoint") -> None:
+        if (
+            self.order != 1
+            or getattr(data, "type_alias", None) != "inst"
+            or getattr(data, "full_ring", False)
+            or data.hess is None
+            or data.hess.ndim != 3
+        ):
+            raise NotImplementedError("SBWR requires a first-order half-ring instanton")
+        bands = half_ring_bands(data.hess, data.masses, data.springs.omega_n, data.x.shape[-1])
+        constraints = (
+            rigid_body_basis(data.x, data.n_zero, data.masses, self.projection_metric) if self.project else None
+        )
+        began = time.perf_counter()
+        self.resolvent_calls += 1
+        try:
+            if self.project:
+                # The spring Hessian is positive semidefinite, so twice the
+                # lowest bead potential curvature bounds the half-ring below.
+                lower_bound = 2 * float(np.min(np.linalg.eigvalsh(data.hess)))
+                initial = self.low_mode_vectors if self.warm_start else None
+                if initial is not None and initial.shape[0] != bands.shape[1]:
+                    initial = None
+                shift_initial = self.shift_mode_vector if self.warm_start and self.warm_shift_mode else None
+                if shift_initial is not None and shift_initial.shape != (bands.shape[1],):
+                    shift_initial = None
+                diagnostics: dict = {}
+                try:
+                    h, timings = banded_projected_sbw_step(
+                        bands, data.G.ravel(), constraints, self.alpha_lambda,
+                        potential_lower_bound=lower_bound, initial_vectors=initial,
+                        initial_shift_vector=shift_initial,
+                        diagnostics=diagnostics, shift_selection=self.low_mode_shift,
+                        preconditioner=self.low_mode_preconditioner, band_lu=self.band_lu,
+                    )
+                except (ResolventError, linalg.LinAlgError, RuntimeError, ValueError):
+                    if initial is None:
+                        raise
+                    self.warm_start_retries += 1
+                    diagnostics = {}
+                    h, timings = banded_projected_sbw_step(
+                        bands, data.G.ravel(), constraints, self.alpha_lambda,
+                        potential_lower_bound=lower_bound, diagnostics=diagnostics,
+                        shift_selection=self.low_mode_shift,
+                        preconditioner=self.low_mode_preconditioner, band_lu=self.band_lu,
+                    )
+            else:
+                h, timings = banded_sbw_step(bands, data.G.ravel(), data.n_zero, self.alpha_lambda)
+            h = self._checked_displacement(h, constraints)
+            if self.project:
+                if self.warm_start:
+                    self.low_mode_vectors = diagnostics["low_vectors"]
+                    self.shift_mode_vector = diagnostics["shift_vector"] if self.warm_shift_mode else None
+                self.low_mode_history_lengths.append(diagnostics["lobpcg_history_length"])
+            for name, seconds in timings.items():
+                self.resolvent_component_seconds[name] = self.resolvent_component_seconds.get(name, 0.0) + seconds
+        except (ResolventError, linalg.LinAlgError, RuntimeError, ValueError) as exc:
+            self.low_mode_vectors = None
+            self.shift_mode_vector = None
+            self.resolvent_fallbacks += 1
+            self.resolvent_fallback_iterations.append(self.resolvent_calls)
+            self.resolvent_failure_reasons.append(str(exc))
+            log.warning("SBWR falling back to dense eigensolver: %s", exc)
+            hess = data.H.copy()
+            if self.project:
+                projector = np.eye(len(hess)) - constraints @ constraints.T
+                hess = projector @ hess @ projector
+            b, eig_vecs = linalg.eigh(hess)
+            keep = np.sort(np.argpartition(abs(b), data.n_zero)[data.n_zero :])
+            f = data.G.ravel() @ eig_vecs[:, keep]
+            h = self._checked_displacement(eig_vecs[:, keep] @ self.step(f, b[keep]), constraints)
+        self.resolvent_seconds += time.perf_counter() - began
+        h = h.reshape(data.x.shape)
+        self.move(data, h)
+        log.info(f"step ={norm(h):.5e}")
+
+
+class RigidBandedResolventStreamBedWalk(BandedResolventStreamBedWalk):
+    """First-order half-ring SBW with rigid-covariant bead Hessian updates.
+
+    The PES must be translation and rotation invariant in Cartesian space.
+    Its gradients are checked for compatibility with a symmetric Hessian at
+    every updated bead. The spring block and band topology are unchanged.
+    """
+
+    type_alias = "SBWRP"
+    rigid_update = True
